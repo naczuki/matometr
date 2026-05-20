@@ -166,6 +166,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    padding-bottom: 16px;
   }
 
   .load-more {
