@@ -4,6 +4,7 @@
   import { fetchMatomeList, fetchNosliList } from '$lib/services/NostrClient';
   import { Matome } from '$lib/entities/Matome';
   import MatomeCard from '$lib/components/MatomeCard.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
   import type { Tab } from '$lib/types';
 
   export let tab: Tab;
@@ -45,7 +46,7 @@
 
 {#if loading}
   <div class="state-wrap">
-    <div class="state-icon">⏳</div>
+    <Spinner />
     <div class="state-text">読み込み中…</div>
   </div>
 {:else if showFollowingMsg}

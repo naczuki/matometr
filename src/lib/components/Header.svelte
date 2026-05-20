@@ -56,7 +56,6 @@
 <header>
   <div class="inner">
     <a href="{base}/" class="logo">
-      <div class="logo-icon">📋</div>
       <div class="logo-text">まとめたー<span class="logo-sub">matometr</span></div>
     </a>
 
@@ -184,19 +183,6 @@
     align-items: center;
     gap: 10px;
     text-decoration: none;
-  }
-
-  .logo-icon {
-    width: 38px;
-    height: 38px;
-    background: var(--accent);
-    border-radius: 11px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.35);
   }
 
   .logo-text {
