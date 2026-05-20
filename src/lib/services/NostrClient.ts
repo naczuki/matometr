@@ -161,19 +161,35 @@ function blocksToContent(blocks: EditorBlock[]): string {
   return parts.join('\n\n');
 }
 
-function buildETags(blocks: EditorBlock[]): string[][] {
-  return blocks
-    .filter((b): b is NoteEditorBlock => b.type === 'nevent' && Boolean(b.nevent))
-    .flatMap((b) => {
-      try {
-        const decoded = nip19.decode(b.nevent.replace(/^nostr:/, ''));
-        if (decoded.type !== 'nevent') return [];
-        const relay = decoded.data.relays?.[0] ?? '';
-        return [['e', decoded.data.id, relay, 'mention']];
-      } catch {
-        return [];
+function buildMentionTags(blocks: EditorBlock[]): string[][] {
+  const seenIds = new Set<string>();
+  const seenPubkeys = new Set<string>();
+  const qTags: string[][] = [];
+  const pTags: string[][] = [];
+
+  for (const block of blocks) {
+    if (block.type !== 'nevent' || !block.nevent) continue;
+    try {
+      const decoded = nip19.decode(block.nevent.replace(/^nostr:/, ''));
+      if (decoded.type !== 'nevent') continue;
+      const { id, relays, author } = decoded.data;
+      const relay = relays?.[0] ?? '';
+
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        qTags.push(['q', id, relay, author ?? '']);
       }
-    });
+
+      if (author && !seenPubkeys.has(author)) {
+        seenPubkeys.add(author);
+        pTags.push(['p', author, relay]);
+      }
+    } catch {
+      // 無効な nevent は無視
+    }
+  }
+
+  return [...qTags, ...pTags];
 }
 
 async function sendToRelays(eventParams: {
@@ -234,7 +250,7 @@ export async function publishMatome(params: {
       ['published_at', String(now)],
       ['t', 'matometr'],
       ['client', 'matometr'],
-      ...buildETags(params.blocks),
+      ...buildMentionTags(params.blocks),
     ],
     content: blocksToContent(params.blocks),
   });
@@ -268,7 +284,7 @@ export async function updateMatome(params: {
       ['published_at', String(params.publishedAt)],
       ['t', 'matometr'],
       ['client', 'matometr'],
-      ...buildETags(params.blocks),
+      ...buildMentionTags(params.blocks),
     ],
     content: blocksToContent(params.blocks),
   });
