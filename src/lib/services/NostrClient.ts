@@ -118,6 +118,13 @@ export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
     map(({ event }) => {
       try {
         const meta = JSON.parse(event.content) as Record<string, unknown>;
+        const emojis: Record<string, string> = {};
+        for (const tag of event.tags) {
+          const [k, shortcode, url] = tag;
+          if (k === 'emoji' && shortcode && url && /^https?:\/\//i.test(url)) {
+            emojis[shortcode] = url;
+          }
+        }
         const profile: UserProfile = {
           pubkey: event.pubkey,
           npub: nip19.npubEncode(event.pubkey),
@@ -129,7 +136,8 @@ export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
           picture:
             typeof meta.picture === 'string' && meta.picture ? meta.picture : undefined,
           about: typeof meta.about === 'string' ? meta.about : undefined,
-          nip05: typeof meta.nip05 === 'string' ? meta.nip05 : undefined
+          nip05: typeof meta.nip05 === 'string' ? meta.nip05 : undefined,
+          emojis: Object.keys(emojis).length > 0 ? emojis : undefined
         };
         return profile;
       } catch {

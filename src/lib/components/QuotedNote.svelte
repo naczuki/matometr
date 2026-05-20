@@ -6,7 +6,7 @@
   import { fetchNoteById } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
-  import { parseNostrRefs } from '$lib/utils/nostrContent';
+  import { parseNostrRefs, isSafeUrl } from '$lib/utils/nostrContent';
 
   export let eventId: string;
 
@@ -35,7 +35,22 @@
     return content.replace(IMAGE_RE, '').replace(/\n{3,}/g, '\n\n').trim();
   }
 
-  $: segments = note ? parseNostrRefs(stripImages(note.content)) : [];
+  $: emojiMap = (() => {
+    const map = new Map<string, string>();
+    if (!note) return map;
+    for (const tag of note.tags) {
+      const [k, shortcode, url] = tag;
+      if (k === 'emoji' && shortcode && url && isSafeUrl(url)) map.set(shortcode, url);
+    }
+    return map;
+  })();
+
+  let failedEmojis: Set<string> = new Set();
+  function onEmojiError(shortcode: string): void {
+    failedEmojis = new Set([...failedEmojis, shortcode]);
+  }
+
+  $: segments = note ? parseNostrRefs(stripImages(note.content), emojiMap) : [];
 
   $: for (const seg of segments) {
     if (seg.type === 'mention') requestProfile(seg.pubkey);
@@ -109,6 +124,20 @@
           <a class="naddr-link" href="https://njump.me/{segment.naddr}" target="_blank" rel="noopener noreferrer">
             nostr:{shortRef(segment.naddr)}
           </a>
+        {:else if segment.type === 'emoji'}
+          {#if failedEmojis.has(segment.shortcode)}
+            :{segment.shortcode}:
+          {:else}
+            <img
+              src={segment.url}
+              alt=":{segment.shortcode}:"
+              class="emoji-img"
+              loading="lazy"
+              on:error={() => onEmojiError(segment.shortcode)}
+            />
+          {/if}
+        {:else if segment.type === 'url'}
+          <a class="naddr-link" href={segment.url} target="_blank" rel="noopener noreferrer">{segment.url}</a>
         {/if}
       {/each}
     </div>
@@ -170,6 +199,13 @@
 
   .text-seg {
     white-space: pre-wrap;
+  }
+
+  .emoji-img {
+    height: 1.2em;
+    width: auto;
+    vertical-align: middle;
+    display: inline;
   }
 
   .mention-link,

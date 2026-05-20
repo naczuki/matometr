@@ -7,7 +7,7 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
-  import { parseNostrRefs, extractImages } from '$lib/utils/nostrContent';
+  import { parseNostrRefs, extractImages, isSafeUrl } from '$lib/utils/nostrContent';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
 
   export let nevent: string;
@@ -58,8 +58,18 @@
     }
   }
 
+  $: emojiMap = (() => {
+    const map = new Map<string, string>();
+    if (!note) return map;
+    for (const tag of note.tags) {
+      const [k, shortcode, url] = tag;
+      if (k === 'emoji' && shortcode && url && isSafeUrl(url)) map.set(shortcode, url);
+    }
+    return map;
+  })();
+
   $: parsedContent = note ? extractImages(note.content) : { text: '', urls: [] };
-  $: segments = parseNostrRefs(parsedContent.text);
+  $: segments = parseNostrRefs(parsedContent.text, emojiMap);
 
   // メンション対象のプロフィールをリクエスト
   $: for (const seg of segments) {
@@ -67,9 +77,14 @@
   }
 
   let failedImages: Set<string> = new Set();
+  let failedEmojis: Set<string> = new Set();
 
   function onImgError(url: string): void {
     failedImages = new Set([...failedImages, url]);
+  }
+
+  function onEmojiError(shortcode: string): void {
+    failedEmojis = new Set([...failedEmojis, shortcode]);
   }
 
   function shortenNaddr(naddr: string): string {
@@ -125,6 +140,18 @@
             target="_blank"
             rel="noopener noreferrer"
           >{segment.url}</a>
+        {:else if segment.type === 'emoji'}
+          {#if failedEmojis.has(segment.shortcode)}
+            :{segment.shortcode}:
+          {:else}
+            <img
+              src={segment.url}
+              alt=":{segment.shortcode}:"
+              class="emoji-img"
+              loading="lazy"
+              on:error={() => onEmojiError(segment.shortcode)}
+            />
+          {/if}
         {/if}
       {/each}
     </div>
@@ -293,6 +320,13 @@
 
   .url-link:hover {
     text-decoration: underline;
+  }
+
+  .emoji-img {
+    height: 1.2em;
+    width: auto;
+    vertical-align: middle;
+    display: inline;
   }
 
   .img-error {

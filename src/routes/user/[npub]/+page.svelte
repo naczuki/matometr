@@ -64,9 +64,20 @@
   $: style = pubkey ? avatarStyle(pubkey) : { bg: '#e5e5e5', fg: '#737373', initial: '?' };
   $: isSelf = !!$currentUser && !!pubkey && pubkey === $currentUser.pubkey;
 
+  $: profileEmojiMap = profile?.emojis
+    ? new Map(Object.entries(profile.emojis))
+    : new Map<string, string>();
+
+  $: displayNameSegments = parseNostrRefs(displayName, profileEmojiMap);
+
   $: aboutContent = profile?.about ? extractImages(profile.about) : { text: '', urls: [] };
-  $: aboutSegments = parseNostrRefs(aboutContent.text);
+  $: aboutSegments = parseNostrRefs(aboutContent.text, profileEmojiMap);
   $: { for (const seg of aboutSegments) { if (seg.type === 'mention') requestProfile(seg.pubkey); } }
+
+  let failedEmojis: Set<string> = new Set();
+  function onEmojiError(shortcode: string): void {
+    failedEmojis = new Set([...failedEmojis, shortcode]);
+  }
 
   let imgFailed = false;
   $: picture, (imgFailed = false);
@@ -104,7 +115,16 @@
       </div>
 
       <div class="profile-info">
-        <div class="profile-name">{displayName}</div>
+        <div class="profile-name">
+          {#each displayNameSegments as seg}
+            {#if seg.type === 'text'}{seg.content}
+            {:else if seg.type === 'emoji'}
+              {#if failedEmojis.has(seg.shortcode)}:{seg.shortcode}:
+              {:else}<img src={seg.url} alt=":{seg.shortcode}:" class="emoji-img" loading="lazy" on:error={() => onEmojiError(seg.shortcode)} />
+              {/if}
+            {/if}
+          {/each}
+        </div>
         {#if profile?.nip05}
           <div class="profile-nip05">{profile.nip05}</div>
         {/if}
@@ -121,6 +141,10 @@
                 <QuotedNote eventId={seg.eventId} />
               {:else if seg.type === 'url'}
                 <a class="bio-url" href={seg.url} target="_blank" rel="noopener noreferrer">{seg.url}</a>
+              {:else if seg.type === 'emoji'}
+                {#if failedEmojis.has(seg.shortcode)}:{seg.shortcode}:
+                {:else}<img src={seg.url} alt=":{seg.shortcode}:" class="emoji-img" loading="lazy" on:error={() => onEmojiError(seg.shortcode)} />
+                {/if}
               {:else if seg.type === 'naddr'}
                 <a class="bio-url" href="https://njump.me/{seg.naddr}" target="_blank" rel="noopener noreferrer">nostr:{seg.naddr.slice(0, 12)}…</a>
               {/if}
@@ -238,6 +262,13 @@
 
   .bio-text {
     white-space: pre-wrap;
+  }
+
+  .emoji-img {
+    height: 1.2em;
+    width: auto;
+    vertical-align: middle;
+    display: inline;
   }
 
   .bio-mention,
