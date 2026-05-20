@@ -1,6 +1,5 @@
 <footer>
   <div class="inner">
-    <span class="copy">© 2025 まとめたー</span>
     <div class="links">
       <a
         href="https://github.com/naczuki"
@@ -43,12 +42,6 @@
     align-items: center;
     justify-content: center;
     gap: 16px;
-  }
-
-  .copy {
-    font-size: 12px;
-    color: var(--ink3);
-    font-family: var(--font-ui);
   }
 
   .links {
