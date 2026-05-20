@@ -5,7 +5,7 @@ import { map, filter, tap, take } from 'rxjs';
 import { verifyEvent, nip19 } from 'nostr-tools';
 import type { AddressPointer } from 'nostr-tools/nip19';
 import { ulid } from 'ulid';
-import { DEFAULT_RELAYS } from '$lib/stores/relays';
+import { DEFAULT_RELAYS, SEARCH_RELAYS } from '$lib/stores/relays';
 import { Matome } from '$lib/entities/Matome';
 import type { UserProfile, Note, EditorBlock, NoteEditorBlock } from '$lib/types';
 
@@ -242,6 +242,55 @@ export function fetchNotesByIds(
       })
     )
   );
+}
+
+/**
+ * #t フィルタ（DEFAULT_RELAYS）と NIP-50 search（SEARCH_RELAYS）を
+ * マージして kind:1 を取得。id 重複は呼び出し側で除去する。
+ */
+export function fetchTagSearch(
+  keyword: string,
+  options: { until?: number; limit?: number; since?: number } = {}
+): Observable<Note> {
+  if (!keyword) return EMPTY;
+  const client = getClient();
+  const { until, limit = 30, since } = options;
+
+  function toNote({ event }: { event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][] } }): Note {
+    return {
+      id: event.id,
+      pubkey: event.pubkey,
+      content: event.content,
+      createdAt: event.created_at,
+      tags: event.tags
+    };
+  }
+
+  const tagFilter = {
+    kinds: [1],
+    '#t': [keyword],
+    limit,
+    ...(since != null ? { since } : {}),
+    ...(until != null ? { until } : {})
+  };
+  const tagReq = createRxOneshotReq({ filters: tagFilter });
+  const tagObs = client.use(tagReq, {
+    on: { relays: DEFAULT_RELAYS, defaultReadRelays: false }
+  }).pipe(uniq(), map(toNote));
+
+  const searchFilter = {
+    kinds: [1],
+    search: keyword,
+    limit,
+    ...(since != null ? { since } : {}),
+    ...(until != null ? { until } : {})
+  };
+  const searchReq = createRxOneshotReq({ filters: searchFilter });
+  const searchObs = client.use(searchReq, {
+    on: { relays: [...SEARCH_RELAYS], defaultReadRelays: false }
+  }).pipe(uniq(), map(toNote));
+
+  return merge(tagObs, searchObs);
 }
 
 /**

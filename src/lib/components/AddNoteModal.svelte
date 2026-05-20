@@ -4,11 +4,12 @@
   import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
   import FollowingFeedTab from '$lib/components/FollowingFeedTab.svelte';
   import FavoritesFeedTab from '$lib/components/FavoritesFeedTab.svelte';
+  import SearchFeedTab from '$lib/components/SearchFeedTab.svelte';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
 
   export let open = false;
 
-  type Tab = 'paste' | 'following' | 'favorites';
+  type Tab = 'paste' | 'following' | 'favorites' | 'search';
   let activeTab: Tab = 'paste';
 
   type Pending = { eventId: string; nevent: string };
@@ -127,6 +128,14 @@
           on:click={() => (activeTab = 'favorites')}
           type="button"
         >お気に入り</button>
+        <button
+          class="tab"
+          class:active={activeTab === 'search'}
+          role="tab"
+          aria-selected={activeTab === 'search'}
+          on:click={() => (activeTab = 'search')}
+          type="button"
+        >タグ検索</button>
       </div>
 
       <div class="body">
@@ -150,8 +159,10 @@
           </div>
         {:else if activeTab === 'following'}
           <FollowingFeedTab {selectedIds} onToggle={toggleSelection} />
-        {:else}
+        {:else if activeTab === 'favorites'}
           <FavoritesFeedTab {selectedIds} onToggle={toggleSelection} />
+        {:else}
+          <SearchFeedTab {selectedIds} onToggle={toggleSelection} />
         {/if}
       </div>
 
