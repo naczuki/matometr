@@ -2,6 +2,7 @@ import { writable, derived } from 'svelte/store';
 import { nip19 } from 'nostr-tools';
 import type { UserProfile } from '$lib/types';
 import { fetchProfiles } from '$lib/services/NostrClient';
+import { init, logout as nlLogout } from 'nostr-login';
 
 // window.nostr の有無（nostr-login または拡張機能）
 export const nostrAvailable = writable<boolean>(false);
@@ -23,44 +24,48 @@ export const currentUser = derived([_pubkey, _profile], ([$pubkey, $profile]) =>
   }
 });
 
-function handleLogin(pk: string): void {
-  _pubkey.set(pk);
-  _profile.set(null);
-  nostrAvailable.set(true);
-  fetchProfiles([pk]).subscribe((profile) => {
-    _profile.set(profile);
-  });
+function handleLogin(npub: string): void {
+  try {
+    const decoded = nip19.decode(npub);
+    if (decoded.type !== 'npub') return;
+    const pk = decoded.data;
+    _pubkey.set(pk);
+    _profile.set(null);
+    nostrAvailable.set(true);
+    fetchProfiles([pk]).subscribe((profile) => {
+      _profile.set(profile);
+    });
+  } catch {
+    // 無効な npub
+  }
 }
 
 export function logout(): void {
   _pubkey.set(null);
   _profile.set(null);
-  if (typeof document !== 'undefined') {
-    document.dispatchEvent(new CustomEvent('nlLogout'));
-  }
+  nlLogout();
 }
 
-// クライアントサイドのみ：nostr-login セッション復元・認証イベント処理
-if (typeof document !== 'undefined') {
-  // nostr-login からの認証イベント（ログイン・ログアウト・セッション復元）
-  document.addEventListener('nlAuth', async (e: Event) => {
-    const { type } = (e as CustomEvent<{ type: string }>).detail;
-    if (type === 'login' || type === 'signup') {
-      try {
-        const pk = await window.nostr?.getPublicKey();
-        if (pk) handleLogin(pk);
-      } catch {
-        // window.nostr 未利用 or ユーザーが拒否
+// ページ読み込み時に一度だけ呼ぶ（+layout.svelte の onMount から）
+export async function initAuth(): Promise<void> {
+  await init({
+    noBanner: true,
+    perms: 'sign_event:30023',
+    bunkers: 'nsec.app',
+    theme: 'default',
+    darkMode: typeof window !== 'undefined'
+      && window.matchMedia('(prefers-color-scheme: dark)').matches,
+    onAuth: (npub, options) => {
+      if (options.type === 'login' || options.type === 'signup') {
+        handleLogin(npub);
+      } else if (options.type === 'logout') {
+        _pubkey.set(null);
+        _profile.set(null);
       }
-    } else if (type === 'logout') {
-      _pubkey.set(null);
-      _profile.set(null);
     }
   });
-
-  // ページ読み込み完了後に window.nostr の存在だけ確認（拡張機能対応）
-  // getPublicKey() は呼ばない（自動プロンプト防止）
-  window.addEventListener('load', () => {
-    if (window.nostr) nostrAvailable.set(true);
-  });
+  // 初期化後に window.nostr の有無を確認
+  if (typeof window !== 'undefined' && window.nostr) {
+    nostrAvailable.set(true);
+  }
 }
