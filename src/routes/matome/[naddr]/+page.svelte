@@ -52,10 +52,6 @@
     }
   });
 
-  $: nostrRef = matome
-    ? 'nostr:' + nip19.neventEncode({ id: matome.id, author: matome.pubkey, kind: 30023 })
-    : '';
-
   $: isMine = !!$currentUser && matome?.pubkey === $currentUser.pubkey;
 
   $: profile = $profiles.get(matome?.pubkey ?? '');
@@ -120,7 +116,6 @@
 
   // ⋮ menu
   let menuOpen = false;
-  let copiedNevent = false;
   let copiedNaddr = false;
 
   function handleMenuToggle(e: MouseEvent): void {
@@ -130,14 +125,6 @@
 
   function handleDocClick(): void {
     menuOpen = false;
-  }
-
-  async function copyNevent(): Promise<void> {
-    if (!matome) return;
-    const nevent = nip19.neventEncode({ id: matome.id, author: matome.pubkey, kind: 30023 });
-    await navigator.clipboard.writeText(nevent);
-    copiedNevent = true;
-    setTimeout(() => { copiedNevent = false; menuOpen = false; }, 1500);
   }
 
   async function copyNaddr(): Promise<void> {
@@ -167,7 +154,14 @@
 
   // JSON modal
   let showJson = false;
+  let copiedJson = false;
   $: jsonText = matome ? JSON.stringify(matome.rawEvent, null, 2) : '';
+
+  async function copyJson(): Promise<void> {
+    await navigator.clipboard.writeText(jsonText);
+    copiedJson = true;
+    setTimeout(() => { copiedJson = false; }, 1500);
+  }
 </script>
 
 <svelte:window on:click={handleDocClick} />
@@ -231,7 +225,7 @@
 
         <div class="stat-share-row">
           <!-- Nos: nostr-share-component（スロットでテキスト上書き） -->
-          <nostr-share data-text="{matome.title} {nostrRef}"><span class="nos-label">Nos</span></nostr-share>
+          <nostr-share data-text="{matome.title} {currentUrl}"><span class="nos-label">Nos</span></nostr-share>
 
           <!-- X -->
           <button class="share-btn" title="Xでシェア" aria-label="Xでシェア" on:click={shareX}>
@@ -265,12 +259,6 @@
             </button>
             {#if menuOpen}
               <div class="menu-dropdown" role="menu">
-                <button class="menu-item" role="menuitem" on:click={copyNevent}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                  </svg>
-                  {copiedNevent ? 'コピーしました' : 'nevent1 をコピー'}
-                </button>
                 <button class="menu-item" role="menuitem" on:click={copyNaddr}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="9" y="9" width="13" height="13" rx="2"/>
@@ -370,7 +358,23 @@
     <div class="json-modal">
       <div class="json-header">
         <span>Raw Event JSON</span>
-        <button class="json-close" on:click={() => (showJson = false)} aria-label="閉じる">×</button>
+        <div class="json-header-actions">
+          <button class="json-copy" on:click={copyJson} aria-label="JSONをコピー">
+            {#if copiedJson}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              コピーしました
+            {:else}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              コピー
+            {/if}
+          </button>
+          <button class="json-close" on:click={() => (showJson = false)} aria-label="閉じる">×</button>
+        </div>
       </div>
       <pre class="json-body">{jsonText}</pre>
     </div>
@@ -860,6 +864,35 @@
     font-weight: 700;
     color: var(--ink);
     flex-shrink: 0;
+  }
+
+  .json-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .json-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border2);
+    background: var(--surface);
+    color: var(--ink2);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.1s, border-color 0.1s;
+    white-space: nowrap;
+  }
+
+  .json-copy:hover {
+    background: var(--accent-pale);
+    border-color: var(--accent);
+    color: var(--accent-dark);
   }
 
   .json-close {
