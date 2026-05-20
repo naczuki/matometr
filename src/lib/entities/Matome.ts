@@ -24,6 +24,7 @@ export class Matome {
   readonly content: string;
   readonly blocks: MatomeBlock[];
   readonly isNosli: boolean;
+  readonly tags: string[];
 
   private constructor(params: {
     id: string;
@@ -37,6 +38,7 @@ export class Matome {
     content: string;
     blocks: MatomeBlock[];
     isNosli: boolean;
+    tags: string[];
   }) {
     this.id = params.id;
     this.pubkey = params.pubkey;
@@ -49,6 +51,7 @@ export class Matome {
     this.content = params.content;
     this.blocks = params.blocks;
     this.isNosli = params.isNosli;
+    this.tags = params.tags;
   }
 
   get postCount(): number {
@@ -87,7 +90,8 @@ export class Matome {
       createdAt: event.created_at,
       content: event.content,
       blocks: Matome.parseContent(event.content),
-      isNosli: tTags.includes('nosli')
+      isNosli: tTags.includes('nosli'),
+      tags: tTags.filter((t) => t !== 'matometr' && t !== 'nosli')
     });
   }
 
