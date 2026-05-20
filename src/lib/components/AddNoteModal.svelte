@@ -208,6 +208,7 @@
     width: 100%;
     max-width: 640px;
     max-height: calc(100vh - 32px);
+    max-height: calc(100svh - 32px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -283,13 +284,14 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 16px 18px;
+    padding: 16px 18px 0;
   }
 
   .paste-area {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    padding-bottom: 16px;
   }
 
   .paste-label {

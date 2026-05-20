@@ -11,7 +11,7 @@ export function sortableAction(node: HTMLElement, options: SortableActionOptions
     delayOnTouchOnly: true,
     touchStartThreshold: 8,
     filter: 'input, textarea, button, a, select',
-    preventOnFilter: true,
+    preventOnFilter: false,
     ghostClass: 'sortable-ghost',
     chosenClass: 'sortable-chosen',
     onUpdate: (evt) => {
