@@ -1,5 +1,6 @@
 <script lang="ts">
   import { base } from '$app/paths';
+  import { launch } from 'nostr-login';
   import { currentUser, logout } from '$lib/stores/auth';
 
   let showLoginModal = false;
@@ -13,9 +14,9 @@
     showLoginModal = false;
   }
 
-  function launchNostrLogin(screen: string): void {
+  function launchNostrLogin(screen: Parameters<typeof launch>[0]): void {
     hideLoginModal();
-    document.dispatchEvent(new CustomEvent('nlLaunch', { detail: screen }));
+    launch(screen);
   }
 
   function toggleDropdown(): void {

@@ -1,7 +1,13 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { initAuth } from '$lib/stores/auth';
   import '../app.css';
   import Header from '$lib/components/Header.svelte';
   import Footer from '$lib/components/Footer.svelte';
+
+  onMount(() => {
+    initAuth();
+  });
 </script>
 
 <div class="app-wrapper">
