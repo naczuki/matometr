@@ -111,6 +111,17 @@ matometr/
   - `chore:` その他
 - コメント本文は日本語
 
+### squash merge 後のブランチ同期（必須）
+
+squash merge は全コミットを1つに潰して main に新しい SHA で積むため、元ブランチが main と乖離しコンフリクトが発生する。
+**PR を squash merge したら必ずブランチを main に合わせること。**
+
+```bash
+git fetch origin main
+git reset --hard origin/main
+git push --force-with-lease origin <branch-name>
+```
+
 ## デプロイ
 
 `main` ブランチへのpushで GitHub Actions が走って自動デプロイ。
