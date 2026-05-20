@@ -1,3 +1,7 @@
+import type { MatomeBlock } from '$lib/entities/Matome';
+
+export type { MatomeBlock };
+
 export type Tab = 'recent' | 'trending' | 'following';
 
 export interface UserProfile {
@@ -8,25 +12,6 @@ export interface UserProfile {
   picture?: string;
   about?: string;
   nip05?: string;
-}
-
-export interface MatomeBlock {
-  type: 'nevent' | 'comment' | 'heading' | 'text';
-  content: string;
-}
-
-export interface Matome {
-  id: string;
-  pubkey: string;
-  naddr: string;
-  dTag: string;
-  title: string;
-  summary: string;
-  publishedAt: number;
-  createdAt: number;
-  content: string;
-  blocks: MatomeBlock[];
-  isNosli: boolean;
 }
 
 export interface Draft {

@@ -4,8 +4,7 @@ import type { Observable } from 'rxjs';
 import { map, filter, tap } from 'rxjs';
 import { verifyEvent } from 'nostr-tools';
 import { DEFAULT_RELAYS } from '$lib/stores/relays';
-import { fromNostrEvent } from '$lib/entities/matome';
-import type { Matome } from '$lib/types';
+import { Matome } from '$lib/entities/Matome';
 
 let _client: RxNostr | null = null;
 
@@ -39,7 +38,7 @@ export function fetchMatomeList(limit = 30): Observable<Matome> {
       const title = event.tags.find(([k]) => k === 'title')?.[1] ?? '(no title)';
       console.log(`[NostrClient] EVENT | relay: ${from} | id: ${event.id.slice(0, 8)}… | title: ${title}`);
     }),
-    map(({ event }) => fromNostrEvent(event)),
+    map(({ event }) => Matome.fromEvent(event)),
     filter((m): m is Matome => m !== null)
   );
 }
@@ -55,7 +54,7 @@ export function watchNewMatome(): Observable<Matome> {
   const obs = client.use(rxReq).pipe(
     uniq(),
     tap(({ event }) => console.log(`[NostrClient] NEW EVENT | id: ${event.id.slice(0, 8)}…`)),
-    map(({ event }) => fromNostrEvent(event)),
+    map(({ event }) => Matome.fromEvent(event)),
     filter((m): m is Matome => m !== null)
   );
 
@@ -80,7 +79,7 @@ export function fetchNosliList(limit = 10): Observable<Matome> {
 
   return client.use(rxReq).pipe(
     uniq(),
-    map(({ event }) => fromNostrEvent(event)),
+    map(({ event }) => Matome.fromEvent(event)),
     filter((m): m is Matome => m !== null)
   );
 }
