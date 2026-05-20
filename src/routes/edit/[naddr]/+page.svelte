@@ -7,12 +7,12 @@
   import type { AddressPointer } from 'nostr-tools/nip19';
   import { dragHandleZone, dragHandle } from 'svelte-dnd-action';
   import type { DndEvent } from 'svelte-dnd-action';
-  import { fetchMatomeByAddress, updateMatome } from '$lib/services/NostrClient';
+  import { fetchMatomeByAddress, updateMatome, fetchNotesByIds } from '$lib/services/NostrClient';
   import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
   import { currentUser } from '$lib/stores/auth';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import AddNoteModal from '$lib/components/AddNoteModal.svelte';
-  import type { EditorBlock } from '$lib/types';
+  import type { EditorBlock, NoteEditorBlock } from '$lib/types';
 
   $: naddr = $page.params.naddr;
 
@@ -96,6 +96,56 @@
   }
 
   const FLIP_MS = 200;
+
+  let sortLoading = false;
+  let lastSortOrder: 'asc' | 'desc' | null = null;
+
+  async function sortByTime(): Promise<void> {
+    const hasNonNevent = blocks.some(b => b.type === 'comment' || b.type === 'heading');
+    if (hasNonNevent) {
+      const ok = window.confirm('コメントや見出しの位置がリセットされます。続けますか？');
+      if (!ok) return;
+    }
+
+    const nextOrder: 'asc' | 'desc' = lastSortOrder === 'asc' ? 'desc' : 'asc';
+    const sortableBlocks = blocks.filter((b): b is NoteEditorBlock => b.type === 'nevent' && !!b.nevent);
+    const otherBlocks = blocks.filter(b => {
+      if (b.type !== 'nevent') return true;
+      return !b.nevent;
+    });
+
+    const idsToFetch = sortableBlocks
+      .map(b => eventIdFromNevent(b.nevent))
+      .filter((id): id is string => id !== null);
+
+    if (idsToFetch.length === 0) return;
+
+    sortLoading = true;
+    const createdAtMap = new Map<string, number>();
+    await new Promise<void>((resolve) => {
+      fetchNotesByIds(idsToFetch).subscribe({
+        next: (n) => createdAtMap.set(n.id, n.createdAt),
+        complete: resolve,
+        error: resolve
+      });
+      setTimeout(resolve, 10_000);
+    });
+    sortLoading = false;
+
+    const sorted = [...sortableBlocks].sort((a, b) => {
+      const idA = eventIdFromNevent(a.nevent) ?? '';
+      const idB = eventIdFromNevent(b.nevent) ?? '';
+      const tA = createdAtMap.get(idA) ?? 0;
+      const tB = createdAtMap.get(idB) ?? 0;
+      return nextOrder === 'asc' ? tA - tB : tB - tA;
+    });
+
+    blocks = nextOrder === 'asc'
+      ? [...sorted, ...otherBlocks]
+      : [...otherBlocks, ...sorted];
+
+    lastSortOrder = nextOrder;
+  }
 
   function handleDndConsider(e: CustomEvent<DndEvent<EditorBlock>>): void {
     blocks = e.detail.items;
@@ -224,6 +274,11 @@
         <span class="blocks-label">まとめの中身</span>
         {#if noteCount > 0}
           <span class="blocks-badge">{noteCount}件の投稿</span>
+        {/if}
+        {#if noteCount >= 1}
+          <button class="sort-btn" type="button" on:click={sortByTime} disabled={sortLoading}>
+            {sortLoading ? '…' : lastSortOrder === 'asc' ? '↑ 古い順' : lastSortOrder === 'desc' ? '↓ 新しい順' : '↕ 時系列に並べる'}
+          </button>
         {/if}
       </div>
 
@@ -420,6 +475,31 @@
     color: var(--accent-dark);
     border-radius: 999px;
     padding: 2px 10px;
+  }
+
+  .sort-btn {
+    margin-left: auto;
+    background: var(--surface);
+    border: 1.5px solid var(--border2);
+    border-radius: 999px;
+    color: var(--ink2);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+
+  .sort-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .sort-btn:disabled {
+    opacity: 0.5;
+    cursor: wait;
   }
 
   .empty-state {
