@@ -11,18 +11,18 @@
 <style>
   footer {
     border-top: 1.5px solid var(--border);
-    padding: 1rem;
+    padding: 1rem 20px;
     margin-top: 2rem;
   }
 
   .inner {
-    max-width: 720px;
+    max-width: 960px;
     margin: 0 auto;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.8rem;
-    color: var(--text-faint);
+    font-size: 12px;
+    color: var(--ink3);
     font-family: var(--font-ui);
   }
 
@@ -32,11 +32,11 @@
   }
 
   nav a {
-    color: var(--text-faint);
+    color: var(--ink3);
     text-decoration: none;
   }
 
   nav a:hover {
-    color: var(--text-muted);
+    color: var(--ink2);
   }
 </style>

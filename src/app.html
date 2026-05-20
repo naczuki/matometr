@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
     <link
-      href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Mochiy+Pop+One&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Mochiy+Pop+One&family=Noto+Sans+JP:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
     %sveltekit.head%
@@ -17,6 +17,8 @@
     <script
       src="https://www.unpkg.com/nostr-login@latest/dist/unpkg.js"
       data-no-banner="true"
+      data-perms="sign_event:30023"
+      data-bunkers="nsec.app"
       data-theme="default"
     ></script>
     <script src="https://cdn.jsdelivr.net/npm/@konemono/nostr-share-component@latest/dist/nostr-share-component.min.js"></script>
