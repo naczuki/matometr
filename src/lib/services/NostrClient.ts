@@ -181,6 +181,70 @@ export function fetchNotesFromAuthors(
 }
 
 /**
+ * 自分の kind:7 リアクション一覧から、対象イベントID とリアクション時刻を取得。
+ */
+export function fetchFavoriteReactions(
+  pubkey: string,
+  options: { until?: number; limit?: number; relays?: string[] } = {}
+): Observable<{ eventId: string; reactedAt: number }> {
+  const client = getClient();
+  const { until, limit = 100, relays } = options;
+  const reactionFilter = until
+    ? { kinds: [7], authors: [pubkey], limit, until }
+    : { kinds: [7], authors: [pubkey], limit };
+  const rxReq = createRxOneshotReq({ filters: reactionFilter });
+
+  const useOptions = relays && relays.length > 0
+    ? { on: { relays, defaultReadRelays: true } }
+    : undefined;
+
+  return client.use(rxReq, useOptions).pipe(
+    uniq(),
+    map(({ event }) => {
+      // 最後の e タグが対象イベントとする慣例
+      let eventId = '';
+      for (const tag of event.tags) {
+        if (tag[0] === 'e' && tag[1] && /^[0-9a-f]{64}$/.test(tag[1])) eventId = tag[1];
+      }
+      return eventId ? { eventId, reactedAt: event.created_at } : null;
+    }),
+    filter((r): r is { eventId: string; reactedAt: number } => r !== null)
+  );
+}
+
+/**
+ * 複数イベントIDの kind:1 を取得。
+ */
+export function fetchNotesByIds(
+  ids: string[],
+  options: { relays?: string[] } = {}
+): Observable<Note> {
+  if (ids.length === 0) return EMPTY;
+  const client = getClient();
+  const { relays } = options;
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [1], ids, limit: ids.length }
+  });
+
+  const useOptions = relays && relays.length > 0
+    ? { on: { relays, defaultReadRelays: true } }
+    : undefined;
+
+  return client.use(rxReq, useOptions).pipe(
+    uniq(),
+    map(
+      ({ event }): Note => ({
+        id: event.id,
+        pubkey: event.pubkey,
+        content: event.content,
+        createdAt: event.created_at,
+        tags: event.tags
+      })
+    )
+  );
+}
+
+/**
  * 複数 pubkey の kind:0 プロフィールを一括取得。EOSE で complete する。
  */
 export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
