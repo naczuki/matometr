@@ -1,22 +1,24 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { base } from '$app/paths';
   import { nip19 } from 'nostr-tools';
   import type { Matome } from '$lib/entities/Matome';
   import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
+  import { profiles, requestProfile } from '$lib/stores/profiles';
 
   export let matome: Matome;
 
-  $: style = avatarStyle(matome.pubkey);
+  onMount(() => {
+    requestProfile(matome.pubkey);
+  });
 
-  $: displayName = (() => {
-    try {
-      const npub = nip19.npubEncode(matome.pubkey);
-      return npub.slice(0, 12) + '…';
-    } catch {
-      return matome.pubkey.slice(0, 8) + '…';
-    }
-  })();
+  $: profile = $profiles.get(matome.pubkey);
+
+  $: displayName = profile?.displayName ?? profile?.name ?? fallbackNpub(matome.pubkey);
+  $: picture = profile?.picture ?? null;
+
+  $: style = avatarStyle(matome.pubkey);
 
   $: preview = (() => {
     if (matome.summary) return matome.summary;
@@ -26,11 +28,28 @@
 
   $: firstTag = matome.tags[0] ?? '';
   $: elapsed = timeAgo(matome.createdAt);
+
+  let imgFailed = false;
+  $: picture, (imgFailed = false);
+
+  function fallbackNpub(pubkey: string): string {
+    try {
+      return nip19.npubEncode(pubkey).slice(0, 12) + '…';
+    } catch {
+      return pubkey.slice(0, 8) + '…';
+    }
+  }
 </script>
 
 <a href="{base}/matome/{matome.naddr}" class="card">
   <div class="author">
-    <div class="avatar" style="background:{style.bg};color:{style.fg};">{style.initial}</div>
+    <div class="avatar" style="background:{style.bg};color:{style.fg};">
+      {#if picture && !imgFailed}
+        <img src={picture} alt="" on:error={() => (imgFailed = true)} />
+      {:else}
+        {style.initial}
+      {/if}
+    </div>
     <span class="author-name">{displayName}</span>
     <span class="time">{elapsed}</span>
   </div>
@@ -89,6 +108,14 @@
     font-family: var(--font-ui);
     font-size: 12px;
     font-weight: 700;
+    overflow: hidden;
+  }
+
+  .avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
   }
 
   .author-name {
