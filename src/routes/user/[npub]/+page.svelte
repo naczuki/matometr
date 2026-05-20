@@ -10,6 +10,9 @@
   import { currentUser } from '$lib/stores/auth';
   import { avatarStyle } from '$lib/utils/avatar';
   import MatomeCard from '$lib/components/MatomeCard.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
+  import QuotedNote from '$lib/components/QuotedNote.svelte';
+  import { parseNostrRefs, extractImages } from '$lib/utils/nostrContent';
 
   $: npubParam = $page.params.npub;
 
@@ -61,8 +64,16 @@
   $: style = pubkey ? avatarStyle(pubkey) : { bg: '#e5e5e5', fg: '#737373', initial: '?' };
   $: isSelf = !!$currentUser && !!pubkey && pubkey === $currentUser.pubkey;
 
+  $: aboutContent = profile?.about ? extractImages(profile.about) : { text: '', urls: [] };
+  $: aboutSegments = parseNostrRefs(aboutContent.text);
+  $: { for (const seg of aboutSegments) { if (seg.type === 'mention') requestProfile(seg.pubkey); } }
+
   let imgFailed = false;
   $: picture, (imgFailed = false);
+
+  function hideBioImg(e: Event): void {
+    (e.currentTarget as HTMLImageElement).style.display = 'none';
+  }
 
   function shortNpub(npub: string | undefined): string {
     if (!npub || npub.length < 12) return npub ?? '…';
@@ -99,7 +110,29 @@
         {/if}
         <div class="profile-npub">{shortNpub(npubParam)}</div>
         {#if profile?.about}
-          <p class="profile-bio">{profile.about}</p>
+          <div class="profile-bio">
+            {#each aboutSegments as seg}
+              {#if seg.type === 'text'}
+                <span class="bio-text">{seg.content}</span>
+              {:else if seg.type === 'mention'}
+                {@const mp = $profiles.get(seg.pubkey)}
+                <a class="bio-mention" href="{base}/user/{nip19.npubEncode(seg.pubkey)}">@{mp?.displayName ?? mp?.name ?? seg.pubkey.slice(0, 8) + '…'}</a>
+              {:else if seg.type === 'quote'}
+                <QuotedNote eventId={seg.eventId} />
+              {:else if seg.type === 'url'}
+                <a class="bio-url" href={seg.url} target="_blank" rel="noopener noreferrer">{seg.url}</a>
+              {:else if seg.type === 'naddr'}
+                <a class="bio-url" href="https://njump.me/{seg.naddr}" target="_blank" rel="noopener noreferrer">nostr:{seg.naddr.slice(0, 12)}…</a>
+              {/if}
+            {/each}
+            {#if aboutContent.urls.length > 0}
+              <div class="bio-images">
+                {#each aboutContent.urls as url}
+                  <img src={url} alt="" class="bio-img" loading="lazy" on:error={hideBioImg} />
+                {/each}
+              </div>
+            {/if}
+          </div>
         {/if}
       </div>
 
@@ -111,7 +144,7 @@
     <!-- まとめ一覧 -->
     {#if loading}
       <div class="state-wrap">
-        <div class="state-icon">⏳</div>
+        <Spinner />
         <div class="state-text">読み込み中…</div>
       </div>
     {:else if matomes.length === 0}
@@ -200,8 +233,39 @@
     color: var(--ink2);
     line-height: 1.65;
     margin: 0;
-    white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  .bio-text {
+    white-space: pre-wrap;
+  }
+
+  .bio-mention,
+  .bio-url {
+    color: var(--accent);
+    text-decoration: none;
+    word-break: break-all;
+  }
+
+  .bio-mention:hover,
+  .bio-url:hover {
+    text-decoration: underline;
+  }
+
+  .bio-images {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .bio-img {
+    width: 100%;
+    max-height: 300px;
+    object-fit: contain;
+    border-radius: 10px;
+    background: var(--bg);
+    display: block;
   }
 
   .btn-create {

@@ -7,7 +7,7 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
-  import { parseNostrRefs } from '$lib/utils/nostrContent';
+  import { parseNostrRefs, extractImages } from '$lib/utils/nostrContent';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
 
   export let nevent: string;
@@ -56,16 +56,6 @@
     } catch {
       return pubkey.slice(0, 8) + '…';
     }
-  }
-
-  function extractImages(content: string): { text: string; urls: string[] } {
-    const IMAGE_RE = /https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:[?#][^\s]*)?/gi;
-    const urls: string[] = [];
-    const text = content
-      .replace(IMAGE_RE, (url) => { urls.push(url); return ''; })
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    return { text, urls };
   }
 
   $: parsedContent = note ? extractImages(note.content) : { text: '', urls: [] };
@@ -128,6 +118,13 @@
             target="_blank"
             rel="noopener noreferrer"
           >nostr:{shortenNaddr(segment.naddr)}</a>
+        {:else if segment.type === 'url'}
+          <a
+            class="url-link"
+            href={segment.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >{segment.url}</a>
         {/if}
       {/each}
     </div>
@@ -262,17 +259,30 @@
   }
 
   .note-images {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 8px;
     margin-top: 10px;
   }
 
   .note-img {
-    max-width: 100%;
+    width: 100%;
+    max-height: 400px;
+    object-fit: contain;
     border-radius: 10px;
     display: block;
-    flex-shrink: 0;
+    background: var(--bg);
+  }
+
+  .url-link {
+    color: var(--accent);
+    text-decoration: none;
+    word-break: break-all;
+    font-size: 13px;
+  }
+
+  .url-link:hover {
+    text-decoration: underline;
   }
 
   .img-error {

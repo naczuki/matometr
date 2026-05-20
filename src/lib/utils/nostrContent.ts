@@ -4,19 +4,37 @@ export type TextSegment = { type: 'text'; content: string };
 export type MentionSegment = { type: 'mention'; pubkey: string };
 export type QuoteSegment = { type: 'quote'; eventId: string };
 export type NaddrSegment = { type: 'naddr'; naddr: string };
-export type ContentSegment = TextSegment | MentionSegment | QuoteSegment | NaddrSegment;
+export type UrlSegment = { type: 'url'; url: string };
+export type ContentSegment = TextSegment | MentionSegment | QuoteSegment | NaddrSegment | UrlSegment;
 
-const NOSTR_REF_RE =
-  /nostr:(npub1[a-z0-9]+|nprofile1[a-z0-9]+|nevent1[a-z0-9]+|note1[a-z0-9]+|naddr1[a-z0-9]+)/g;
+const IMAGE_RE = /https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:[?#][^\s]*)?/gi;
+
+export function extractImages(content: string): { text: string; urls: string[] } {
+  const urls: string[] = [];
+  const text = content
+    .replace(IMAGE_RE, (url) => { urls.push(url); return ''; })
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return { text, urls };
+}
+
+const CONTENT_RE =
+  /nostr:(npub1[a-z0-9]+|nprofile1[a-z0-9]+|nevent1[a-z0-9]+|note1[a-z0-9]+|naddr1[a-z0-9]+)|(https?:\/\/[^\s<>"]+)/gi;
 
 export function parseNostrRefs(text: string): ContentSegment[] {
   const segments: ContentSegment[] = [];
   let lastIndex = 0;
 
-  for (const match of text.matchAll(NOSTR_REF_RE)) {
+  for (const match of text.matchAll(CONTENT_RE)) {
     const start = match.index!;
     if (start > lastIndex) {
       segments.push({ type: 'text', content: text.slice(lastIndex, start) });
+    }
+
+    if (match[2]) {
+      segments.push({ type: 'url', url: match[2] });
+      lastIndex = start + match[0].length;
+      continue;
     }
 
     const encoded = match[1];

@@ -13,6 +13,7 @@
   import { avatarStyle } from '$lib/utils/avatar';
   import { NOSLI_BASE_URL } from '$lib/utils/constants';
   import NoteCard from '$lib/components/NoteCard.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
 
   $: naddr = $page.params.naddr;
 
@@ -183,7 +184,7 @@
 
   {#if loading}
     <div class="state">
-      <div class="state-icon">⏳</div>
+      <Spinner />
       <div class="state-text">読み込み中…</div>
     </div>
   {:else if error}
