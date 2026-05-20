@@ -3,6 +3,8 @@
   import { base } from '$app/paths';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import { currentUser } from '$lib/stores/auth';
+  import { dndzone } from 'svelte-dnd-action';
+  import type { DndEvent } from 'svelte-dnd-action';
 
   type NoteBlock = { id: string; type: 'nevent'; nevent: string };
   type CommentBlock = { id: string; type: 'comment'; text: string };
@@ -29,24 +31,14 @@
     blocks = blocks.filter((b) => b.id !== id);
   }
 
-  function moveUp(id: string): void {
-    const idx = blocks.findIndex((b) => b.id === id);
-    if (idx <= 0) return;
-    const arr = [...blocks];
-    const tmp = arr[idx - 1];
-    arr[idx - 1] = arr[idx];
-    arr[idx] = tmp;
-    blocks = arr;
+  const FLIP_MS = 200;
+
+  function handleDndConsider(e: CustomEvent<DndEvent<EditorBlock>>): void {
+    blocks = e.detail.items;
   }
 
-  function moveDown(id: string): void {
-    const idx = blocks.findIndex((b) => b.id === id);
-    if (idx < 0 || idx >= blocks.length - 1) return;
-    const arr = [...blocks];
-    const tmp = arr[idx + 1];
-    arr[idx + 1] = arr[idx];
-    arr[idx] = tmp;
-    blocks = arr;
+  function handleDndFinalize(e: CustomEvent<DndEvent<EditorBlock>>): void {
+    blocks = e.detail.items;
   }
 
   function parseNostrInput(raw: string): string | null {
@@ -140,28 +132,20 @@
       {#if blocks.length === 0}
         <div class="empty-state">下のボタンで投稿・コメント・見出しを追加できます</div>
       {:else}
-        <div class="block-list">
-          {#each blocks as block, idx (block.id)}
+        <div
+          class="block-list"
+          use:dndzone={{ items: blocks, flipDurationMs: FLIP_MS }}
+          on:consider={handleDndConsider}
+          on:finalize={handleDndFinalize}
+        >
+          {#each blocks as block (block.id)}
             <div
               class="block-card"
               class:is-heading={block.type === 'heading'}
               class:is-comment={block.type === 'comment'}
             >
-              <!-- 並び替え -->
-              <div class="block-order">
-                <button
-                  class="order-btn"
-                  on:click={() => moveUp(block.id)}
-                  disabled={idx === 0}
-                  aria-label="上へ移動"
-                >↑</button>
-                <button
-                  class="order-btn"
-                  on:click={() => moveDown(block.id)}
-                  disabled={idx === blocks.length - 1}
-                  aria-label="下へ移動"
-                >↓</button>
-              </div>
+              <!-- ドラッグハンドル -->
+              <div class="drag-handle" aria-label="ドラッグで並び替え">⋮⋮</div>
 
               <!-- コンテンツ -->
               <div class="block-body">
@@ -372,40 +356,20 @@
     border-left: 3px solid var(--accent-mid);
   }
 
-  /* 並び替えボタン */
-  .block-order {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+  /* ドラッグハンドル */
+  .drag-handle {
     flex-shrink: 0;
-    padding-top: 2px;
-  }
-
-  .order-btn {
-    width: 26px;
-    height: 26px;
-    border: 1px solid var(--border2);
-    border-radius: 7px;
-    background: var(--bg);
+    padding: 4px 2px;
     color: var(--ink3);
-    font-size: 11px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    transition: all 0.1s;
+    font-size: 14px;
+    cursor: grab;
+    line-height: 1;
+    user-select: none;
+    letter-spacing: -2px;
   }
 
-  .order-btn:hover:not(:disabled) {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--accent-pale);
-  }
-
-  .order-btn:disabled {
-    opacity: 0.25;
-    cursor: default;
+  .drag-handle:active {
+    cursor: grabbing;
   }
 
   /* ブロック本体 */
