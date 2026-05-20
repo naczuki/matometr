@@ -53,19 +53,31 @@ let nsecJsonResponse: Response | null = null;
 let nsecJsonPromise: Promise<Response> | null = null;
 let nativeFetch: typeof fetch | null = null;
 
+function stubResponse(): Response {
+  return new Response('{}', { headers: { 'Content-Type': 'application/json' } });
+}
+
 function fetchNsecJsonCached(): Promise<Response> {
+  // 本物のレスポンスが取れていればそれを返す（2回目以降のモーダル起動で iframe モード復活）
   if (nsecJsonResponse) return Promise.resolve(nsecJsonResponse.clone());
-  if (nsecJsonPromise) return nsecJsonPromise.then((r) => r.clone());
-  const f = nativeFetch ?? fetch;
-  nsecJsonPromise = f(NSEC_NOSTR_JSON_URL);
-  nsecJsonPromise
-    .then((r) => {
-      nsecJsonResponse = r.clone();
-    })
-    .catch(() => {
-      nsecJsonPromise = null;
-    });
-  return nsecJsonPromise.then((r) => r.clone());
+
+  // バックグラウンドで本物を取りに行く（次回のために）
+  if (!nsecJsonPromise) {
+    const f = nativeFetch ?? fetch;
+    nsecJsonPromise = f(NSEC_NOSTR_JSON_URL);
+    nsecJsonPromise
+      .then((r) => {
+        nsecJsonResponse = r.clone();
+      })
+      .catch(() => {
+        nsecJsonPromise = null;
+      });
+  }
+
+  // 今回はスタブを即座に返してモーダル表示をブロックしない
+  // （nostr-login は iframe_url が空ならポップアップにフォールバック、リレーは
+  // NOSTRCONNECT_APPS のハードコード値が使われる）
+  return Promise.resolve(stubResponse());
 }
 
 function patchFetch(): void {
