@@ -2,7 +2,6 @@ import { writable, derived } from 'svelte/store';
 import { nip19 } from 'nostr-tools';
 import type { UserProfile } from '$lib/types';
 import { fetchProfiles } from '$lib/services/NostrClient';
-import { init, logout as nlLogout } from 'nostr-login';
 
 // window.nostr の有無（nostr-login または拡張機能）
 export const nostrAvailable = writable<boolean>(false);
@@ -40,25 +39,27 @@ function handleLogin(npub: string): void {
   }
 }
 
+let _nlLogout: (() => Promise<void>) | null = null;
+
 export function logout(): void {
   _pubkey.set(null);
   _profile.set(null);
-  nlLogout();
+  _nlLogout?.();
 }
 
 // ページ読み込み時に一度だけ呼ぶ（+layout.svelte の onMount から）
 export async function initAuth(): Promise<void> {
-  // nostr-login の launch() 内部が nsec.app/.well-known/nostr.json を
-  // fetch するため、先にブラウザキャッシュへ入れておく
-  fetch('https://nsec.app/.well-known/nostr.json').catch(() => {});
+  const { init, logout: nlLogout } = await import('@konemono/nostr-login');
+  _nlLogout = nlLogout;
 
   await init({
     noBanner: true,
     perms: 'sign_event:30023',
     bunkers: 'nsec.app',
     theme: 'default',
-    darkMode: typeof window !== 'undefined'
-      && window.matchMedia('(prefers-color-scheme: dark)').matches,
+    title: 'まとめたー',
+    description: 'Nostrのキュレーションサービス',
+    darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
     onAuth: (npub, options) => {
       if (options.type === 'login' || options.type === 'signup') {
         handleLogin(npub);
@@ -66,10 +67,8 @@ export async function initAuth(): Promise<void> {
         _pubkey.set(null);
         _profile.set(null);
       }
-    }
+    },
   });
-  // 初期化後に window.nostr の有無を確認
-  if (typeof window !== 'undefined' && window.nostr) {
-    nostrAvailable.set(true);
-  }
+
+  if (window.nostr) nostrAvailable.set(true);
 }
