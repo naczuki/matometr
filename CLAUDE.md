@@ -8,6 +8,9 @@ Nostrのキュレーションサイト。投稿を集めて、コメント・見
 公開フォーマット・URL設計・カラー・タグ仕様などはすべてこちらに書かれている。
 **実装前にこのファイルを必ず読むこと。**
 
+UIモックアップは [`docs/mockups/`](./docs/mockups/) にある（ビルド対象外・参考資料）。
+主要画面のHTML静的モックが置かれており、デザイン・レイアウトの参考にすること。
+
 ## 技術スタック
 
 - **フレームワーク**：SvelteKit 2.x
@@ -43,7 +46,8 @@ matometr/
 │  └─ app.css            # CSS変数定義（ライト/ダーク）
 ├─ static/                # 画像・アイコン等
 ├─ docs/
-│  └─ matometr-spec.md   # 完全仕様書
+│  ├─ matometr-spec.md   # 完全仕様書
+│  └─ mockups/           # UIモックアップ（参考資料、ビルド対象外）
 ├─ svelte.config.js
 ├─ vite.config.ts
 ├─ tsconfig.json

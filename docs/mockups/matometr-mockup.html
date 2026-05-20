@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>まとめたー — Nostr キュレーション</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.unpkg.com/nostr-login@latest/dist/unpkg.js"
+  data-no-banner="true"
+  data-perms="sign_event:30023"
+  data-bunkers="nsec.app"
+  data-theme="default"
+></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent: #f97316; --accent-dark: #ea580c;
+  --accent-pale: #fff8f4; --accent-mid: #fde8dc;
+  --green: #16a34a; --green-pale: #f0fdf4;
+  --bg: #fff8f4; --surface: #ffffff;
+  --ink: #1c1917; --ink2: #57534e; --ink3: #a8a29e;
+  --border: #f0e8e0; --border2: #e2d5cb;
+  --radius-card: 16px; --radius-btn: 9999px;
+}
+body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.7; min-height: 100vh; }
+
+/* ===== ヘッダー ===== */
+header { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 8px rgba(249,115,22,0.06); }
+.header-inner { max-width: 960px; margin: 0 auto; padding: 0 20px; height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.logo { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.logo-icon { width: 38px; height: 38px; background: var(--accent); border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(249,115,22,0.35); }
+.logo-text { font-family: 'M PLUS Rounded 1c', sans-serif; font-weight: 800; font-size: 22px; color: var(--accent); letter-spacing: -0.02em; line-height: 1; }
+.logo-sub { font-size: 11px; color: var(--ink3); line-height: 1; margin-top: 3px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+/* ログインボタン */
+.btn-login { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-btn); padding: 8px 20px; font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.12s; }
+.btn-login:hover { background: var(--accent-dark); }
+
+/* ログイン後：ユーザーメニュー */
+.user-menu { display: none; align-items: center; gap: 8px; }
+.user-menu.active { display: flex; }
+.user-avatar-btn { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1.5px solid var(--border2); border-radius: var(--radius-btn); padding: 4px 12px 4px 4px; cursor: pointer; transition: all 0.12s; font-family: 'M PLUS Rounded 1c', sans-serif; }
+.user-avatar-btn:hover { border-color: var(--accent-mid); background: var(--accent-pale); }
+.user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-mid); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--accent-dark); flex-shrink: 0; overflow: hidden; }
+.user-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.user-name { font-size: 13px; font-weight: 700; color: var(--ink); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-new-matome { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-btn); padding: 8px 16px; font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.12s; display: flex; align-items: center; gap: 5px; }
+.btn-new-matome:hover { background: var(--accent-dark); }
+
+/* ドロップダウン */
+.dropdown-wrap { position: relative; }
+.dropdown { display: none; position: absolute; top: calc(100% + 8px); right: 0; background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); padding: 6px; min-width: 180px; z-index: 200; }
+.dropdown.open { display: block; }
+.dropdown-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; font-size: 13px; font-weight: 500; color: var(--ink2); cursor: pointer; transition: background 0.1s; font-family: 'M PLUS Rounded 1c', sans-serif; }
+.dropdown-item:hover { background: var(--bg); }
+.dropdown-item.danger { color: #dc2626; }
+.dropdown-item.danger:hover { background: #fff5f5; }
+.dropdown-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* ===== 画面切り替え ===== */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ===== タブ ===== */
+.tab-bar { max-width: 960px; margin: 0 auto; padding: 20px 20px 0; display: flex; gap: 4px; }
+.tab { padding: 8px 20px; border-radius: var(--radius-btn); font-size: 13px; font-weight: 500; color: var(--ink3); cursor: pointer; font-family: 'M PLUS Rounded 1c', sans-serif; transition: all 0.12s; }
+.tab:hover { color: var(--ink2); background: var(--surface); }
+.tab.active { background: var(--surface); color: var(--accent); font-weight: 700; box-shadow: 0 1px 6px rgba(0,0,0,0.08); }
+
+/* ===== まとめ一覧 ===== */
+.list-grid { max-width: 960px; margin: 0 auto; padding: 16px 20px 48px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.matome-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-card); padding: 18px; cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s, transform 0.12s; }
+.matome-card:hover { box-shadow: 0 6px 20px rgba(249,115,22,0.1); border-color: var(--accent-mid); transform: translateY(-2px); }
+.matome-author { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.matome-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 12px; font-weight: 700; }
+.matome-author-name { font-size: 12px; font-weight: 500; color: var(--ink2); }
+.matome-author-time { font-size: 11px; color: var(--ink3); margin-left: auto; }
+.matome-title { font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.5; margin-bottom: 10px; }
+.matome-preview { font-size: 12px; color: var(--ink2); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 12px; }
+.matome-footer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.matome-count { font-size: 11px; color: var(--ink3); background: var(--bg); padding: 3px 10px; border-radius: var(--radius-btn); border: 1px solid var(--border2); font-family: 'M PLUS Rounded 1c', sans-serif; }
+.matome-tag { font-size: 11px; color: var(--accent-dark); background: var(--accent-mid); padding: 3px 10px; border-radius: var(--radius-btn); font-family: 'M PLUS Rounded 1c', sans-serif; font-weight: 500; }
+.matome-likes { margin-left: auto; font-size: 12px; color: var(--ink3); font-family: 'M PLUS Rounded 1c', sans-serif; }
+
+/* ===== まとめ詳細 ===== */
+.detail-wrap { max-width: 720px; margin: 0 auto; padding: 24px 20px 64px; }
+.back-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--accent); background: var(--surface); border: 1.5px solid var(--accent-mid); border-radius: var(--radius-btn); padding: 7px 16px; cursor: pointer; margin-bottom: 20px; font-family: 'M PLUS Rounded 1c', sans-serif; transition: background 0.12s; }
+.back-btn:hover { background: var(--accent-pale); }
+.detail-header { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-card); padding: 22px 24px; margin-bottom: 20px; }
+.detail-title { font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 20px; font-weight: 800; color: var(--ink); line-height: 1.4; margin-bottom: 14px; }
+.detail-desc { font-size: 14px; color: var(--ink2); line-height: 1.85; margin-bottom: 18px; padding: 14px 16px; background: var(--accent-pale); border-radius: 10px; border-left: 3px solid var(--accent); }
+.detail-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.detail-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+.detail-author-name { font-size: 13px; font-weight: 700; color: var(--ink); }
+.detail-author-pub { font-size: 11px; color: var(--ink3); font-family: monospace; }
+.detail-date { font-size: 12px; color: var(--ink3); margin-left: auto; }
+.detail-stats { display: flex; align-items: center; gap: 16px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.stat-item { font-size: 12px; color: var(--ink3); font-family: 'M PLUS Rounded 1c', sans-serif; }
+.stat-item b { color: var(--ink); font-size: 14px; margin-right: 3px; }
+.stat-share-row { display: flex; gap: 6px; margin-left: auto; }
+.share-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; cursor: pointer; text-decoration: none; border: 1.5px solid var(--border2); background: var(--surface); color: var(--ink2); transition: all 0.12s; }
+.share-icon-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.1); }
+.share-icon-btn.nostter { border-color: #ddd6fe; background: #f5f3ff; color: #7c3aed; }
+.share-icon-btn.x { border-color: #d1d5db; color: #1c1917; }
+.share-icon-btn.copy { border-color: var(--accent-mid); background: var(--accent-pale); color: var(--accent-dark); }
+.share-icon-btn.nevent { border-color: #fde68a; background: #fffbeb; color: #92400e; }
+
+/* ノートカード */
+.note-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-card); padding: 18px; margin-bottom: 12px; transition: box-shadow 0.15s; }
+.note-card:hover { box-shadow: 0 4px 16px rgba(249,115,22,0.08); border-color: var(--accent-mid); }
+.note-num { font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-mid); padding: 2px 9px; border-radius: var(--radius-btn); display: inline-block; margin-bottom: 10px; font-family: 'M PLUS Rounded 1c', sans-serif; }
+.note-header { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 14px; font-weight: 700; }
+.av1 { background: #ffe4e6; color: #be123c; }
+.av2 { background: #dbeafe; color: #1d4ed8; }
+.av3 { background: #fef9c3; color: #a16207; }
+.av4 { background: #dcfce7; color: #15803d; }
+.av5 { background: #f3e8ff; color: #7e22ce; }
+.note-name { font-weight: 700; font-size: 13px; color: var(--ink); font-family: 'M PLUS Rounded 1c', sans-serif; }
+.note-pub { font-size: 11px; color: var(--ink3); font-family: monospace; }
+.note-time { font-size: 12px; color: var(--ink3); flex-shrink: 0; margin-left: auto; }
+.note-content { font-size: 14px; line-height: 1.85; color: var(--ink); }
+.hashtag { display: inline-block; color: var(--accent-dark); background: var(--accent-mid); font-size: 12px; font-weight: 500; padding: 1px 7px; border-radius: var(--radius-btn); margin: 1px 2px; font-family: 'M PLUS Rounded 1c', sans-serif; }
+.editor-comment { margin-top: 12px; padding: 10px 14px; background: var(--bg); border-radius: 10px; border: 1.5px solid var(--border); font-size: 13px; color: var(--ink2); line-height: 1.7; }
+.editor-label { display: inline-block; font-size: 10px; font-weight: 700; color: var(--accent); background: var(--accent-mid); padding: 1px 8px; border-radius: var(--radius-btn); margin-right: 8px; margin-bottom: 4px; font-family: 'M PLUS Rounded 1c', sans-serif; }
+
+/* ===== まとめ作成画面 ===== */
+.create-wrap { max-width: 720px; margin: 0 auto; padding: 24px 20px 64px; }
+.create-header { margin-bottom: 20px; }
+.create-title-text { font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 18px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+.create-subtitle { font-size: 13px; color: var(--ink3); }
+.create-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-card); padding: 20px; margin-bottom: 16px; }
+.create-card h3 { font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 13px; font-weight: 700; color: var(--ink2); margin-bottom: 10px; }
+.create-card h3 .count-badge { display: inline-block; background: var(--accent); color: #fff; font-size: 11px; padding: 1px 8px; border-radius: var(--radius-btn); margin-left: 6px; font-weight: 700; }
+.create-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border2); border-radius: 10px; font-family: 'Noto Sans JP', sans-serif; font-size: 14px; color: var(--ink); background: var(--bg); outline: none; transition: border-color 0.12s; }
+.create-input:focus { border-color: var(--accent); background: var(--surface); }
+.create-textarea { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border2); border-radius: 10px; font-family: 'Noto Sans JP', sans-serif; font-size: 14px; color: var(--ink); background: var(--bg); outline: none; resize: vertical; min-height: 88px; transition: border-color 0.12s; line-height: 1.7; }
+.create-textarea:focus { border-color: var(--accent); background: var(--surface); }
+
+/* 編集中の投稿リスト */
+.edit-item { display: flex; gap: 10px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; position: relative; }
+.edit-item.heading { background: var(--accent-pale); border-color: var(--accent-mid); border-style: dashed; }
+.edit-handle { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; padding-top: 4px; }
+.drag-icon { color: var(--ink3); cursor: grab; font-size: 16px; line-height: 1; user-select: none; touch-action: none; }
+.item-num { font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-mid); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.edit-body { flex: 1; min-width: 0; }
+.edit-note-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.edit-avatar { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 11px; font-weight: 700; }
+.edit-name { font-size: 12px; font-weight: 700; color: var(--ink); font-family: 'M PLUS Rounded 1c', sans-serif; }
+.edit-time { font-size: 11px; color: var(--ink3); margin-left: auto; }
+.edit-note-body { font-size: 13px; color: var(--ink); line-height: 1.7; margin-bottom: 8px; }
+.edit-remove { width: 28px; height: 28px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--border2); color: var(--ink3); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: inherit; }
+.edit-remove:hover { background: #fee2e2; border-color: #ef4444; color: #ef4444; }
+.heading-input { width: 100%; border: none; background: transparent; font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 15px; font-weight: 700; color: var(--ink); outline: none; padding: 4px 0; }
+
+/* コメント/段落ブロック（投稿の間） */
+.edit-item.comment { background: var(--surface); border-color: var(--border2); border-style: solid; padding: 14px; }
+.edit-item.comment .edit-body { padding-top: 2px; }
+.comment-input { width: 100%; border: none; background: transparent; font-family: 'Noto Sans JP', sans-serif; font-size: 14px; color: var(--ink); outline: none; line-height: 1.75; resize: none; min-height: 22px; }
+.comment-label { font-size: 10px; color: var(--ink3); font-weight: 700; margin-bottom: 6px; font-family: 'M PLUS Rounded 1c', sans-serif; letter-spacing: 0.06em; }
+
+/* ブロック間のインライン追加 */
+.between-actions { display: flex; justify-content: center; align-items: center; gap: 4px; padding: 4px 0; margin: -4px 0; position: relative; opacity: 0.4; transition: opacity 0.15s; }
+.between-actions:hover { opacity: 1; }
+.between-line { flex: 1; height: 1px; background: var(--border); }
+.between-btn { background: var(--surface); border: 1.5px solid var(--border2); color: var(--ink3); border-radius: var(--radius-btn); padding: 3px 10px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: 'M PLUS Rounded 1c', sans-serif; white-space: nowrap; }
+.between-btn:hover { background: var(--accent-pale); border-color: var(--accent); color: var(--accent); }
+
+.add-buttons { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.btn-add { flex: 1; padding: 12px; border-radius: 12px; border: 2px dashed var(--accent-mid); background: var(--accent-pale); color: var(--accent-dark); font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'M PLUS Rounded 1c', sans-serif; transition: all 0.12s; min-width: 140px; }
+.btn-add:hover { background: var(--accent-mid); border-style: solid; }
+.btn-add-icon { font-size: 16px; margin-right: 4px; }
+
+.create-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; flex-wrap: wrap; }
+.btn-cancel { padding: 10px 24px; border: 1.5px solid var(--border2); border-radius: var(--radius-btn); background: var(--surface); font-size: 13px; font-weight: 700; color: var(--ink2); cursor: pointer; font-family: 'M PLUS Rounded 1c', sans-serif; }
+.btn-draft { padding: 10px 24px; border: 1.5px solid var(--border2); border-radius: var(--radius-btn); background: var(--surface); font-size: 13px; font-weight: 700; color: var(--ink2); cursor: pointer; font-family: 'M PLUS Rounded 1c', sans-serif; }
+.btn-publish { padding: 10px 28px; border: none; border-radius: var(--radius-btn); background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'M PLUS Rounded 1c', sans-serif; transition: background 0.12s; }
+.btn-publish:hover { background: var(--accent-dark); }
+
+/* 投稿選択モーダル */
+.picker-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1.5px solid var(--border); padding-bottom: 0; }
+.picker-tab { padding: 7px 16px; font-size: 13px; font-weight: 500; color: var(--ink3); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1.5px; font-family: 'M PLUS Rounded 1c', sans-serif; }
+.picker-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+.picker-list { max-height: 360px; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+.picker-item { display: flex; gap: 10px; padding: 12px; border-radius: 12px; border: 1.5px solid var(--border); margin-bottom: 8px; cursor: pointer; background: var(--surface); transition: all 0.12s; }
+.picker-item:hover { border-color: var(--accent-mid); background: var(--accent-pale); }
+.picker-item.checked { border-color: var(--accent); background: var(--accent-pale); }
+.picker-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; color: transparent; font-weight: 700; }
+.picker-item.checked .picker-check { background: var(--accent); border-color: var(--accent); color: #fff; }
+.picker-body { flex: 1; min-width: 0; }
+.picker-meta { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+.picker-avatar { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 10px; font-weight: 700; }
+.picker-name { font-size: 12px; font-weight: 700; color: var(--ink); font-family: 'M PLUS Rounded 1c', sans-serif; }
+.picker-time { font-size: 11px; color: var(--ink3); margin-left: auto; }
+.picker-content { font-size: 13px; line-height: 1.65; color: var(--ink); }
+.picker-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.picker-info { font-size: 12px; color: var(--ink3); margin-right: auto; align-self: center; }
+.picker-search { width: 100%; padding: 9px 14px; border: 1.5px solid var(--border2); border-radius: var(--radius-btn); font-family: 'Noto Sans JP', sans-serif; font-size: 13px; color: var(--ink); background: var(--bg); outline: none; margin-bottom: 12px; }
+.picker-search:focus { border-color: var(--accent); background: var(--surface); }
+
+/* URL貼り付けタブ */
+.picker-url-pane { padding: 4px 0; }
+.picker-url-pane label { display: block; font-size: 12px; font-weight: 700; color: var(--ink2); margin-bottom: 8px; font-family: 'M PLUS Rounded 1c', sans-serif; }
+.picker-url-textarea { width: 100%; padding: 12px 14px; border: 1.5px solid var(--border2); border-radius: 12px; font-family: monospace; font-size: 12px; color: var(--ink); background: var(--bg); outline: none; resize: vertical; min-height: 100px; line-height: 1.6; }
+.picker-url-textarea:focus { border-color: var(--accent); background: var(--surface); }
+.picker-url-hint { font-size: 11px; color: var(--ink3); line-height: 1.7; margin-top: 8px; background: var(--accent-pale); padding: 10px 12px; border-radius: 10px; border-left: 3px solid var(--accent); }
+.picker-url-hint code { font-family: monospace; background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: 10px; color: var(--accent-dark); border: 1px solid var(--border); }
+
+/* ログイン促しバナー */
+.login-banner { background: var(--surface); border: 1.5px solid var(--accent-mid); border-radius: var(--radius-card); padding: 20px 24px; margin: 0 auto 20px; max-width: 960px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.login-banner-text { font-size: 14px; color: var(--ink2); }
+.login-banner-text b { color: var(--ink); }
+.login-banner-actions { display: flex; gap: 8px; }
+.btn-login-sm { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-btn); padding: 7px 18px; font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+/* ===== ログインモーダル ===== */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; background: rgba(28,25,23,0.6); z-index: 9999; overflow-y: auto; padding: 24px 16px; -webkit-overflow-scrolling: touch; }
+.modal-overlay[hidden] { display: none !important; }
+.modal { background: var(--surface); border-radius: 20px; max-width: 440px; width: 100%; margin: 20px auto; padding: 24px 22px 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); position: relative; box-sizing: border-box; }
+.modal-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 50%; background: var(--bg); border: none; font-size: 18px; color: var(--ink2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: inherit; padding: 0; line-height: 1; }
+.modal-close:hover { background: var(--accent-mid); color: var(--accent-dark); }
+.modal-icon { width: 52px; height: 52px; background: var(--accent); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 14px; box-shadow: 0 6px 16px rgba(249,115,22,0.3); }
+.modal-title { font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 19px; font-weight: 800; color: var(--ink); text-align: center; margin: 0 0 8px; line-height: 1.4; }
+.modal-lead { font-size: 13px; color: var(--ink2); text-align: center; line-height: 1.7; margin: 0 0 18px; }
+.modal-lead b { color: var(--accent-dark); font-weight: 700; }
+.modal-note { background: var(--bg); border-radius: 10px; padding: 11px 14px; margin: 0 0 16px; font-size: 12px; color: var(--ink2); line-height: 1.65; border-left: 3px solid var(--accent); text-align: left; }
+.modal-note b { color: var(--accent-dark); display: block; margin-bottom: 3px; }
+.choice-card { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 14px; border: 2px solid var(--border); background: var(--surface); cursor: pointer; transition: all 0.15s; margin: 0 0 10px; text-align: left; width: 100%; font-family: inherit; box-sizing: border-box; }
+.choice-card:active { transform: scale(0.98); }
+.choice-card:hover { border-color: var(--accent); background: var(--accent-pale); }
+.choice-card.primary { border-color: var(--accent-mid); background: var(--accent-pale); }
+.choice-card.primary:hover { border-color: var(--accent); background: var(--accent-mid); }
+.choice-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-mid); color: var(--accent-dark); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; font-family: 'M PLUS Rounded 1c', sans-serif; font-weight: 800; }
+.choice-card.primary .choice-icon { background: var(--accent); color: #fff; }
+.choice-body { flex: 1; min-width: 0; }
+.choice-title { font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 14px; font-weight: 700; color: var(--ink); margin: 0 0 2px; }
+.choice-desc { font-size: 12px; color: var(--ink2); line-height: 1.5; margin: 0; }
+.choice-arrow { color: var(--ink3); font-size: 20px; flex-shrink: 0; font-weight: 300; }
+.modal-foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); text-align: center; }
+.modal-help { font-size: 12px; color: var(--ink3); }
+.modal-help a { color: var(--accent); font-weight: 700; text-decoration: none; }
+
+@media (max-width: 640px) { .list-grid { grid-template-columns: 1fr; } .user-name { display: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo" onclick="showScreen('list')">
+      <div class="logo-icon">📋</div>
+      <div>
+        <div class="logo-text">まとめたー</div>
+        <div class="logo-sub">matometr · Nostr キュレーション</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <!-- 未ログイン -->
+      <button class="btn-login" id="btn-login" onclick="showLoginModal()">ログイン</button>
+      <!-- ログイン後 -->
+      <div class="user-menu" id="user-menu">
+        <button class="btn-new-matome" onclick="showScreen('create')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          まとめを作る
+        </button>
+        <div class="dropdown-wrap">
+          <div class="user-avatar-btn" onclick="toggleDropdown()">
+            <div class="user-avatar" id="user-avatar">竹</div>
+            <span class="user-name" id="user-name">たけうち_dev</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--ink3)"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="dropdown" id="dropdown">
+            <div class="dropdown-item" onclick="showScreen('mymatome');toggleDropdown()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              マイまとめ
+            </div>
+            <div class="dropdown-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              プロフィール
+            </div>
+            <div class="dropdown-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              設定
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item danger" onclick="doLogout();toggleDropdown()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              ログアウト
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ===== まとめ一覧 ===== -->
+<div class="screen active" id="screen-list">
+  <!-- 未ログインバナー（ログイン後は非表示） -->
+  <div style="max-width:960px;margin:0 auto;padding:16px 20px 0;" id="login-banner-wrap">
+    <div class="login-banner">
+      <div class="login-banner-text"><b>ログインするとまとめを作れます</b><br>拡張機能・Nostr Connect・nsecに対応しています</div>
+      <div class="login-banner-actions">
+        <button class="btn-login-sm" onclick="showLoginModal()">ログイン / 新規登録</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+    <div style="display:flex;gap:4px;">
+      <div class="tab active">新着</div>
+      <div class="tab">話題</div>
+      <div class="tab">フォロー中</div>
+    </div>
+    <button class="btn-publish" onclick="showScreen('create')" style="padding:8px 20px;">＋ まとめを作る</button>
+  </div>
+
+  <div class="list-grid">
+    <div class="matome-card" onclick="showScreen('detail')">
+      <div class="matome-author">
+        <div class="matome-avatar av3">竹</div>
+        <span class="matome-author-name">たけうち_dev</span>
+        <span class="matome-author-time">2時間前</span>
+      </div>
+      <div class="matome-title">Nostr日本語リレー事情まとめ 2025年版</div>
+      <div class="matome-preview">日本語圏のNostrユーザーが使えるリレーを調べてまとめました。速度・安定性・日本語対応などの観点で整理しています。</div>
+      <div class="matome-footer">
+        <span class="matome-count">8件の投稿</span>
+        <span class="matome-tag">#Nostr</span>
+        <span class="matome-likes">♡ 34</span>
+      </div>
+    </div>
+    <div class="matome-card" onclick="showScreen('detail')">
+      <div class="matome-author">
+        <div class="matome-avatar av1">葵</div>
+        <span class="matome-author-name">あおいそら</span>
+        <span class="matome-author-time">5時間前</span>
+      </div>
+      <div class="matome-title">今週撮った夕焼け写真たち</div>
+      <div class="matome-preview">今週Nostrに流れてきた夕焼け写真の中で特によかったものを集めました。みなさんの写真センス、すごい。</div>
+      <div class="matome-footer">
+        <span class="matome-count">6件の投稿</span>
+        <span class="matome-tag">#写真</span>
+        <span class="matome-likes">♡ 58</span>
+      </div>
+    </div>
+    <div class="matome-card" onclick="showScreen('detail')">
+      <div class="matome-author">
+        <div class="matome-avatar av4">花</div>
+        <span class="matome-author-name">hana_zk</span>
+        <span class="matome-author-time">昨日</span>
+      </div>
+      <div class="matome-title">Nostrで見かけたおいしそうなごはん投稿まとめ</div>
+      <div class="matome-preview">Nostrの食べ物投稿、クオリティ高いんですよね。思わず保存したものをまとめました。</div>
+      <div class="matome-footer">
+        <span class="matome-count">12件の投稿</span>
+        <span class="matome-tag">#ごはん</span>
+        <span class="matome-likes">♡ 91</span>
+      </div>
+    </div>
+    <div class="matome-card" onclick="showScreen('detail')">
+      <div class="matome-author">
+        <div class="matome-avatar av5">梅</div>
+        <span class="matome-author-name">umeko_nostr</span>
+        <span class="matome-author-time">昨日</span>
+      </div>
+      <div class="matome-title">「分散型SNSってなに？」を説明してる投稿まとめ</div>
+      <div class="matome-preview">Nostrや分散型SNSについて、わかりやすく説明してくれている投稿を集めました。初心者の方にも読みやすいと思います。</div>
+      <div class="matome-footer">
+        <span class="matome-count">5件の投稿</span>
+        <span class="matome-tag">#入門</span>
+        <span class="matome-likes">♡ 47</span>
+      </div>
+    </div>
+    <div class="matome-card" onclick="showScreen('detail')">
+      <div class="matome-author">
+        <div class="matome-avatar av2">海</div>
+        <span class="matome-author-name">umi_dev</span>
+        <span class="matome-author-time">2日前</span>
+      </div>
+      <div class="matome-title">Rust × Nostr 開発ログ 今月のまとめ</div>
+      <div class="matome-preview">RustでNostr関連ツールを作っている開発者たちの投稿をまとめました。実装の知見がたくさん詰まっています。</div>
+      <div class="matome-footer">
+        <span class="matome-count">9件の投稿</span>
+        <span class="matome-tag">#開発</span>
+        <span class="matome-likes">♡ 29</span>
+      </div>
+    </div>
+    <div class="matome-card" onclick="showScreen('detail')">
+      <div class="matome-author">
+        <div class="matome-avatar av3">竹</div>
+        <span class="matome-author-name">たけうち_dev</span>
+        <span class="matome-author-time">3日前</span>
+      </div>
+      <div class="matome-title">NIP-23って何？ロングフォーム投稿の使いかた</div>
+      <div class="matome-preview">Nostrのロングフォームコンテンツ規格、NIP-23について説明している投稿を集めました。ブログ的な使い方をしたい人向けです。</div>
+      <div class="matome-footer">
+        <span class="matome-count">7件の投稿</span>
+        <span class="matome-tag">#NIP</span>
+        <span class="matome-likes">♡ 22</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== まとめ詳細 ===== -->
+<div class="screen" id="screen-detail">
+  <div class="detail-wrap">
+    <button class="back-btn" onclick="showScreen('list')">← まとめ一覧にもどる</button>
+    <div class="detail-header">
+      <div class="detail-title">Nostr日本語リレー事情まとめ 2025年版</div>
+      <div class="detail-desc">「リレーって何を選べばいいの？」という声をよく聞くので、日本語圏でよく使われているリレーをまとめました。速度・安定性・雰囲気まで、実際に使って感じたことを投稿している方々の声を集めています。Nostrはじめたての方にも参考になるはずです！</div>
+      <div class="detail-meta">
+        <div class="detail-avatar av3">竹</div>
+        <div>
+          <div class="detail-author-name">たけうち_dev</div>
+          <div class="detail-author-pub">npub1r3x…88bc</div>
+        </div>
+        <span class="detail-date">2025年5月19日</span>
+      </div>
+      <div class="detail-stats">
+        <div class="stat-item"><b>8</b>件の投稿</div>
+        <div class="stat-item"><b>34</b>いいね</div>
+        <div class="stat-share-row">
+          <a class="share-icon-btn nostter" href="#" title="nostterで開く" aria-label="nostterで開く">
+            <svg width="16" height="16" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#7c3aed"/><text x="16" y="22" text-anchor="middle" fill="white" font-size="20" font-weight="bold" font-family="serif">N</text></svg>
+          </a>
+          <a class="share-icon-btn x" href="#" title="Xでシェア" aria-label="Xでシェア">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+          <a class="share-icon-btn copy" href="#" title="本文＋URLをコピー" aria-label="本文とURLをコピー" id="copy-btn" onclick="navigator.clipboard.writeText('Nostr日本語リレー事情まとめ 2025年版 https://matometr.example/m/abc123');var el=document.getElementById('copy-btn');el.innerHTML='<svg width=15 height=15 viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;3&quot;><polyline points=&quot;20 6 9 17 4 12&quot;/></svg>';setTimeout(function(){el.innerHTML='<svg width=15 height=15 viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;><rect x=&quot;9&quot; y=&quot;9&quot; width=&quot;13&quot; height=&quot;13&quot; rx=&quot;2&quot;/><path d=&quot;M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1&quot;/></svg>'},1500);return false;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </a>
+          <a class="share-icon-btn nevent" href="#" title="nevent1をコピー" aria-label="nevent1をコピー" id="nevent-btn" onclick="navigator.clipboard.writeText('nevent1qqsxyz...abc123');var el=document.getElementById('nevent-btn');el.innerHTML='<svg width=15 height=15 viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;3&quot;><polyline points=&quot;20 6 9 17 4 12&quot;/></svg>';setTimeout(function(){el.innerHTML='<svg width=15 height=15 viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;><polygon points=&quot;13 2 3 14 12 14 11 22 21 10 12 10 13 2&quot;/></svg>'},1500);return false;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <div class="note-num">1 / 8</div>
+      <div class="note-header">
+        <div class="avatar av3">竹</div>
+        <div><div class="note-name">たけうち_dev</div><div class="note-pub">npub1r3x…88bc</div></div>
+        <span class="note-time">5月10日</span>
+      </div>
+      <div class="note-content">日本語圏のNostrリレーを整理してみた。まず速度面ではh3z.jpが一番安定してる印象。ほぼ遅延なし。<span class="hashtag">#Nostr</span><span class="hashtag">#リレー</span></div>
+      <div class="editor-comment"><span class="editor-label">まとめコメント</span>h3z.jpはNostr日本語コミュニティでは鉄板リレー。まず試してみるならここから。</div>
+    </div>
+    <div class="note-card">
+      <div class="note-num">2 / 8</div>
+      <div class="note-header">
+        <div class="avatar av4">梅</div>
+        <div><div class="note-name">umeko_nostr</div><div class="note-pub">npub1p9m…21fd</div></div>
+        <span class="note-time">5月11日</span>
+      </div>
+      <div class="note-content">wirednet.jpも使ってるけど、日本語コンテンツの量が多くて読んでて楽しい。コミュニティ感ある。</div>
+      <div class="editor-comment"><span class="editor-label">まとめコメント</span>日本語投稿の密度が高く、タイムラインが賑やか。日常投稿を楽しみたい人向き。</div>
+    </div>
+    <div class="note-card">
+      <div class="note-num">3 / 8</div>
+      <div class="note-header">
+        <div class="avatar av1">葵</div>
+        <div><div class="note-name">あおいそら</div><div class="note-pub">npub1qsk…f72a</div></div>
+        <span class="note-time">5月12日</span>
+      </div>
+      <div class="note-content">r.kojira.ioは少し癖があるけど、画像投稿が多い印象。写真好きな人にはおすすめかも。<span class="hashtag">#写真</span></div>
+      <div class="editor-comment"><span class="editor-label">まとめコメント</span>写真・イラスト系の投稿が活発。ビジュアル重視の方はここもチェックしてみて。</div>
+    </div>
+    <div class="note-card">
+      <div class="note-num">4 / 8</div>
+      <div class="note-header">
+        <div class="avatar av2">海</div>
+        <div><div class="note-name">umi_dev</div><div class="note-pub">npub1aa7…c04e</div></div>
+        <span class="note-time">5月13日</span>
+      </div>
+      <div class="note-content">複数リレーを同時に購読するのが基本なので、1つに絞らず全部つないでおくのがいいと思う。クライアントが自動でやってくれる。</div>
+      <div class="editor-comment"><span class="editor-label">まとめコメント</span>これ大事！1つに絞る必要はなし。クライアントが自動でさばいてくれるので全部つないでOK。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== まとめ作成画面 ===== -->
+<div class="screen" id="screen-create">
+  <div class="create-wrap">
+    <button class="back-btn" onclick="showScreen('list')">← もどる</button>
+    <div class="create-header">
+      <div class="create-title-text">まとめを作る</div>
+      <div class="create-subtitle">投稿を選んで、コメントを添えて公開できます</div>
+    </div>
+
+    <div class="create-card">
+      <h3>タイトル</h3>
+      <input class="create-input" type="text" placeholder="例：今週のNostr面白い投稿まとめ" value="Nostr日本語リレー事情まとめ 2025年版" />
+    </div>
+
+    <div class="create-card">
+      <h3>説明文</h3>
+      <textarea class="create-textarea" placeholder="まとめの概要・読んでほしい人へのメッセージなどを書いてください">「リレーって何を選べばいいの？」という声をよく聞くので、日本語圏でよく使われているリレーをまとめました。Nostrはじめたての方にも参考になるはずです！</textarea>
+    </div>
+
+    <div class="create-card">
+      <h3>まとめの中身 <span class="count-badge" id="item-count">5</span></h3>
+
+      <!-- 1: 見出し -->
+      <div class="edit-item heading">
+        <div class="edit-handle">
+          <span class="drag-icon">⋮⋮</span>
+        </div>
+        <div class="edit-body">
+          <input class="heading-input" type="text" value="◆ まずは結論：おすすめ3つ" />
+        </div>
+        <button class="edit-remove" aria-label="削除" onclick="alert('削除します')">×</button>
+      </div>
+
+      <!-- 間に挿入 -->
+      <div class="between-actions">
+        <div class="between-line"></div>
+        <button class="between-btn" onclick="showPickerModal()">＋ 投稿</button>
+        <button class="between-btn" onclick="alert('コメント挿入')">＋ コメント</button>
+        <button class="between-btn" onclick="alert('見出し挿入')">＋ 見出し</button>
+        <div class="between-line"></div>
+      </div>
+
+      <!-- 2: 投稿 -->
+      <div class="edit-item">
+        <div class="edit-handle">
+          <span class="drag-icon">⋮⋮</span>
+          <span class="item-num">1</span>
+        </div>
+        <div class="edit-body">
+          <div class="edit-note-header">
+            <div class="edit-avatar av3">竹</div>
+            <span class="edit-name">たけうち_dev</span>
+            <span class="edit-time">5月10日</span>
+          </div>
+          <div class="edit-note-body">日本語圏のNostrリレーを整理してみた。まず速度面ではh3z.jpが一番安定してる印象。ほぼ遅延なし。</div>
+        </div>
+        <button class="edit-remove" aria-label="削除" onclick="alert('削除します')">×</button>
+      </div>
+
+      <!-- 間に挿入 -->
+      <div class="between-actions">
+        <div class="between-line"></div>
+        <button class="between-btn" onclick="showPickerModal()">＋ 投稿</button>
+        <button class="between-btn" onclick="alert('コメント挿入')">＋ コメント</button>
+        <button class="between-btn" onclick="alert('見出し挿入')">＋ 見出し</button>
+        <div class="between-line"></div>
+      </div>
+
+      <!-- 3: コメントブロック -->
+      <div class="edit-item comment">
+        <div class="edit-handle">
+          <span class="drag-icon">⋮⋮</span>
+        </div>
+        <div class="edit-body">
+          <div class="comment-label">まとめ主のひとこと</div>
+          <textarea class="comment-input" placeholder="自由にコメントを書けます">h3z.jpはNostr日本語コミュニティでは鉄板リレー。まず試してみるならここから始めるのがおすすめです。</textarea>
+        </div>
+        <button class="edit-remove" aria-label="削除" onclick="alert('削除します')">×</button>
+      </div>
+
+      <!-- 間に挿入 -->
+      <div class="between-actions">
+        <div class="between-line"></div>
+        <button class="between-btn" onclick="showPickerModal()">＋ 投稿</button>
+        <button class="between-btn" onclick="alert('コメント挿入')">＋ コメント</button>
+        <button class="between-btn" onclick="alert('見出し挿入')">＋ 見出し</button>
+        <div class="between-line"></div>
+      </div>
+
+      <!-- 4: 投稿 -->
+      <div class="edit-item">
+        <div class="edit-handle">
+          <span class="drag-icon">⋮⋮</span>
+          <span class="item-num">2</span>
+        </div>
+        <div class="edit-body">
+          <div class="edit-note-header">
+            <div class="edit-avatar av4">梅</div>
+            <span class="edit-name">umeko_nostr</span>
+            <span class="edit-time">5月11日</span>
+          </div>
+          <div class="edit-note-body">wirednet.jpも使ってるけど、日本語コンテンツの量が多くて読んでて楽しい。コミュニティ感ある。</div>
+        </div>
+        <button class="edit-remove" aria-label="削除" onclick="alert('削除します')">×</button>
+      </div>
+
+      <!-- 間に挿入 -->
+      <div class="between-actions">
+        <div class="between-line"></div>
+        <button class="between-btn" onclick="showPickerModal()">＋ 投稿</button>
+        <button class="between-btn" onclick="alert('コメント挿入')">＋ コメント</button>
+        <button class="between-btn" onclick="alert('見出し挿入')">＋ 見出し</button>
+        <div class="between-line"></div>
+      </div>
+
+      <!-- 5: コメントブロック -->
+      <div class="edit-item comment">
+        <div class="edit-handle">
+          <span class="drag-icon">⋮⋮</span>
+        </div>
+        <div class="edit-body">
+          <div class="comment-label">まとめ主のひとこと</div>
+          <textarea class="comment-input" placeholder="自由にコメントを書けます">日本語投稿の密度が高くて、タイムラインが賑やか。日常投稿を楽しみたい人向きです。</textarea>
+        </div>
+        <button class="edit-remove" aria-label="削除" onclick="alert('削除します')">×</button>
+      </div>
+
+      <div class="add-buttons">
+        <button class="btn-add" onclick="showPickerModal()"><span class="btn-add-icon">＋</span>投稿を追加</button>
+        <button class="btn-add" onclick="alert('コメントブロック追加')"><span class="btn-add-icon">＋</span>コメントを追加</button>
+        <button class="btn-add" onclick="alert('見出し追加')"><span class="btn-add-icon">＋</span>見出しを追加</button>
+      </div>
+    </div>
+
+    <div class="create-actions">
+      <button class="btn-cancel" onclick="showScreen('list')">キャンセル</button>
+      <button class="btn-draft">下書き保存</button>
+      <button class="btn-publish">公開する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 投稿選択モーダル -->
+<div class="modal-overlay" id="picker-modal" hidden onclick="if(event.target===this)hidePickerModal()">
+  <div class="modal" style="max-width:520px;">
+    <button class="modal-close" onclick="hidePickerModal()" aria-label="閉じる">×</button>
+    <div class="modal-title" style="text-align:left;margin-bottom:14px;">投稿を追加</div>
+
+    <div class="picker-tabs">
+      <div class="picker-tab active" onclick="switchPickerTab(this, 'tl')">タイムライン</div>
+      <div class="picker-tab" onclick="switchPickerTab(this, 'search')">検索</div>
+      <div class="picker-tab" onclick="switchPickerTab(this, 'url')">IDで追加</div>
+    </div>
+
+    <!-- タイムラインタブ -->
+    <div id="picker-pane-tl">
+      <input class="picker-search" placeholder="🔍 投稿を検索…" />
+      <div class="picker-list">
+        <div class="picker-item checked">
+          <div class="picker-check">✓</div>
+          <div class="picker-body">
+            <div class="picker-meta">
+              <div class="picker-avatar av1">葵</div>
+              <span class="picker-name">あおいそら</span>
+              <span class="picker-time">5月12日</span>
+            </div>
+            <div class="picker-content">r.kojira.ioは少し癖があるけど、画像投稿が多い印象。写真好きな人にはおすすめかも。</div>
+          </div>
+        </div>
+
+        <div class="picker-item">
+          <div class="picker-check">✓</div>
+          <div class="picker-body">
+            <div class="picker-meta">
+              <div class="picker-avatar av2">海</div>
+              <span class="picker-name">umi_dev</span>
+              <span class="picker-time">5月13日</span>
+            </div>
+            <div class="picker-content">複数リレーを同時に購読するのが基本なので、1つに絞らず全部つないでおくのがいいと思う。</div>
+          </div>
+        </div>
+
+        <div class="picker-item">
+          <div class="picker-check">✓</div>
+          <div class="picker-body">
+            <div class="picker-meta">
+              <div class="picker-avatar av5">梅</div>
+              <span class="picker-name">umeko_nostr</span>
+              <span class="picker-time">5月14日</span>
+            </div>
+            <div class="picker-content">分散型SNSのいいところって、自分の投稿が消えないし、サービスが終了しても別のクライアントで見れるところだと思う。</div>
+          </div>
+        </div>
+
+        <div class="picker-item">
+          <div class="picker-check">✓</div>
+          <div class="picker-body">
+            <div class="picker-meta">
+              <div class="picker-avatar av3">竹</div>
+              <span class="picker-name">たけうち_dev</span>
+              <span class="picker-time">5月15日</span>
+            </div>
+            <div class="picker-content">NIP-23のロングフォーム、書きやすくてだいぶ気に入ってる。マークダウン使えるの便利。</div>
+          </div>
+        </div>
+
+        <div class="picker-item">
+          <div class="picker-check">✓</div>
+          <div class="picker-body">
+            <div class="picker-meta">
+              <div class="picker-avatar av4">花</div>
+              <span class="picker-name">hana_zk</span>
+              <span class="picker-time">5月16日</span>
+            </div>
+            <div class="picker-content">きょうの晩ごはんは豚汁と白ごはんと焼き魚。シンプルだけどこれが一番おいしい。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 検索タブ -->
+    <div id="picker-pane-search" hidden>
+      <input class="picker-search" placeholder="🔍 ハッシュタグ・キーワード・ユーザー名" />
+      <div style="padding: 30px 20px; text-align: center; color: var(--ink3); font-size: 13px;">
+        検索ワードを入力してください
+      </div>
+    </div>
+
+    <!-- ID/URLタブ -->
+    <div id="picker-pane-url" class="picker-url-pane" hidden>
+      <label>投稿のIDまたはURLを貼り付けてください</label>
+      <textarea class="picker-url-textarea" placeholder="nevent1qqsxxxx...&#10;または&#10;https://nostter.app/note1xxx...&#10;1行に1件、複数まとめて貼り付け可能"></textarea>
+      <div class="picker-url-hint">
+        対応している形式：<br>
+        <code>nevent1...</code> <code>note1...</code> <code>nostr:nevent1...</code> <code>https://njump.me/...</code> <code>https://nostter.app/...</code>
+      </div>
+    </div>
+
+    <div class="picker-actions">
+      <span class="picker-info">1件 選択中</span>
+      <button class="btn-cancel" onclick="hidePickerModal()">キャンセル</button>
+      <button class="btn-publish" onclick="alert('まとめに追加しました（実装時）');hidePickerModal();">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== マイまとめ ===== -->
+<div class="screen" id="screen-mymatome">
+  <div style="max-width:720px;margin:0 auto;padding:24px 20px;">
+    <button class="back-btn" onclick="showScreen('list')">← もどる</button>
+    <div style="font-family:'M PLUS Rounded 1c',sans-serif;font-size:18px;font-weight:800;color:var(--ink);margin-bottom:4px;">マイまとめ</div>
+    <div style="font-size:13px;color:var(--ink3);margin-bottom:20px;">たけうち_dev さんのまとめ</div>
+    <div class="matome-card" style="margin-bottom:10px;" onclick="showScreen('detail')">
+      <div class="matome-author">
+        <div class="matome-avatar av3">竹</div>
+        <span class="matome-author-name">たけうち_dev</span>
+        <span class="matome-author-time">2時間前</span>
+      </div>
+      <div class="matome-title">Nostr日本語リレー事情まとめ 2025年版</div>
+      <div class="matome-footer">
+        <span class="matome-count">8件の投稿</span>
+        <span class="matome-tag">#Nostr</span>
+        <span class="matome-likes">♡ 34</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--accent);font-weight:700;font-family:'M PLUS Rounded 1c',sans-serif;background:var(--accent-mid);padding:3px 10px;border-radius:var(--radius-btn);">公開済み</span>
+      </div>
+    </div>
+    <div class="matome-card" onclick="showScreen('create')">
+      <div class="matome-author">
+        <div class="matome-avatar av3">竹</div>
+        <span class="matome-author-name">たけうち_dev</span>
+        <span class="matome-author-time">3日前</span>
+      </div>
+      <div class="matome-title">NIP-23って何？ロングフォーム投稿の使いかた</div>
+      <div class="matome-footer">
+        <span class="matome-count">7件の投稿</span>
+        <span class="matome-tag">#NIP</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--ink3);font-weight:700;font-family:'M PLUS Rounded 1c',sans-serif;background:var(--bg);padding:3px 10px;border-radius:var(--radius-btn);border:1px solid var(--border2);">下書き</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+  if (document.getElementById('dropdown').classList.contains('open')) toggleDropdown();
+}
+
+function toggleDropdown() {
+  document.getElementById('dropdown').classList.toggle('open');
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.dropdown-wrap')) {
+    document.getElementById('dropdown').classList.remove('open');
+  }
+});
+
+// nostr-login 連携
+function doLogin() {
+  document.dispatchEvent(new CustomEvent('nlLaunch', { detail: 'welcome' }));
+}
+
+// ラッパーモーダル制御
+function showLoginModal() {
+  document.getElementById('login-modal').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+function hideLoginModal() {
+  document.getElementById('login-modal').hidden = true;
+  document.body.style.overflow = '';
+}
+function launchNostrLogin(screen) {
+  hideLoginModal();
+  // 本番では下の行が動く（nostr-loginの該当画面が起動）
+  // document.dispatchEvent(new CustomEvent('nlLaunch', { detail: screen }));
+  alert('ここでnostr-loginの「' + screen + '」画面が起動します');
+}
+
+// 投稿選択モーダル
+function showPickerModal() {
+  document.getElementById('picker-modal').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+function hidePickerModal() {
+  document.getElementById('picker-modal').hidden = true;
+  document.body.style.overflow = '';
+}
+
+// pickerのチェック切替
+document.addEventListener('click', function(e) {
+  const item = e.target.closest('.picker-item');
+  if (!item) return;
+  item.classList.toggle('checked');
+  const count = document.querySelectorAll('.picker-item.checked').length;
+  const info = document.querySelector('.picker-info');
+  if (info) info.textContent = count + '件 選択中';
+});
+
+// pickerタブ切替
+function switchPickerTab(tabEl, paneId) {
+  document.querySelectorAll('.picker-tab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+  ['tl', 'search', 'url'].forEach(id => {
+    document.getElementById('picker-pane-' + id).hidden = (id !== paneId);
+  });
+}
+
+function doLogout() {
+  document.dispatchEvent(new CustomEvent('nlLogout'));
+}
+
+document.addEventListener('nlAuth', async (e) => {
+  if (e.detail.type === 'login' || e.detail.type === 'signup') {
+    onLogin();
+  } else if (e.detail.type === 'logout') {
+    onLogout();
+  }
+});
+
+async function onLogin() {
+  document.getElementById('btn-login').style.display = 'none';
+  document.getElementById('login-banner-wrap').style.display = 'none';
+  document.getElementById('user-menu').classList.add('active');
+
+  // プロフィール取得（window.nostr経由）
+  try {
+    const pubkey = await window.nostr.getPublicKey();
+    const short = pubkey.slice(0, 8) + '…';
+    document.getElementById('user-name').textContent = short;
+    document.getElementById('user-avatar').textContent = short[0].toUpperCase();
+  } catch(e) {}
+}
+
+function onLogout() {
+  document.getElementById('btn-login').style.display = '';
+  document.getElementById('login-banner-wrap').style.display = '';
+  document.getElementById('user-menu').classList.remove('active');
+}
+
+// デモ用：ページ読み込み時にログイン済み状態を表示（モック確認用）
+// 本番では削除してnostr-loginのイベントに任せる
+// onLogin();
+</script>
+
+<!-- ログインモーダル -->
+<div class="modal-overlay" id="login-modal" hidden onclick="if(event.target===this)hideLoginModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="hideLoginModal()" aria-label="閉じる">×</button>
+    <div class="modal-icon">📋</div>
+    <div class="modal-title">まとめたーへようこそ</div>
+    <div class="modal-lead">
+      まとめを作ったり、いいねしたりするには<br>
+      <b>Nostrアカウント</b>でログインしてください
+    </div>
+
+    <div class="modal-note">
+      <b>Nostrってなに？</b><br>
+      メールや電話番号を使わない、新しい仕組みのSNSの基盤です。アカウントひとつで色々なアプリで使えます。
+    </div>
+
+    <button class="choice-card primary" onclick="launchNostrLogin('welcome-login')">
+      <div class="choice-icon">✓</div>
+      <div class="choice-body">
+        <div class="choice-title">すでにアカウントを持っている</div>
+        <div class="choice-desc">他のNostrアプリ（Damus・Amethystなど）を使ったことがある方</div>
+      </div>
+      <span class="choice-arrow">›</span>
+    </button>
+
+    <button class="choice-card" onclick="launchNostrLogin('welcome-signup')">
+      <div class="choice-icon">＋</div>
+      <div class="choice-body">
+        <div class="choice-title">はじめて使う（新規登録）</div>
+        <div class="choice-desc">Nostrのアカウントをこれから作ります。1分くらいで完了します</div>
+      </div>
+      <span class="choice-arrow">›</span>
+    </button>
+
+    <div class="modal-foot">
+      <div class="modal-help">
+        操作に困ったら <a href="#" onclick="alert('使い方ページに遷移');return false;">使い方ガイド</a> をご覧ください
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
