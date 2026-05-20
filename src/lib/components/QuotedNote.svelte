@@ -105,7 +105,7 @@
           {authorStyle.initial}
         {/if}
       </div>
-      <span class="quoted-name">{authorName}</span>
+      <span class="quoted-name">{truncateName(authorName)}</span>
     </div>
     <div class="quoted-content">
       {#each segments as segment}
