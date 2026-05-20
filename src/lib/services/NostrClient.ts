@@ -9,6 +9,16 @@ import { DEFAULT_RELAYS, SEARCH_RELAYS } from '$lib/stores/relays';
 import { Matome } from '$lib/entities/Matome';
 import type { UserProfile, Note, EditorBlock, NoteEditorBlock } from '$lib/types';
 
+const HEX_64 = /^[0-9a-f]{64}$/;
+
+function toNote(event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][] }): Note {
+  return { id: event.id, pubkey: event.pubkey, content: event.content, createdAt: event.created_at, tags: event.tags };
+}
+
+function withRelays(relays?: string[]): { on: { relays: string[]; defaultReadRelays: boolean } } | undefined {
+  return relays && relays.length > 0 ? { on: { relays, defaultReadRelays: true } } : undefined;
+}
+
 let _client: RxNostr | null = null;
 
 function getClient(): RxNostr {
@@ -90,15 +100,7 @@ export function fetchNoteById(eventId: string): Observable<Note> {
     filters: { kinds: [1], ids: [eventId], limit: 1 }
   });
   return client.use(rxReq).pipe(
-    map(
-      ({ event }): Note => ({
-        id: event.id,
-        pubkey: event.pubkey,
-        content: event.content,
-        createdAt: event.created_at,
-        tags: event.tags
-      })
-    ),
+    map(({ event }) => toNote(event)),
     take(1)
   );
 }
@@ -115,7 +117,7 @@ export function fetchFollowList(pubkey: string): Observable<string[]> {
     map(({ event }) => {
       const seen = new Set<string>();
       for (const tag of event.tags) {
-        if (tag[0] === 'p' && tag[1] && /^[0-9a-f]{64}$/.test(tag[1])) seen.add(tag[1]);
+        if (tag[0] === 'p' && tag[1] && HEX_64.test(tag[1])) seen.add(tag[1]);
       }
       return [...seen];
     }),
@@ -162,21 +164,9 @@ export function fetchNotesFromAuthors(
     : { kinds: [1], authors, limit };
   const rxReq = createRxOneshotReq({ filters: filter });
 
-  const useOptions = relays && relays.length > 0
-    ? { on: { relays, defaultReadRelays: true } }
-    : undefined;
-
-  return client.use(rxReq, useOptions).pipe(
+  return client.use(rxReq, withRelays(relays)).pipe(
     uniq(),
-    map(
-      ({ event }): Note => ({
-        id: event.id,
-        pubkey: event.pubkey,
-        content: event.content,
-        createdAt: event.created_at,
-        tags: event.tags
-      })
-    )
+    map(({ event }) => toNote(event))
   );
 }
 
@@ -194,17 +184,13 @@ export function fetchFavoriteReactions(
     : { kinds: [7], authors: [pubkey], limit };
   const rxReq = createRxOneshotReq({ filters: reactionFilter });
 
-  const useOptions = relays && relays.length > 0
-    ? { on: { relays, defaultReadRelays: true } }
-    : undefined;
-
-  return client.use(rxReq, useOptions).pipe(
+  return client.use(rxReq, withRelays(relays)).pipe(
     uniq(),
     map(({ event }) => {
       // 最後の e タグが対象イベントとする慣例
       let eventId = '';
       for (const tag of event.tags) {
-        if (tag[0] === 'e' && tag[1] && /^[0-9a-f]{64}$/.test(tag[1])) eventId = tag[1];
+        if (tag[0] === 'e' && tag[1] && HEX_64.test(tag[1])) eventId = tag[1];
       }
       return eventId ? { eventId, reactedAt: event.created_at } : null;
     }),
@@ -226,21 +212,9 @@ export function fetchNotesByIds(
     filters: { kinds: [1], ids, limit: ids.length }
   });
 
-  const useOptions = relays && relays.length > 0
-    ? { on: { relays, defaultReadRelays: true } }
-    : undefined;
-
-  return client.use(rxReq, useOptions).pipe(
+  return client.use(rxReq, withRelays(relays)).pipe(
     uniq(),
-    map(
-      ({ event }): Note => ({
-        id: event.id,
-        pubkey: event.pubkey,
-        content: event.content,
-        createdAt: event.created_at,
-        tags: event.tags
-      })
-    )
+    map(({ event }) => toNote(event))
   );
 }
 
@@ -256,16 +230,6 @@ export function fetchTagSearch(
   const client = getClient();
   const { until, limit = 30, since } = options;
 
-  function toNote({ event }: { event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][] } }): Note {
-    return {
-      id: event.id,
-      pubkey: event.pubkey,
-      content: event.content,
-      createdAt: event.created_at,
-      tags: event.tags
-    };
-  }
-
   const tagFilter = {
     kinds: [1],
     '#t': [keyword],
@@ -276,7 +240,7 @@ export function fetchTagSearch(
   const tagReq = createRxOneshotReq({ filters: tagFilter });
   const tagObs = client.use(tagReq, {
     on: { relays: DEFAULT_RELAYS, defaultReadRelays: false }
-  }).pipe(uniq(), map(toNote));
+  }).pipe(uniq(), map(({ event }) => toNote(event)));
 
   const searchFilter = {
     kinds: [1],
@@ -288,7 +252,7 @@ export function fetchTagSearch(
   const searchReq = createRxOneshotReq({ filters: searchFilter });
   const searchObs = client.use(searchReq, {
     on: { relays: [...SEARCH_RELAYS], defaultReadRelays: false }
-  }).pipe(uniq(), map(toNote));
+  }).pipe(uniq(), map(({ event }) => toNote(event)));
 
   return merge(tagObs, searchObs);
 }

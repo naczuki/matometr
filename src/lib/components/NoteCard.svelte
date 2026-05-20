@@ -8,6 +8,7 @@
   import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
   import { parseNostrRefs, extractImages, isSafeUrl } from '$lib/utils/nostrContent';
+  import { shortNpubFromPubkey } from '$lib/utils/nostr';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
 
   export let nevent: string;
@@ -41,22 +42,12 @@
   });
 
   $: profile = note ? $profiles.get(note.pubkey) : undefined;
-  $: authorName = profile?.displayName ?? profile?.name ?? shortNpub(note?.pubkey ?? '');
+  $: authorName = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(note?.pubkey ?? '');
   $: authorStyle = note ? avatarStyle(note.pubkey) : { bg: '#e5e5e5', fg: '#737373', initial: '?' };
   $: picture = profile?.picture ?? null;
 
   let imgFailed = false;
   $: picture, (imgFailed = false);
-
-  function shortNpub(pubkey: string): string {
-    if (!pubkey) return '…';
-    try {
-      const npub = nip19.npubEncode(pubkey);
-      return npub.slice(0, 8) + '…' + npub.slice(-4);
-    } catch {
-      return pubkey.slice(0, 8) + '…';
-    }
-  }
 
   function truncateName(name: string, max = 30): string {
     return name.length > max ? name.slice(0, max) + '…' : name;
@@ -114,7 +105,7 @@
       </div>
       <div class="note-meta">
         <div class="note-name">{truncateName(authorName)}</div>
-        <div class="note-pub">{shortNpub(note.pubkey)}</div>
+        <div class="note-pub">{shortNpubFromPubkey(note.pubkey)}</div>
       </div>
       <span class="note-time">{timeAgo(note.createdAt)}</span>
     </div>
@@ -127,7 +118,7 @@
           <a
             class="mention-link"
             href="{base}/user/{nip19.npubEncode(segment.pubkey)}"
-          >@{truncateName(mp?.displayName ?? mp?.name ?? shortNpub(segment.pubkey))}</a>
+          >@{truncateName(mp?.displayName ?? mp?.name ?? shortNpubFromPubkey(segment.pubkey))}</a>
         {:else if segment.type === 'quote'}
           <QuotedNote eventId={segment.eventId} />
         {:else if segment.type === 'naddr'}

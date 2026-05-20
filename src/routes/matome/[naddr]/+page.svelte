@@ -11,6 +11,7 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
   import { avatarStyle } from '$lib/utils/avatar';
+  import { shortNpubFromPubkey } from '$lib/utils/nostr';
   import { NOSLI_BASE_URL } from '$lib/utils/constants';
   import NoteCard from '$lib/components/NoteCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -55,7 +56,7 @@
   $: isMine = !!$currentUser && matome?.pubkey === $currentUser.pubkey;
 
   $: profile = $profiles.get(matome?.pubkey ?? '');
-  $: authorName = profile?.displayName ?? profile?.name ?? shortNpub(matome?.pubkey ?? '');
+  $: authorName = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(matome?.pubkey ?? '');
   $: authorPicture = profile?.picture ?? null;
   $: authorStyle = matome ? avatarStyle(matome.pubkey) : { bg: '#e5e5e5', fg: '#737373', initial: '?' };
   $: authorNpub = matome ? (() => { try { return nip19.npubEncode(matome!.pubkey); } catch { return null; } })() : null;
@@ -84,16 +85,6 @@
   }
 
   $: renderPlan = matome ? buildRenderPlan(matome.blocks) : [];
-
-  function shortNpub(pubkey: string): string {
-    if (!pubkey) return '…';
-    try {
-      const npub = nip19.npubEncode(pubkey);
-      return npub.slice(0, 8) + '…' + npub.slice(-4);
-    } catch {
-      return pubkey.slice(0, 8) + '…';
-    }
-  }
 
   function formatDate(unixSeconds: number): string {
     const d = new Date(unixSeconds * 1000);
@@ -214,7 +205,7 @@
           </div>
           <div>
             <div class="detail-author-name">{authorName}</div>
-            <div class="detail-author-pub">{shortNpub(matome.pubkey)}</div>
+            <div class="detail-author-pub">{shortNpubFromPubkey(matome.pubkey)}</div>
           </div>
         </a>
         <span class="detail-date">{formatDate(matome.publishedAt)}</span>
