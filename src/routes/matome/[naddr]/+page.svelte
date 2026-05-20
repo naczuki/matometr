@@ -453,20 +453,19 @@
     margin-left: auto;
   }
 
-  /* nostr-share-component: 他のボタンと同じ正方形スタイル */
+  /* nostr-share-component: Mochiy Pop One・横長・オレンジ */
   :global(nostr-share::part(button)) {
     background: var(--accent);
     color: white;
     border: none;
     border-radius: 10px;
-    width: 34px;
     height: 34px;
-    padding: 0;
+    padding: 0 14px;
     cursor: pointer;
     transition: background 0.12s, transform 0.12s, box-shadow 0.12s;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+    gap: 6px;
   }
 
   :global(nostr-share::part(button):hover) {
@@ -476,11 +475,8 @@
   }
 
   :global(nostr-share::part(text)) {
-    font-family: 'M PLUS Rounded 1c', sans-serif;
-    font-weight: 800;
-    font-size: 11px;
-    line-height: 1;
-    letter-spacing: -0.02em;
+    font-family: 'Mochiy Pop One', sans-serif;
+    font-size: 13px;
   }
 
   /* 共通シェアボタン */
