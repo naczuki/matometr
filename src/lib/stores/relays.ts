@@ -11,4 +11,10 @@ export const DEFAULT_RELAYS_GLOBAL = ['wss://nos.lol/', 'wss://relay.damus.io/']
 
 export const DEFAULT_RELAYS = [...DEFAULT_RELAYS_JP, ...DEFAULT_RELAYS_GLOBAL];
 
+export const SEARCH_RELAYS = [
+  'wss://search.nos.today/',
+  'wss://nostr.wine/',
+  'wss://cagliostr.compile-error.net/'
+] as const;
+
 export const relays = writable<string[]>(DEFAULT_RELAYS);
