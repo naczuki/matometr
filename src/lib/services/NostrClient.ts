@@ -177,7 +177,7 @@ function buildETags(blocks: EditorBlock[]): string[][] {
 }
 
 async function sendToRelays(eventParams: {
-  kind: 30023;
+  kind: number;
   created_at: number;
   tags: string[][];
   content: string;
@@ -277,7 +277,24 @@ export async function updateMatome(params: {
 }
 
 /**
- * nosli 互換まとめ（t:nosli）を取得。
+ * まとめを NIP-09 の kind:5 削除イベントとして署名・公開する。
+ */
+export async function deleteMatome(eventId: string): Promise<void> {
+  if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
+
+  const now = Math.floor(Date.now() / 1000);
+  await sendToRelays({
+    kind: 5,
+    created_at: now,
+    tags: [
+      ['e', eventId],
+      ['k', '30023'],
+    ],
+    content: '',
+  });
+}
+
+/**
  * eタグ有り・コメントなしのため閲覧のみ（編集は nosli へ誘導）。
  */
 export function fetchNosliList(limit = 10): Observable<Matome> {

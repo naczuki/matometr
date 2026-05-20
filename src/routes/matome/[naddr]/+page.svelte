@@ -2,11 +2,12 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { base } from '$app/paths';
+  import { goto } from '$app/navigation';
   import { nip19 } from 'nostr-tools';
   import type { AddressPointer } from 'nostr-tools/nip19';
   import { Matome } from '$lib/entities/Matome';
   import type { MatomeBlock } from '$lib/entities/Matome';
-  import { fetchMatomeByAddress } from '$lib/services/NostrClient';
+  import { fetchMatomeByAddress, deleteMatome } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
   import { avatarStyle } from '$lib/utils/avatar';
@@ -144,6 +145,24 @@
     setTimeout(() => { copiedNaddr = false; menuOpen = false; }, 1500);
   }
 
+  // 削除
+  let showDeleteConfirm = false;
+  let deleting = false;
+  let deleteError = '';
+
+  async function handleDelete(): Promise<void> {
+    if (!matome || deleting) return;
+    deleting = true;
+    deleteError = '';
+    try {
+      await deleteMatome(matome.id);
+      await goto(`${base}/`);
+    } catch (e) {
+      deleteError = e instanceof Error ? e.message : '削除に失敗しました';
+      deleting = false;
+    }
+  }
+
   // JSON modal
   let showJson = false;
   $: jsonText = matome ? JSON.stringify(matome.rawEvent, null, 2) : '';
@@ -268,6 +287,7 @@
       {#if isMine && matome.isMatometr}
         <div class="detail-actions">
           <a href="{base}/edit/{matome.naddr}" class="btn-edit">まとめたーで編集</a>
+          <button class="btn-delete" on:click={() => (showDeleteConfirm = true)}>削除</button>
         </div>
       {:else if isMine && matome.isNosli}
         <div class="detail-actions">
@@ -294,6 +314,39 @@
     {/each}
   {/if}
 </div>
+
+<!-- 削除確認ダイアログ -->
+{#if showDeleteConfirm}
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <div
+    class="dialog-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-label="削除の確認"
+    on:click|self={() => { if (!deleting) showDeleteConfirm = false; }}
+    on:keydown={(e) => { if (e.key === 'Escape' && !deleting) showDeleteConfirm = false; }}
+  >
+    <div class="dialog-box">
+      <p class="dialog-title">このまとめを削除しますか？</p>
+      <p class="dialog-note">リレーによっては削除後も残る場合があります。</p>
+      {#if deleteError}
+        <p class="dialog-error">{deleteError}</p>
+      {/if}
+      <div class="dialog-actions">
+        <button
+          class="dialog-btn-cancel"
+          disabled={deleting}
+          on:click={() => (showDeleteConfirm = false)}
+        >キャンセル</button>
+        <button
+          class="dialog-btn-delete"
+          disabled={deleting}
+          on:click={handleDelete}
+        >{deleting ? '削除中…' : '削除する'}</button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <!-- JSON モーダル -->
 {#if showJson}
@@ -469,6 +522,9 @@
 
   .detail-actions {
     margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .btn-edit {
@@ -500,6 +556,119 @@
     font-family: var(--font-ui);
     text-decoration: none;
     transition: border-color 0.12s, color 0.12s;
+  }
+
+  .btn-delete {
+    padding: 8px 16px;
+    border-radius: var(--radius-btn);
+    border: 1.5px solid #fca5a5;
+    background: transparent;
+    color: #dc2626;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+
+  .btn-delete:hover {
+    background: #fff5f5;
+    border-color: #dc2626;
+  }
+
+  /* 削除確認ダイアログ */
+  .dialog-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 16px;
+  }
+
+  .dialog-box {
+    background: var(--surface);
+    border-radius: 18px;
+    padding: 28px 24px 20px;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  }
+
+  .dialog-title {
+    font-family: var(--font-ui);
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--ink);
+    margin: 0 0 8px;
+  }
+
+  .dialog-note {
+    font-size: 13px;
+    color: var(--ink3);
+    margin: 0 0 16px;
+  }
+
+  .dialog-error {
+    font-size: 13px;
+    color: #dc2626;
+    background: #fff5f5;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+  }
+
+  .dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .dialog-btn-cancel {
+    padding: 9px 18px;
+    border: 1.5px solid var(--border2);
+    border-radius: var(--radius-btn);
+    background: var(--surface);
+    color: var(--ink2);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    transition: border-color 0.12s;
+  }
+
+  .dialog-btn-cancel:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .dialog-btn-cancel:not(:disabled):hover {
+    border-color: var(--ink2);
+  }
+
+  .dialog-btn-delete {
+    padding: 9px 18px;
+    border: none;
+    border-radius: var(--radius-btn);
+    background: #dc2626;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+
+  .dialog-btn-delete:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .dialog-btn-delete:not(:disabled):hover {
+    background: #b91c1c;
   }
 
   .btn-edit-ext:hover {
