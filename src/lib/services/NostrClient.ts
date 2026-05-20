@@ -1,10 +1,11 @@
 import { createRxNostr, createRxOneshotReq, createRxForwardReq, uniq } from 'rx-nostr';
 import type { RxNostr } from 'rx-nostr';
-import type { Observable } from 'rxjs';
+import { EMPTY, type Observable } from 'rxjs';
 import { map, filter, tap } from 'rxjs';
-import { verifyEvent } from 'nostr-tools';
+import { verifyEvent, nip19 } from 'nostr-tools';
 import { DEFAULT_RELAYS } from '$lib/stores/relays';
 import { Matome } from '$lib/entities/Matome';
+import type { UserProfile } from '$lib/types';
 
 let _client: RxNostr | null = null;
 
@@ -61,6 +62,43 @@ export function watchNewMatome(): Observable<Matome> {
   rxReq.emit({ kinds: [30023], '#t': ['matometr'] });
 
   return obs;
+}
+
+/**
+ * 複数 pubkey の kind:0 プロフィールを一括取得。EOSE で complete する。
+ */
+export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
+  if (pubkeys.length === 0) return EMPTY;
+  const client = getClient();
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [0], authors: pubkeys }
+  });
+
+  return client.use(rxReq).pipe(
+    uniq(),
+    map(({ event }) => {
+      try {
+        const meta = JSON.parse(event.content) as Record<string, unknown>;
+        const profile: UserProfile = {
+          pubkey: event.pubkey,
+          npub: nip19.npubEncode(event.pubkey),
+          name: typeof meta.name === 'string' && meta.name ? meta.name : undefined,
+          displayName:
+            typeof meta.display_name === 'string' && meta.display_name
+              ? meta.display_name
+              : undefined,
+          picture:
+            typeof meta.picture === 'string' && meta.picture ? meta.picture : undefined,
+          about: typeof meta.about === 'string' ? meta.about : undefined,
+          nip05: typeof meta.nip05 === 'string' ? meta.nip05 : undefined
+        };
+        return profile;
+      } catch {
+        return null;
+      }
+    }),
+    filter((p): p is UserProfile => p !== null)
+  );
 }
 
 /**
