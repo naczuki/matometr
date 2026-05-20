@@ -5,6 +5,7 @@
 
   let showLoginModal = false;
   let dropdownOpen = false;
+  let launching = false;
 
   function handleLoginClick(): void {
     showLoginModal = true;
@@ -14,9 +15,14 @@
     showLoginModal = false;
   }
 
-  function launchNostrLogin(screen: Parameters<typeof launch>[0]): void {
+  async function launchNostrLogin(screen: Parameters<typeof launch>[0]): Promise<void> {
+    launching = true;
     hideLoginModal();
-    launch(screen);
+    try {
+      await launch(screen);
+    } finally {
+      launching = false;
+    }
   }
 
   function toggleDropdown(): void {
@@ -136,15 +142,15 @@
         <b>Nostrってなに？</b><br />
         メールや電話番号を使わない、新しい仕組みのSNSの基盤です。アカウントひとつで色々なアプリで使えます。
       </div>
-      <button class="choice-card primary" on:click={() => launchNostrLogin('welcome-login')}>
-        <div class="choice-icon">✓</div>
+      <button class="choice-card primary" on:click={() => launchNostrLogin('welcome-login')} disabled={launching}>
+        <div class="choice-icon">{launching ? '…' : '✓'}</div>
         <div class="choice-body">
-          <div class="choice-title">すでにアカウントを持っている</div>
+          <div class="choice-title">{launching ? '読み込み中…' : 'すでにアカウントを持っている'}</div>
           <div class="choice-desc">他のNostrアプリ（Damus・Amethystなど）を使ったことがある方</div>
         </div>
         <span class="choice-arrow">›</span>
       </button>
-      <button class="choice-card" on:click={() => launchNostrLogin('welcome-signup')}>
+      <button class="choice-card" on:click={() => launchNostrLogin('welcome-signup')} disabled={launching}>
         <div class="choice-icon">＋</div>
         <div class="choice-body">
           <div class="choice-title">はじめて使う（新規登録）</div>
