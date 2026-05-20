@@ -1,12 +1,13 @@
-import { createRxNostr, createRxOneshotReq, createRxForwardReq, uniq } from 'rx-nostr';
+import { createRxNostr, createRxOneshotReq, createRxForwardReq, uniq, nip07Signer } from 'rx-nostr';
 import type { RxNostr } from 'rx-nostr';
 import { EMPTY, type Observable } from 'rxjs';
 import { map, filter, tap, take } from 'rxjs';
 import { verifyEvent, nip19 } from 'nostr-tools';
 import type { AddressPointer } from 'nostr-tools/nip19';
+import { ulid } from 'ulid';
 import { DEFAULT_RELAYS } from '$lib/stores/relays';
 import { Matome } from '$lib/entities/Matome';
-import type { UserProfile, Note } from '$lib/types';
+import type { UserProfile, Note, EditorBlock } from '$lib/types';
 
 let _client: RxNostr | null = null;
 
@@ -137,6 +138,89 @@ export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
     }),
     filter((p): p is UserProfile => p !== null)
   );
+}
+
+/**
+ * エディタブロック配列を NIP-23 content 文字列に変換。
+ * - nevent  → `nostr:nevent1...` 単独行
+ * - comment → `> ` 引用ブロック（改行は各行に付与）
+ * - heading → `## ` 見出し
+ * ブロック間は空行（\n\n）区切り。
+ */
+function blocksToContent(blocks: EditorBlock[]): string {
+  const parts: string[] = [];
+  for (const block of blocks) {
+    if (block.type === 'nevent' && block.nevent) {
+      parts.push(block.nevent);
+    } else if (block.type === 'comment' && block.text.trim()) {
+      parts.push(block.text.split('\n').map((l) => `> ${l}`).join('\n'));
+    } else if (block.type === 'heading' && block.text.trim()) {
+      parts.push(`## ${block.text}`);
+    }
+  }
+  return parts.join('\n\n');
+}
+
+/**
+ * まとめを NIP-23 kind:30023 イベントとして署名・公開する。
+ * 成功したら naddr1 文字列を返す。
+ * 署名には NIP-07（window.nostr）を使用。
+ */
+export async function publishMatome(params: {
+  title: string;
+  summary: string;
+  blocks: EditorBlock[];
+}): Promise<string> {
+  if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
+
+  const pubkey = await window.nostr.getPublicKey();
+  const dTag = `matometr-${ulid()}`;
+  const now = Math.floor(Date.now() / 1000);
+  const content = blocksToContent(params.blocks);
+
+  const eventParams = {
+    kind: 30023 as const,
+    created_at: now,
+    tags: [
+      ['d', dTag],
+      ['title', params.title],
+      ['summary', params.summary],
+      ['published_at', String(now)],
+      ['t', 'matometr'],
+    ],
+    content,
+  };
+
+  const naddr = nip19.naddrEncode({ kind: 30023, pubkey, identifier: dTag });
+
+  await new Promise<void>((resolve, reject) => {
+    let published = false;
+    const sub = getClient()
+      .send(eventParams, { signer: nip07Signer() })
+      .subscribe({
+        next(p) {
+          if (p.ok && !published) {
+            published = true;
+            sub.unsubscribe();
+            resolve();
+          }
+        },
+        error: reject,
+        complete() {
+          if (!published) reject(new Error('リレーに公開できませんでした'));
+        },
+      });
+
+    // 20 秒でタイムアウト
+    setTimeout(() => {
+      if (!published) {
+        sub.unsubscribe();
+        reject(new Error('タイムアウト：リレーに接続できませんでした'));
+      }
+    }, 20_000);
+  });
+
+  return naddr;
 }
 
 /**
