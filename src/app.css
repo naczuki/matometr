@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --accent: #f97316;
+  --accent-dark: #ea580c;
+  --bg: #fff8f4;
+  --surface: #ffffff;
+  --text: #1c1917;
+  --text-muted: #57534e;
+  --text-faint: #a8a29e;
+  --border: #f0e8e0;
+
+  --font-ui: 'M PLUS Rounded 1c', sans-serif;
+  --font-body: 'Noto Sans JP', sans-serif;
+  --font-nos: 'Mochiy Pop One', sans-serif;
+
+  --radius-card: 16px;
+  --radius-btn: 9999px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent: #fb923c;
+    --accent-dark: #f97316;
+    --bg: #1c1917;
+    --surface: #292524;
+    --text: #fafaf9;
+    --text-muted: #d6d3d1;
+    --text-faint: #78716c;
+    --border: #44403c;
+  }
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+}
