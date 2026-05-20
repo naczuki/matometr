@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { nip19 } from 'nostr-tools';
   import type { Note } from '$lib/types';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
   import { extractImages, parseNostrRefs, isSafeUrl } from '$lib/utils/nostrContent';
+  import { shortNpubFromPubkey } from '$lib/utils/nostr';
 
   export let note: Note;
   export let selected = false;
@@ -14,19 +14,10 @@
   $: profile = $profiles.get(note.pubkey);
   $: style = avatarStyle(note.pubkey);
   $: picture = profile?.picture;
-  $: author = profile?.displayName ?? profile?.name ?? shortNpub(note.pubkey);
+  $: author = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(note.pubkey);
   $: parsed = extractImages(note.content);
   $: emojiMap = buildEmojiMap(note);
   $: segments = parseNostrRefs(parsed.text, emojiMap);
-
-  function shortNpub(pubkey: string): string {
-    try {
-      const npub = nip19.npubEncode(pubkey);
-      return npub.slice(0, 10) + '…';
-    } catch {
-      return pubkey.slice(0, 8) + '…';
-    }
-  }
 
   function truncateName(name: string, max = 30): string {
     return name.length > max ? name.slice(0, max) + '…' : name;
@@ -67,7 +58,7 @@
     <div class="content">
       {#each segments as seg}
         {#if seg.type === 'text'}<span class="text-seg">{seg.content}</span>
-        {:else if seg.type === 'mention'}@{shortNpub(seg.pubkey)}
+        {:else if seg.type === 'mention'}@{shortNpubFromPubkey(seg.pubkey)}
         {:else if seg.type === 'url'}<span class="url">{seg.url}</span>
         {:else if seg.type === 'emoji'}<img src={seg.url} alt=":{seg.shortcode}:" class="emoji" loading="lazy" />
         {:else if seg.type === 'quote'}<span class="ref">nostr:nevent…</span>

@@ -7,6 +7,7 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
   import { parseNostrRefs, isSafeUrl } from '$lib/utils/nostrContent';
+  import { shortNpubFromPubkey } from '$lib/utils/nostr';
 
   export let eventId: string;
 
@@ -32,7 +33,7 @@
   });
 
   $: profile = note ? $profiles.get(note.pubkey) : undefined;
-  $: authorName = profile?.displayName ?? profile?.name ?? shortNpub(note?.pubkey ?? '');
+  $: authorName = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(note?.pubkey ?? '');
   $: authorStyle = note ? avatarStyle(note.pubkey) : { bg: '#e5e5e5', fg: '#737373', initial: '?' };
   $: picture = profile?.picture ?? null;
 
@@ -64,16 +65,6 @@
 
   $: for (const seg of segments) {
     if (seg.type === 'mention') requestProfile(seg.pubkey);
-  }
-
-  function shortNpub(pubkey: string): string {
-    if (!pubkey) return '…';
-    try {
-      const npub = nip19.npubEncode(pubkey);
-      return npub.slice(0, 8) + '…' + npub.slice(-4);
-    } catch {
-      return pubkey.slice(0, 8) + '…';
-    }
   }
 
   function truncateName(name: string, max = 30): string {
@@ -112,7 +103,7 @@
         {:else if segment.type === 'mention'}
           {@const mp = $profiles.get(segment.pubkey)}
           <a class="mention-link" href="{base}/user/{nip19.npubEncode(segment.pubkey)}">
-            @{truncateName(mp?.displayName ?? mp?.name ?? shortNpub(segment.pubkey))}
+            @{truncateName(mp?.displayName ?? mp?.name ?? shortNpubFromPubkey(segment.pubkey))}
           </a>
         {:else if segment.type === 'quote'}
           <!-- ネスト1段まで：引用はリンクのみ、カード展開しない -->

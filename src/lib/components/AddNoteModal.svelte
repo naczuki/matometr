@@ -1,7 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { nip19 } from 'nostr-tools';
-  import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
+  import { parseNostrInput, eventIdFromNevent } from '$lib/utils/nostr';
   import FollowingFeedTab from '$lib/components/FollowingFeedTab.svelte';
   import FavoritesFeedTab from '$lib/components/FavoritesFeedTab.svelte';
   import SearchFeedTab from '$lib/components/SearchFeedTab.svelte';
@@ -45,20 +44,11 @@
   }
 
   function parsePasteInput(raw: string): { eventId: string; nevent: string } | null {
-    const m = raw.trim().match(/(nevent1[a-z0-9]+|note1[a-z0-9]+)/);
-    if (!m) return null;
-    try {
-      const decoded = nip19.decode(m[1]);
-      if (decoded.type === 'nevent') {
-        return { eventId: decoded.data.id, nevent: `nostr:${m[1]}` };
-      }
-      if (decoded.type === 'note') {
-        const id = decoded.data;
-        const nevent = nip19.neventEncode({ id, relays: [DEFAULT_RELAYS_JP[0]] });
-        return { eventId: id, nevent: `nostr:${nevent}` };
-      }
-    } catch { /* invalid */ }
-    return null;
+    const nevent = parseNostrInput(raw);
+    if (!nevent) return null;
+    const eventId = eventIdFromNevent(nevent);
+    if (!eventId) return null;
+    return { eventId, nevent };
   }
 
   function addPaste(): void {

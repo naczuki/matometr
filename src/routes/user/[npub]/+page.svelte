@@ -9,6 +9,7 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
   import { avatarStyle } from '$lib/utils/avatar';
+  import { shortNpub } from '$lib/utils/nostr';
   import MatomeCard from '$lib/components/MatomeCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
@@ -86,10 +87,7 @@
     (e.currentTarget as HTMLImageElement).style.display = 'none';
   }
 
-  function shortNpub(npub: string | undefined): string {
-    if (!npub || npub.length < 12) return npub ?? '…';
-    return npub.slice(0, 8) + '…' + npub.slice(-4);
-  }
+
 </script>
 
 <svelte:head>
