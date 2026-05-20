@@ -47,7 +47,10 @@ matometr/
 ├─ static/                # 画像・アイコン等
 ├─ docs/
 │  ├─ matometr-spec.md   # 完全仕様書
-│  └─ mockups/           # UIモックアップ（参考資料、ビルド対象外）
+│  └─ mockups/             # 実装の参考にするUIモック（ビルド対象外）
+│     ├─ nostr-curator-mockup.html  # メイン画面モック（一覧・詳細・作成）
+│     ├─ share-buttons-mock.html    # シェアボタンデザイン案
+│     └─ dark-mode-preview.html     # ライト/ダークモード比較
 ├─ svelte.config.js
 ├─ vite.config.ts
 ├─ tsconfig.json

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nostrボタン 文字アイコン案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Noto+Sans+JP:wght@400;500;700&family=Kosugi+Maru&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent: #f97316;
+  --bg: #fff8f4;
+  --surface: #ffffff;
+  --ink: #1c1917;
+  --ink2: #57534e;
+  --ink3: #a8a29e;
+  --border: #f0e8e0;
+  --border2: #e2d5cb;
+}
+body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--ink); padding: 20px; line-height: 1.7; }
+
+h1 { font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 18px; margin-bottom: 8px; }
+.note { font-size: 12px; color: var(--ink2); margin-bottom: 16px; }
+.section { background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; padding: 16px 20px; max-width: 720px; margin-bottom: 14px; }
+.section-title { font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 13px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+.section-sub { font-size: 11px; color: var(--ink3); margin-bottom: 12px; }
+
+.real-row { display: flex; gap: 6px; align-items: center; }
+.sbtn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; cursor: pointer; border: 1.5px solid var(--border2); background: var(--surface); color: var(--ink2); transition: all 0.12s; padding: 0; font-family: inherit; }
+.sbtn:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.1); background: var(--bg); border-color: var(--ink3); }
+
+.tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: #fff8f4; color: #c2410c; margin-left: 6px; }
+</style>
+</head>
+<body>
+
+<h1>Nostrボタン 文字アイコン案</h1>
+<div class="note">Xが1文字なら統一感あって良さそうですね。フォントと文字数を変えて比較します。</div>
+
+<!-- N 1文字 系 -->
+<div class="section">
+  <div class="section-title">N 1文字</div>
+  <div class="section-sub">Xに揃える発想。シンプル最強</div>
+  <div class="real-row">
+    <button class="sbtn" style="font-family:'M PLUS Rounded 1c',sans-serif;font-weight:800;font-size:18px;line-height:1;padding-top:1px;">N</button>
+    <button class="sbtn" style="font-family:'M PLUS Rounded 1c',sans-serif;font-weight:900;font-size:18px;line-height:1;padding-top:1px;">N</button>
+    <button class="sbtn" style="font-family:'Zen Maru Gothic',sans-serif;font-weight:900;font-size:18px;line-height:1;padding-top:1px;">N</button>
+    <button class="sbtn" style="font-family:'Kosugi Maru',sans-serif;font-size:18px;line-height:1;padding-top:1px;">N</button>
+    <span style="font-size:11px;color:var(--ink3);margin-left:8px;">M+800 / M+900 / ZenMaru900 / KosugiMaru</span>
+  </div>
+</div>
+
+<!-- Nos 3文字 系 -->
+<div class="section">
+  <div class="section-title">Nos 3文字</div>
+  <div class="section-sub">「Nostr」とわかりやすい</div>
+  <div class="real-row">
+    <button class="sbtn" style="font-family:'M PLUS Rounded 1c',sans-serif;font-weight:800;font-size:11px;line-height:1;letter-spacing:-0.02em;">Nos</button>
+    <button class="sbtn" style="font-family:'M PLUS Rounded 1c',sans-serif;font-weight:900;font-size:11px;line-height:1;letter-spacing:-0.03em;">Nos</button>
+    <button class="sbtn" style="font-family:'Zen Maru Gothic',sans-serif;font-weight:900;font-size:11px;line-height:1;letter-spacing:-0.02em;">Nos</button>
+    <button class="sbtn" style="font-family:'Kosugi Maru',sans-serif;font-size:11px;line-height:1;letter-spacing:-0.02em;">Nos</button>
+    <span style="font-size:11px;color:var(--ink3);margin-left:8px;">M+800 / M+900 / ZenMaru900 / KosugiMaru</span>
+  </div>
+</div>
+
+<!-- 実装イメージ：N -->
+<div class="section">
+  <div class="section-title">実装イメージ：N（M+800）<span class="tag">候補1</span></div>
+  <div class="real-row">
+    <button class="sbtn" title="Nostrで開く" style="font-family:'M PLUS Rounded 1c',sans-serif;font-weight:800;font-size:18px;line-height:1;padding-top:1px;">N</button>
+    <button class="sbtn" title="Xでシェア"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></button>
+    <button class="sbtn" title="コピー"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+    <button class="sbtn" title="nevent1"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>
+  </div>
+</div>
+
+<!-- 実装イメージ：Nos -->
+<div class="section">
+  <div class="section-title">実装イメージ：Nos（M+800）<span class="tag">候補2</span></div>
+  <div class="real-row">
+    <button class="sbtn" title="Nostrで開く" style="font-family:'M PLUS Rounded 1c',sans-serif;font-weight:800;font-size:11px;line-height:1;letter-spacing:-0.02em;">Nos</button>
+    <button class="sbtn" title="Xでシェア"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></button>
+    <button class="sbtn" title="コピー"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+    <button class="sbtn" title="nevent1"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>
+  </div>
+</div>
+
+<!-- 番外編 -->
+<div class="section">
+  <div class="section-title">番外：可愛さ重視（ZenMaru）<span class="tag">候補3</span></div>
+  <div class="real-row">
+    <button class="sbtn" title="Nostrで開く" style="font-family:'Zen Maru Gothic',sans-serif;font-weight:900;font-size:18px;line-height:1;padding-top:1px;">N</button>
+    <button class="sbtn" title="Xでシェア"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></button>
+    <button class="sbtn" title="コピー"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+    <button class="sbtn" title="nevent1"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>
+  </div>
+  <div style="font-size:11px;color:var(--ink3);margin-top:6px;">Zen Maru Gothicはより丸くて柔らかい印象</div>
+</div>
+
+</body>
+</html>
