@@ -269,12 +269,18 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .note-img {
+  .note-images.multi .note-img {
+    max-width: 100%;
     width: 100%;
-    max-height: 200px;
-    object-fit: cover;
+  }
+
+  .note-img {
+    max-width: 85%;
+    height: auto;
+    object-fit: contain;
     border-radius: 8px;
     display: block;
+    margin: 0 auto;
   }
 
   .url-link {
