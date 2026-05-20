@@ -1,14 +1,6 @@
-<script lang="ts">
-  import { base } from '$app/paths';
-</script>
-
 <footer>
   <div class="inner">
     <span>© 2025 まとめたー</span>
-    <nav>
-      <a href="{base}/guide">使い方</a>
-      <a href="{base}/settings">設定</a>
-    </nav>
   </div>
 </footer>
 
@@ -22,25 +14,8 @@
   .inner {
     max-width: 960px;
     margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     font-size: 12px;
     color: var(--ink3);
     font-family: var(--font-ui);
-  }
-
-  nav {
-    display: flex;
-    gap: 1rem;
-  }
-
-  nav a {
-    color: var(--ink3);
-    text-decoration: none;
-  }
-
-  nav a:hover {
-    color: var(--ink2);
   }
 </style>
