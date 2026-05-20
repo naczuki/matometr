@@ -1,11 +1,12 @@
 import { createRxNostr, createRxOneshotReq, createRxForwardReq, uniq } from 'rx-nostr';
 import type { RxNostr } from 'rx-nostr';
 import { EMPTY, type Observable } from 'rxjs';
-import { map, filter, tap } from 'rxjs';
+import { map, filter, tap, take } from 'rxjs';
 import { verifyEvent, nip19 } from 'nostr-tools';
+import type { AddressPointer } from 'nostr-tools/nip19';
 import { DEFAULT_RELAYS } from '$lib/stores/relays';
 import { Matome } from '$lib/entities/Matome';
-import type { UserProfile } from '$lib/types';
+import type { UserProfile, Note } from '$lib/types';
 
 let _client: RxNostr | null = null;
 
@@ -62,6 +63,43 @@ export function watchNewMatome(): Observable<Matome> {
   rxReq.emit({ kinds: [30023], '#t': ['matometr'] });
 
   return obs;
+}
+
+/**
+ * naddr が示す kind:30023 イベントを1件取得。
+ */
+export function fetchMatomeByAddress(pointer: AddressPointer): Observable<Matome> {
+  const client = getClient();
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [30023], authors: [pointer.pubkey], '#d': [pointer.identifier] }
+  });
+  return client.use(rxReq).pipe(
+    map(({ event }) => Matome.fromEvent(event)),
+    filter((m): m is Matome => m !== null),
+    take(1)
+  );
+}
+
+/**
+ * kind:1 ノートをイベントIDで1件取得。
+ */
+export function fetchNoteById(eventId: string): Observable<Note> {
+  const client = getClient();
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [1], ids: [eventId], limit: 1 }
+  });
+  return client.use(rxReq).pipe(
+    map(
+      ({ event }): Note => ({
+        id: event.id,
+        pubkey: event.pubkey,
+        content: event.content,
+        createdAt: event.created_at,
+        tags: event.tags
+      })
+    ),
+    take(1)
+  );
 }
 
 /**

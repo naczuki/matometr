@@ -14,6 +14,14 @@ export interface UserProfile {
   nip05?: string;
 }
 
+export interface Note {
+  id: string;
+  pubkey: string;
+  content: string;
+  createdAt: number;
+  tags: string[][];
+}
+
 export interface Draft {
   dTag: string;
   title: string;
