@@ -129,7 +129,7 @@
       {/each}
     </div>
     {#if parsedContent.urls.length > 0}
-      <div class="note-images">
+      <div class="note-images" class:multi={parsedContent.urls.length > 1}>
         {#each parsedContent.urls as url}
           {#if failedImages.has(url)}
             <div class="img-error">
@@ -260,18 +260,21 @@
 
   .note-images {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 8px;
+    grid-template-columns: 1fr;
+    gap: 6px;
     margin-top: 10px;
+  }
+
+  .note-images.multi {
+    grid-template-columns: 1fr 1fr;
   }
 
   .note-img {
     width: 100%;
-    max-height: 400px;
-    object-fit: contain;
-    border-radius: 10px;
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 8px;
     display: block;
-    background: var(--bg);
   }
 
   .url-link {

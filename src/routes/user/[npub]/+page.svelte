@@ -164,7 +164,7 @@
 
 <style>
   .page {
-    max-width: 960px;
+    max-width: 720px;
     margin: 0 auto;
     padding: 24px 20px 64px;
   }
@@ -291,7 +291,7 @@
   /* まとめグリッド */
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: 1fr;
     gap: 14px;
   }
 
@@ -322,10 +322,6 @@
   }
 
   @media (max-width: 640px) {
-    .grid {
-      grid-template-columns: 1fr;
-    }
-
     .profile-header {
       gap: 12px;
     }
