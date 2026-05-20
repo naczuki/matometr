@@ -112,8 +112,8 @@
           {authorStyle.initial}
         {/if}
       </div>
-      <div>
-        <div class="note-name">{authorName}</div>
+      <div class="note-meta">
+        <div class="note-name">{truncateName(authorName)}</div>
         <div class="note-pub">{shortNpub(note.pubkey)}</div>
       </div>
       <span class="note-time">{timeAgo(note.createdAt)}</span>
@@ -237,11 +237,18 @@
     border-radius: 50%;
   }
 
+  .note-meta {
+    min-width: 0;
+    flex: 1;
+  }
+
   .note-name {
     font-weight: 700;
     font-size: 13px;
     color: var(--ink);
     font-family: var(--font-ui);
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .note-pub {
