@@ -68,16 +68,16 @@
 
 <style>
   .grid {
-    max-width: 960px;
+    max-width: 720px;
     margin: 0 auto;
     padding: 16px 20px 48px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: 1fr;
     gap: 14px;
   }
 
   .state-wrap {
-    max-width: 960px;
+    max-width: 720px;
     margin: 48px auto;
     padding: 0 20px;
     text-align: center;
@@ -92,11 +92,5 @@
     font-size: 14px;
     color: var(--ink3);
     font-family: var(--font-ui);
-  }
-
-  @media (max-width: 640px) {
-    .grid {
-      grid-template-columns: 1fr;
-    }
   }
 </style>
