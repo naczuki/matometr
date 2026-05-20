@@ -55,6 +55,24 @@
       return pubkey.slice(0, 8) + '…';
     }
   }
+
+  function extractImages(content: string): { text: string; urls: string[] } {
+    const IMAGE_RE = /https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:[?#][^\s]*)?/gi;
+    const urls: string[] = [];
+    const text = content
+      .replace(IMAGE_RE, (url) => { urls.push(url); return ''; })
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    return { text, urls };
+  }
+
+  $: parsedContent = note ? extractImages(note.content) : { text: '', urls: [] };
+
+  let failedImages: Set<string> = new Set();
+
+  function onImgError(url: string): void {
+    failedImages = new Set([...failedImages, url]);
+  }
 </script>
 
 <div class="note-card">
@@ -79,7 +97,27 @@
       </div>
       <span class="note-time">{timeAgo(note.createdAt)}</span>
     </div>
-    <div class="note-content">{note.content}</div>
+    <div class="note-content">{parsedContent.text}</div>
+    {#if parsedContent.urls.length > 0}
+      <div class="note-images">
+        {#each parsedContent.urls as url}
+          {#if failedImages.has(url)}
+            <div class="img-error">
+              <span>🖼 画像を読み込めませんでした</span>
+              <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+            </div>
+          {:else}
+            <img
+              src={url}
+              alt=""
+              class="note-img"
+              loading="lazy"
+              on:error={() => onImgError(url)}
+            />
+          {/if}
+        {/each}
+      </div>
+    {/if}
     {#if comment}
       <div class="editor-comment">
         <span class="editor-label">まとめコメント</span>
@@ -170,6 +208,44 @@
     color: var(--ink);
     white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  .note-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .note-img {
+    max-width: 100%;
+    border-radius: 10px;
+    display: block;
+    flex-shrink: 0;
+  }
+
+  .img-error {
+    width: 100%;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--ink3);
+  }
+
+  .img-error a {
+    color: var(--accent);
+    font-size: 11px;
+    word-break: break-all;
+    text-decoration: none;
+  }
+
+  .img-error a:hover {
+    text-decoration: underline;
   }
 
   .editor-comment {
