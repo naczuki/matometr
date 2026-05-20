@@ -1,44 +1,21 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import MatomeList from '$lib/components/MatomeList.svelte';
-  import type { Tab } from '$lib/types';
-
-  let activeTab: Tab = 'recent';
 </script>
 
 <svelte:head>
-  <title>まとめたー — Nostr キュレーション</title>
+  <title>まとめたー - matometr</title>
   <meta name="description" content="Nostrの投稿を集めて、コメントを添えて公開できるキュレーションサイト" />
 </svelte:head>
 
 <div class="tab-bar">
   <div class="tabs">
-    <button
-      class="tab"
-      class:active={activeTab === 'recent'}
-      on:click={() => (activeTab = 'recent')}
-    >
-      新着
-    </button>
-    <button
-      class="tab"
-      class:active={activeTab === 'trending'}
-      on:click={() => (activeTab = 'trending')}
-    >
-      話題
-    </button>
-    <button
-      class="tab"
-      class:active={activeTab === 'following'}
-      on:click={() => (activeTab = 'following')}
-    >
-      フォロー中
-    </button>
+    <button class="tab active">新着</button>
   </div>
   <a href="{base}/new" class="btn-create">＋ まとめを作る</a>
 </div>
 
-<MatomeList tab={activeTab} />
+<MatomeList tab="recent" />
 
 <style>
   .tab-bar {
