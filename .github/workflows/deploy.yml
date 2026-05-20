@@ -25,6 +25,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+        env:
+          BASE_PATH: '/matometr'
       - uses: actions/configure-pages@v4
       - uses: actions/upload-pages-artifact@v3
         with:

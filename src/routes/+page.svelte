@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { base } from '$app/paths';
   import MatomeList from '$lib/components/MatomeList.svelte';
   import { currentUser } from '$lib/stores/currentUser';
   import type { Tab } from '$lib/types';
@@ -53,7 +54,7 @@
       フォロー中
     </button>
   </div>
-  <a href="/new" class="btn-create">＋ まとめを作る</a>
+  <a href="{base}/new" class="btn-create">＋ まとめを作る</a>
 </div>
 
 <MatomeList tab={activeTab} />

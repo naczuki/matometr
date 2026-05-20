@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { base } from '$app/paths';
+
   export let naddr: string;
   export let avatarInitial: string;
   export let avatarBg: string;
@@ -12,7 +14,7 @@
   export let likes: number;
 </script>
 
-<a href="/matome/{naddr}" class="card">
+<a href="{base}/matome/{naddr}" class="card">
   <div class="author">
     <div class="avatar" style="background:{avatarBg};color:{avatarFg};">{avatarInitial}</div>
     <span class="author-name">{authorName}</span>
