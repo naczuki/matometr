@@ -5,11 +5,10 @@
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import AddNoteModal from '$lib/components/AddNoteModal.svelte';
   import { currentUser } from '$lib/stores/auth';
-  import { publishMatome } from '$lib/services/NostrClient';
+  import { publishMatome, fetchNotesByIds } from '$lib/services/NostrClient';
   import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
-  import { dragHandleZone, dragHandle } from 'svelte-dnd-action';
-  import type { DndEvent } from 'svelte-dnd-action';
-  import type { EditorBlock } from '$lib/types';
+  import { sortableAction } from '$lib/actions/sortable';
+  import type { EditorBlock, NoteEditorBlock } from '$lib/types';
 
   let title = '';
   let summary = '';
@@ -42,14 +41,61 @@
     blocks = blocks.filter((b) => b.id !== id);
   }
 
-  const FLIP_MS = 200;
-
-  function handleDndConsider(e: CustomEvent<DndEvent<EditorBlock>>): void {
-    blocks = e.detail.items;
+  function handleSort(oldIndex: number, newIndex: number): void {
+    const updated = [...blocks];
+    const [moved] = updated.splice(oldIndex, 1);
+    updated.splice(newIndex, 0, moved);
+    blocks = updated;
   }
 
-  function handleDndFinalize(e: CustomEvent<DndEvent<EditorBlock>>): void {
-    blocks = e.detail.items;
+  let sortLoading = false;
+  let lastSortOrder: 'asc' | 'desc' | null = null;
+
+  async function sortByTime(): Promise<void> {
+    const hasNonNevent = blocks.some(b => b.type === 'comment' || b.type === 'heading');
+    if (hasNonNevent) {
+      const ok = window.confirm('コメントや見出しの位置がリセットされます。続けますか？');
+      if (!ok) return;
+    }
+
+    const nextOrder: 'asc' | 'desc' = lastSortOrder === 'asc' ? 'desc' : 'asc';
+    const sortableBlocks = blocks.filter((b): b is NoteEditorBlock => b.type === 'nevent' && !!b.nevent);
+    const otherBlocks = blocks.filter(b => {
+      if (b.type !== 'nevent') return true;
+      return !b.nevent;
+    });
+
+    const idsToFetch = sortableBlocks
+      .map(b => eventIdFromNevent(b.nevent))
+      .filter((id): id is string => id !== null);
+
+    if (idsToFetch.length === 0) return;
+
+    sortLoading = true;
+    const createdAtMap = new Map<string, number>();
+    await new Promise<void>((resolve) => {
+      fetchNotesByIds(idsToFetch).subscribe({
+        next: (n) => createdAtMap.set(n.id, n.createdAt),
+        complete: resolve,
+        error: resolve
+      });
+      setTimeout(resolve, 10_000);
+    });
+    sortLoading = false;
+
+    const sorted = [...sortableBlocks].sort((a, b) => {
+      const idA = eventIdFromNevent(a.nevent) ?? '';
+      const idB = eventIdFromNevent(b.nevent) ?? '';
+      const tA = createdAtMap.get(idA) ?? 0;
+      const tB = createdAtMap.get(idB) ?? 0;
+      return nextOrder === 'asc' ? tA - tB : tB - tA;
+    });
+
+    blocks = nextOrder === 'asc'
+      ? [...sorted, ...otherBlocks]
+      : [...otherBlocks, ...sorted];
+
+    lastSortOrder = nextOrder;
   }
 
   function parseNostrInput(raw: string): string | null {
@@ -159,6 +205,11 @@
         {#if noteCount > 0}
           <span class="blocks-badge">{noteCount}件の投稿</span>
         {/if}
+        {#if noteCount >= 1}
+          <button class="sort-btn" type="button" on:click={sortByTime} disabled={sortLoading}>
+            {sortLoading ? '…' : lastSortOrder === 'asc' ? '↑ 古い順' : lastSortOrder === 'desc' ? '↓ 新しい順' : '↕ 時系列に並べる'}
+          </button>
+        {/if}
       </div>
 
       {#if blocks.length === 0}
@@ -166,9 +217,7 @@
       {:else}
         <div
           class="block-list"
-          use:dragHandleZone={{ items: blocks, flipDurationMs: FLIP_MS, delayTouchStart: 250 }}
-          on:consider={handleDndConsider}
-          on:finalize={handleDndFinalize}
+          use:sortableAction={{ onSort: handleSort }}
         >
           {#each blocks as block (block.id)}
             <div
@@ -177,7 +226,7 @@
               class:is-comment={block.type === 'comment'}
             >
               <!-- ドラッグハンドル -->
-              <div class="drag-handle" use:dragHandle aria-label="ドラッグで並び替え">⋮⋮</div>
+              <div class="drag-handle" aria-hidden="true">⋮⋮</div>
 
               <!-- コンテンツ -->
               <div class="block-body">
@@ -365,6 +414,31 @@
     padding: 2px 10px;
   }
 
+  .sort-btn {
+    margin-left: auto;
+    background: var(--surface);
+    border: 1.5px solid var(--border2);
+    border-radius: 999px;
+    color: var(--ink2);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+
+  .sort-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .sort-btn:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+
   .empty-state {
     border: 2px dashed var(--border2);
     border-radius: 14px;
@@ -403,20 +477,25 @@
     border-left: 3px solid var(--accent-mid);
   }
 
-  /* ドラッグハンドル */
+  /* ドラッグハンドル（視覚的なアフォーダンス） */
   .drag-handle {
     flex-shrink: 0;
     padding: 4px 2px;
     color: var(--ink3);
     font-size: 14px;
-    cursor: grab;
     line-height: 1;
     user-select: none;
     letter-spacing: -2px;
   }
 
-  .drag-handle:active {
-    cursor: grabbing;
+  :global(.sortable-ghost) {
+    opacity: 0.4;
+    background: var(--accent-pale);
+    border-color: var(--accent-mid) !important;
+  }
+
+  :global(.sortable-chosen) {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   }
 
   /* ブロック本体 */
