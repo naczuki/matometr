@@ -111,7 +111,7 @@
           aria-selected={activeTab === 'paste'}
           on:click={() => (activeTab = 'paste')}
           type="button"
-        >貼り付け</button>
+        >ID</button>
         <button
           class="tab"
           class:active={activeTab === 'following'}
@@ -119,7 +119,7 @@
           aria-selected={activeTab === 'following'}
           on:click={() => (activeTab = 'following')}
           type="button"
-        >フォロー中</button>
+        >フォロー</button>
         <button
           class="tab"
           class:active={activeTab === 'favorites'}
@@ -135,7 +135,7 @@
           aria-selected={activeTab === 'search'}
           on:click={() => (activeTab = 'search')}
           type="button"
-        >タグ検索</button>
+        >検索</button>
       </div>
 
       <div class="body">
@@ -219,6 +219,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 14px 18px 0;
+    flex-shrink: 0;
   }
 
   .title {
@@ -248,15 +249,16 @@
 
   .tabs {
     display: flex;
-    gap: 4px;
+    gap: 2px;
     padding: 8px 18px 0;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
   }
 
   .tab {
     background: transparent;
     border: none;
-    padding: 10px 14px;
+    padding: 10px 12px;
     font-family: var(--font-ui);
     font-size: 13px;
     font-weight: 700;
@@ -265,6 +267,7 @@
     border-bottom: 3px solid transparent;
     margin-bottom: -1px;
     transition: color 0.12s, border-color 0.12s;
+    white-space: nowrap;
   }
 
   .tab:hover {
@@ -278,9 +281,9 @@
 
   .body {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 16px 18px;
-    min-height: 200px;
   }
 
   .paste-area {
@@ -349,6 +352,7 @@
     background: var(--bg);
     max-height: 30vh;
     overflow-y: auto;
+    flex-shrink: 0;
   }
 
   .pending-label {
@@ -402,6 +406,7 @@
     padding: 12px 18px;
     border-top: 1px solid var(--border);
     background: var(--surface);
+    flex-shrink: 0;
   }
 
   .cancel-btn {
