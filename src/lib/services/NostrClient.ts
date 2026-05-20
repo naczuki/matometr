@@ -1,6 +1,6 @@
 import { createRxNostr, createRxOneshotReq, createRxForwardReq, uniq, nip07Signer } from 'rx-nostr';
 import type { RxNostr } from 'rx-nostr';
-import { EMPTY, type Observable } from 'rxjs';
+import { EMPTY, merge, type Observable } from 'rxjs';
 import { map, filter, tap, take } from 'rxjs';
 import { verifyEvent, nip19 } from 'nostr-tools';
 import type { AddressPointer } from 'nostr-tools/nip19';
@@ -328,4 +328,25 @@ export function fetchNosliList(limit = 10): Observable<Matome> {
     map(({ event }) => Matome.fromEvent(event)),
     filter((m): m is Matome => m !== null)
   );
+}
+
+/**
+ * 指定ユーザーの kind:30023 まとめを取得（t:matometr + t:nosli の両方）。
+ * EOSE で complete する。
+ */
+export function fetchUserMatomes(pubkey: string, limit = 50): Observable<Matome> {
+  const client = getClient();
+
+  function makeObs(tag: string): Observable<Matome> {
+    const rxReq = createRxOneshotReq({
+      filters: { kinds: [30023], authors: [pubkey], '#t': [tag], limit }
+    });
+    return client.use(rxReq).pipe(
+      uniq(),
+      map(({ event }) => Matome.fromEvent(event)),
+      filter((m): m is Matome => m !== null)
+    );
+  }
+
+  return merge(makeObs('matometr'), makeObs('nosli'));
 }
