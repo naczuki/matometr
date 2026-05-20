@@ -42,7 +42,7 @@
 
 <style>
   .tab-bar {
-    max-width: 960px;
+    max-width: 720px;
     margin: 0 auto;
     padding: 20px 20px 0;
     display: flex;
