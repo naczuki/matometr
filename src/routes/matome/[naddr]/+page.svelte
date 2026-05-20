@@ -61,7 +61,7 @@
   $: authorPicture, (authorImgFailed = false);
 
   type RenderBlock =
-    | { type: 'note'; nevent: string; comment: string | null; num: number }
+    | { type: 'note'; nevent: string; num: number }
     | { type: 'heading'; content: string }
     | { type: 'paragraph'; content: string }
     | { type: 'comment'; content: string };
@@ -69,18 +69,12 @@
   function buildRenderPlan(blocks: MatomeBlock[]): RenderBlock[] {
     const plan: RenderBlock[] = [];
     let noteNum = 0;
-    let i = 0;
-    while (i < blocks.length) {
-      const b = blocks[i];
+    for (const b of blocks) {
       if (b.type === 'nevent') {
         noteNum++;
-        const next = blocks[i + 1];
-        const comment = next?.type === 'comment' ? next.content : null;
-        plan.push({ type: 'note', nevent: b.content, comment, num: noteNum });
-        i += comment !== null ? 2 : 1;
+        plan.push({ type: 'note', nevent: b.content, num: noteNum });
       } else {
         plan.push({ type: b.type, content: b.content } as RenderBlock);
-        i++;
       }
     }
     return plan;
@@ -272,7 +266,7 @@
       {#if block.type === 'heading'}
         <div class="block-heading">{block.content}</div>
       {:else if block.type === 'note'}
-        <NoteCard nevent={block.nevent} comment={block.comment} num={block.num} total={matome.postCount} />
+        <NoteCard nevent={block.nevent} num={block.num} total={matome.postCount} />
       {:else if block.type === 'comment'}
         <div class="block-comment">{block.content}</div>
       {:else if block.type === 'paragraph'}
