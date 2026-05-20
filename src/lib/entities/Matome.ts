@@ -11,6 +11,7 @@ export type MatomeBlock = NeventBlock | CommentBlock | HeadingBlock | ParagraphB
 const NEVENT_LINE = /^nostr:nevent1[a-z0-9]+$/;
 const HEADING_LINE = /^## .+/;
 const BLOCKQUOTE_LINE = /^> /;
+const TAG_REF_LINE = /^#\[(\d+)\]$/;
 
 export class Matome {
   readonly id: string;
@@ -92,16 +93,17 @@ export class Matome {
       publishedAt: publishedAtStr ? parseInt(publishedAtStr, 10) : event.created_at,
       createdAt: event.created_at,
       content: event.content,
-      blocks: Matome.parseContent(event.content),
+      blocks: Matome.parseContent(event.content, event.tags),
       isNosli: tTags.includes('nosli'),
       tags: tTags.filter((t) => t !== 'matometr' && t !== 'nosli'),
       rawEvent: event
     });
   }
 
-  private static parseContent(content: string): MatomeBlock[] {
+  private static parseContent(content: string, eventTags: string[][]): MatomeBlock[] {
     const lines = content.split('\n');
     const blocks: MatomeBlock[] = [];
+    let hasPostBlocks = false;
     let i = 0;
 
     while (i < lines.length) {
@@ -109,6 +111,20 @@ export class Matome {
 
       if (NEVENT_LINE.test(line.trim())) {
         blocks.push({ type: 'nevent', content: line.trim() });
+        hasPostBlocks = true;
+        i++;
+      } else if (TAG_REF_LINE.test(line.trim())) {
+        // 旧nosli形式: #[N] → eventTags[N] が e タグならその投稿IDをneventに変換
+        const match = line.trim().match(TAG_REF_LINE);
+        if (match) {
+          const idx = parseInt(match[1], 10);
+          const tag = eventTags[idx];
+          if (tag && tag[0] === 'e' && tag[1]) {
+            const neventStr = `nostr:${nip19.neventEncode({ id: tag[1] })}`;
+            blocks.push({ type: 'nevent', content: neventStr });
+            hasPostBlocks = true;
+          }
+        }
         i++;
       } else if (HEADING_LINE.test(line)) {
         blocks.push({ type: 'heading', content: line.slice(3) });
@@ -125,6 +141,15 @@ export class Matome {
         i++;
       } else {
         i++;
+      }
+    }
+
+    // フォールバック: contentに投稿参照が無く e タグがある場合は e タグ順に並べる
+    if (!hasPostBlocks) {
+      for (const tag of eventTags) {
+        if (tag[0] === 'e' && tag[1]) {
+          blocks.push({ type: 'nevent', content: `nostr:${nip19.neventEncode({ id: tag[1] })}` });
+        }
       }
     }
 
