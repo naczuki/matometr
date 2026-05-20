@@ -2,15 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 :root {
   --accent: #f97316;
   --accent-dark: #ea580c;
+  --accent-pale: #fff8f4;
+  --accent-mid: #fde8dc;
   --bg: #fff8f4;
   --surface: #ffffff;
-  --text: #1c1917;
-  --text-muted: #57534e;
-  --text-faint: #a8a29e;
+  --ink: #1c1917;
+  --ink2: #57534e;
+  --ink3: #a8a29e;
   --border: #f0e8e0;
+  --border2: #e2d5cb;
 
   --font-ui: 'M PLUS Rounded 1c', sans-serif;
   --font-body: 'Noto Sans JP', sans-serif;
@@ -24,17 +31,23 @@
   :root {
     --accent: #fb923c;
     --accent-dark: #f97316;
+    --accent-pale: #2a1810;
+    --accent-mid: #3a2418;
     --bg: #1c1917;
     --surface: #292524;
-    --text: #fafaf9;
-    --text-muted: #d6d3d1;
-    --text-faint: #78716c;
+    --ink: #fafaf9;
+    --ink2: #d6d3d1;
+    --ink3: #78716c;
     --border: #44403c;
+    --border2: #57534e;
   }
 }
 
 body {
-  background-color: var(--bg);
-  color: var(--text);
   font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.7;
+  min-height: 100vh;
 }
