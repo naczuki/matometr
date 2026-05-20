@@ -71,6 +71,10 @@
     }
   }
 
+  function truncateName(name: string, max = 30): string {
+    return name.length > max ? name.slice(0, max) + '…' : name;
+  }
+
   function shortRef(encoded: string): string {
     return encoded.slice(0, 14) + '…';
   }
@@ -110,7 +114,7 @@
         {:else if segment.type === 'mention'}
           {@const mp = $profiles.get(segment.pubkey)}
           <a class="mention-link" href="{base}/user/{nip19.npubEncode(segment.pubkey)}">
-            @{mp?.displayName ?? mp?.name ?? shortNpub(segment.pubkey)}
+            @{truncateName(mp?.displayName ?? mp?.name ?? shortNpub(segment.pubkey))}
           </a>
         {:else if segment.type === 'quote'}
           <!-- ネスト1段まで：引用はリンクのみ、カード展開しない -->

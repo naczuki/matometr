@@ -18,10 +18,6 @@ export function isSafeUrl(url: string): boolean {
   return /^https?:\/\//i.test(url);
 }
 
-function isSafeUrl(url: string): boolean {
-  return /^https?:\/\//i.test(url);
-}
-
 const IMAGE_RE = /https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:[?#][^\s]*)?/gi;
 
 export function extractImages(content: string): { text: string; urls: string[] } {

@@ -58,6 +58,10 @@
     }
   }
 
+  function truncateName(name: string, max = 30): string {
+    return name.length > max ? name.slice(0, max) + '…' : name;
+  }
+
   $: emojiMap = (() => {
     const map = new Map<string, string>();
     if (!note) return map;
@@ -123,7 +127,7 @@
           <a
             class="mention-link"
             href="{base}/user/{nip19.npubEncode(segment.pubkey)}"
-          >@{mp?.displayName ?? mp?.name ?? shortNpub(segment.pubkey)}</a>
+          >@{truncateName(mp?.displayName ?? mp?.name ?? shortNpub(segment.pubkey))}</a>
         {:else if segment.type === 'quote'}
           <QuotedNote eventId={segment.eventId} />
         {:else if segment.type === 'naddr'}
