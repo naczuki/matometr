@@ -16,8 +16,10 @@
   let matome: Matome | null = null;
   let loading = true;
   let error = '';
+  let currentUrl = '';
 
   onMount(() => {
+    currentUrl = window.location.href;
     try {
       const naddrParam = $page.params.naddr;
       if (!naddrParam) {
@@ -97,34 +99,24 @@
     return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
   }
 
+  // share actions
   let copiedUrl = false;
-  let copiedNaddr = false;
-
   async function copyUrl(): Promise<void> {
-    await navigator.clipboard.writeText(window.location.href);
+    await navigator.clipboard.writeText(currentUrl);
     copiedUrl = true;
     setTimeout(() => { copiedUrl = false; }, 1500);
   }
 
-  async function copyNaddr(): Promise<void> {
-    if (!matome) return;
-    await navigator.clipboard.writeText(matome.naddr);
-    copiedNaddr = true;
-    setTimeout(() => { copiedNaddr = false; }, 1500);
-  }
-
   function shareX(): void {
     if (!matome) return;
-    const text = encodeURIComponent(`${matome.title} ${window.location.href}`);
+    const text = encodeURIComponent(`${matome.title} ${currentUrl}`);
     window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank', 'noopener');
   }
 
-  function shareNostter(): void {
-    if (!matome) return;
-    window.open(`https://nostter.app/${matome.naddr}`, '_blank', 'noopener');
-  }
-
+  // ⋮ menu
   let menuOpen = false;
+  let copiedNevent = false;
+  let copiedNaddr = false;
 
   function handleMenuToggle(e: MouseEvent): void {
     e.stopPropagation();
@@ -135,10 +127,24 @@
     menuOpen = false;
   }
 
-  function openNjump(): void {
+  async function copyNevent(): Promise<void> {
     if (!matome) return;
-    window.open(`https://njump.me/${matome.naddr}`, '_blank', 'noopener');
+    const nevent = nip19.neventEncode({ id: matome.id, author: matome.pubkey, kind: 30023 });
+    await navigator.clipboard.writeText(nevent);
+    copiedNevent = true;
+    setTimeout(() => { copiedNevent = false; menuOpen = false; }, 1500);
   }
+
+  async function copyNaddr(): Promise<void> {
+    if (!matome) return;
+    await navigator.clipboard.writeText(matome.naddr);
+    copiedNaddr = true;
+    setTimeout(() => { copiedNaddr = false; menuOpen = false; }, 1500);
+  }
+
+  // JSON modal
+  let showJson = false;
+  $: jsonText = matome ? JSON.stringify(matome.rawEvent, null, 2) : '';
 </script>
 
 <svelte:window on:click={handleDocClick} />
@@ -193,36 +199,66 @@
 
       <div class="detail-stats">
         <div class="stat-item"><b>{matome.postCount}</b>件の投稿</div>
+
         <div class="stat-share-row">
-          <button class="share-btn nos-btn" title="Nostrで開く" aria-label="Nostrで開く" on:click={shareNostter}>Nos</button>
+          <!-- Nos: nostr-share-component -->
+          <nostr-share
+            data-text="{matome.title} {currentUrl}"
+            style="--nostr-color: white;"
+          ></nostr-share>
+
+          <!-- X -->
           <button class="share-btn" title="Xでシェア" aria-label="Xでシェア" on:click={shareX}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
           </button>
-          <button class="share-btn copy-btn" title="URLをコピー" aria-label="URLをコピー" on:click={copyUrl}>
+
+          <!-- コピー: title + URL -->
+          <button class="share-btn" title="タイトルとURLをコピー" aria-label="タイトルとURLをコピー" on:click={copyUrl}>
             {#if copiedUrl}
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
             {:else}
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
             {/if}
           </button>
+
+          <!-- ⋮ メニュー -->
           <div class="menu-wrap">
             <button class="share-btn" title="その他" aria-label="その他のオプション" on:click={handleMenuToggle}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="5" r="2"/>
+                <circle cx="12" cy="12" r="2"/>
+                <circle cx="12" cy="19" r="2"/>
+              </svg>
             </button>
             {#if menuOpen}
               <div class="menu-dropdown" role="menu">
-                <button class="menu-item" role="menuitem" on:click={() => { copyNaddr(); menuOpen = false; }}>
-                  {#if copiedNaddr}
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                    コピーしました
-                  {:else}
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                    naddr をコピー
-                  {/if}
+                <button class="menu-item" role="menuitem" on:click={copyNevent}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                  </svg>
+                  {copiedNevent ? 'コピーしました' : 'nevent1 をコピー'}
                 </button>
-                <button class="menu-item" role="menuitem" on:click={() => { openNjump(); menuOpen = false; }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                  njump.me で開く
+                <button class="menu-item" role="menuitem" on:click={copyNaddr}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                  {copiedNaddr ? 'コピーしました' : 'naddr1 をコピー'}
+                </button>
+                <div class="menu-divider"></div>
+                <button class="menu-item" role="menuitem" on:click={() => { showJson = true; menuOpen = false; }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="16 18 22 12 16 6"/>
+                    <polyline points="8 6 2 12 8 18"/>
+                  </svg>
+                  JSON を表示
                 </button>
               </div>
             {/if}
@@ -244,6 +280,27 @@
     {/each}
   {/if}
 </div>
+
+<!-- JSON モーダル -->
+{#if showJson}
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+  <div
+    class="json-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Raw Event JSON"
+    on:click|self={() => (showJson = false)}
+    on:keydown={(e) => e.key === 'Escape' && (showJson = false)}
+  >
+    <div class="json-modal">
+      <div class="json-header">
+        <span>Raw Event JSON</span>
+        <button class="json-close" on:click={() => (showJson = false)} aria-label="閉じる">×</button>
+      </div>
+      <pre class="json-body">{jsonText}</pre>
+    </div>
+  </div>
+{/if}
 
 <style>
   .wrap {
@@ -392,9 +449,37 @@
   .stat-share-row {
     display: flex;
     gap: 6px;
+    align-items: center;
     margin-left: auto;
   }
 
+  /* nostr-share-component */
+  :global(nostr-share::part(button)) {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    height: 34px;
+    padding: 0 14px;
+    cursor: pointer;
+    transition: background 0.12s, transform 0.12s, box-shadow 0.12s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  :global(nostr-share::part(button):hover) {
+    background: var(--accent-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(249, 115, 22, 0.35);
+  }
+
+  :global(nostr-share::part(text)) {
+    font-family: 'Mochiy Pop One', sans-serif;
+    font-size: 13px;
+  }
+
+  /* 共通シェアボタン */
   .share-btn {
     display: inline-flex;
     align-items: center;
@@ -403,31 +488,20 @@
     height: 34px;
     border-radius: 10px;
     cursor: pointer;
-    border: 1.5px solid var(--border2);
-    background: var(--surface);
-    color: var(--ink2);
-    transition: all 0.12s;
+    border: none;
+    background: var(--accent);
+    color: white;
+    transition: background 0.12s, transform 0.12s, box-shadow 0.12s;
+    flex-shrink: 0;
   }
 
   .share-btn:hover {
+    background: var(--accent-dark);
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 3px 8px rgba(249, 115, 22, 0.35);
   }
 
-  .share-btn.nos-btn {
-    font-family: var(--font-ui);
-    font-weight: 800;
-    font-size: 11px;
-    letter-spacing: -0.02em;
-    line-height: 1;
-  }
-
-  .share-btn.copy-btn {
-    border-color: var(--accent-mid);
-    background: var(--accent-pale);
-    color: var(--accent-dark);
-  }
-
+  /* ⋮ ドロップダウン */
   .menu-wrap {
     position: relative;
   }
@@ -441,7 +515,7 @@
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
     padding: 4px;
-    min-width: 168px;
+    min-width: 172px;
     z-index: 50;
   }
 
@@ -466,6 +540,12 @@
 
   .menu-item:hover {
     background: var(--bg);
+  }
+
+  .menu-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
   }
 
   /* ===== ブロック ===== */
@@ -499,5 +579,73 @@
     margin-bottom: 12px;
     white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  /* ===== JSON モーダル ===== */
+  .json-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(28, 25, 23, 0.6);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+
+  .json-modal {
+    background: var(--surface);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 640px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  }
+
+  .json-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    flex-shrink: 0;
+  }
+
+  .json-close {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: var(--bg);
+    color: var(--ink2);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: background 0.1s;
+  }
+
+  .json-close:hover {
+    background: var(--accent-mid);
+    color: var(--accent-dark);
+  }
+
+  .json-body {
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--ink2);
+    padding: 16px 18px;
+    overflow-y: auto;
+    white-space: pre;
+    word-break: break-all;
   }
 </style>
