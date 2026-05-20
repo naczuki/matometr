@@ -3,11 +3,12 @@
   import { nip19 } from 'nostr-tools';
   import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
   import FollowingFeedTab from '$lib/components/FollowingFeedTab.svelte';
+  import FavoritesFeedTab from '$lib/components/FavoritesFeedTab.svelte';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
 
   export let open = false;
 
-  type Tab = 'paste' | 'following';
+  type Tab = 'paste' | 'following' | 'favorites';
   let activeTab: Tab = 'paste';
 
   type Pending = { eventId: string; nevent: string };
@@ -118,6 +119,14 @@
           on:click={() => (activeTab = 'following')}
           type="button"
         >フォロー中</button>
+        <button
+          class="tab"
+          class:active={activeTab === 'favorites'}
+          role="tab"
+          aria-selected={activeTab === 'favorites'}
+          on:click={() => (activeTab = 'favorites')}
+          type="button"
+        >お気に入り</button>
       </div>
 
       <div class="body">
@@ -139,8 +148,10 @@
               <p class="paste-error">{pasteError}</p>
             {/if}
           </div>
-        {:else}
+        {:else if activeTab === 'following'}
           <FollowingFeedTab {selectedIds} onToggle={toggleSelection} />
+        {:else}
+          <FavoritesFeedTab {selectedIds} onToggle={toggleSelection} />
         {/if}
       </div>
 

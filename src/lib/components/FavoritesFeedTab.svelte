@@ -4,9 +4,9 @@
   import type { Subscription } from 'rxjs';
   import type { Note } from '$lib/types';
   import {
-    fetchFollowList,
+    fetchFavoriteReactions,
     fetchUserReadRelays,
-    fetchNotesFromAuthors
+    fetchNotesByIds
   } from '$lib/services/NostrClient';
   import { currentUser } from '$lib/stores/auth';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -19,47 +19,73 @@
   let initLoading = true;
   let loadMoreLoading = false;
   let initError = '';
-  let notes: Note[] = [];
-  let authors: string[] = [];
   let readRelays: string[] = [];
-  let oldestAt: number | null = null;
+  let oldestReactionAt: number | null = null;
   let reachedEnd = false;
   let activeSub: Subscription | null = null;
 
+  /** eventId -> 最新リアクション時刻 */
+  const reactedAtMap = new Map<string, number>();
+  /** eventId -> Note */
   const noteById = new Map<string, Note>();
 
-  function addNotes(incoming: Note[]): void {
-    let added = false;
-    for (const n of incoming) {
-      if (!noteById.has(n.id)) {
-        noteById.set(n.id, n);
-        added = true;
-      }
-    }
-    if (added) {
-      notes = [...noteById.values()].sort((a, b) => b.createdAt - a.createdAt);
-      oldestAt = notes[notes.length - 1]?.createdAt ?? oldestAt;
-    }
+  let displayNotes: Note[] = [];
+
+  function rebuildDisplay(): void {
+    displayNotes = [...noteById.values()].sort((a, b) => {
+      const ra = reactedAtMap.get(a.id) ?? 0;
+      const rb = reactedAtMap.get(b.id) ?? 0;
+      return rb - ra;
+    });
   }
 
-  function startFetch(until?: number): Promise<void> {
-    return new Promise((resolve) => {
-      const batch: Note[] = [];
+  async function loadBatch(until?: number): Promise<number> {
+    const user = $currentUser;
+    if (!user) return 0;
+
+    const reactions: { eventId: string; reactedAt: number }[] = [];
+    let oldest = until ?? Infinity;
+
+    await new Promise<void>((resolve) => {
       activeSub?.unsubscribe();
-      activeSub = fetchNotesFromAuthors(authors, {
+      activeSub = fetchFavoriteReactions(user.pubkey, {
         until,
-        limit: 30,
+        limit: 100,
         relays: readRelays
       }).subscribe({
-        next: (n) => batch.push(n),
-        complete: () => {
-          addNotes(batch);
-          if (batch.length === 0) reachedEnd = true;
-          resolve();
+        next: (r) => {
+          reactions.push(r);
+          if (r.reactedAt < oldest) oldest = r.reactedAt;
         },
+        complete: () => resolve(),
         error: () => resolve()
       });
     });
+
+    if (reactions.length === 0) return 0;
+
+    oldestReactionAt = oldest === Infinity ? null : oldest;
+
+    const idsToFetch = new Set<string>();
+    for (const r of reactions) {
+      const cur = reactedAtMap.get(r.eventId);
+      if (cur == null || r.reactedAt > cur) reactedAtMap.set(r.eventId, r.reactedAt);
+      if (!noteById.has(r.eventId)) idsToFetch.add(r.eventId);
+    }
+
+    if (idsToFetch.size > 0) {
+      await new Promise<void>((resolve) => {
+        activeSub?.unsubscribe();
+        activeSub = fetchNotesByIds([...idsToFetch], { relays: readRelays }).subscribe({
+          next: (n) => { noteById.set(n.id, n); },
+          complete: () => resolve(),
+          error: () => resolve()
+        });
+      });
+    }
+
+    rebuildDisplay();
+    return reactions.length;
   }
 
   onMount(async () => {
@@ -70,29 +96,20 @@
       return;
     }
 
-    const [follows, relays] = await Promise.all([
-      collectObservable<string[]>(fetchFollowList(user.pubkey), []),
-      collectObservable<string[]>(fetchUserReadRelays(user.pubkey), [])
-    ]);
+    readRelays = await collectObservable<string[]>(fetchUserReadRelays(user.pubkey), []);
 
-    if (follows.length === 0) {
-      initError = 'フォロー中のユーザーが見つかりません';
-      initLoading = false;
-      return;
-    }
-
-    authors = follows;
-    readRelays = relays;
-    await startFetch();
+    const count = await loadBatch();
+    if (count === 0) reachedEnd = true;
     initLoading = false;
   });
 
   onDestroy(() => activeSub?.unsubscribe());
 
   async function loadMore(): Promise<void> {
-    if (loadMoreLoading || reachedEnd || oldestAt == null) return;
+    if (loadMoreLoading || reachedEnd || oldestReactionAt == null) return;
     loadMoreLoading = true;
-    await startFetch(oldestAt - 1);
+    const count = await loadBatch(oldestReactionAt - 1);
+    if (count === 0) reachedEnd = true;
     loadMoreLoading = false;
   }
 
@@ -115,13 +132,13 @@
   <div class="state">
     <div class="state-text">{initError}</div>
   </div>
-{:else if notes.length === 0}
+{:else if displayNotes.length === 0}
   <div class="state">
-    <div class="state-text">表示できる投稿がありません</div>
+    <div class="state-text">お気に入りの投稿が見つかりません</div>
   </div>
 {:else}
   <div class="feed">
-    {#each notes as note (note.id)}
+    {#each displayNotes as note (note.id)}
       <NotePreview {note} selected={selectedIds.has(note.id)} onClick={handleClick} />
     {/each}
 
