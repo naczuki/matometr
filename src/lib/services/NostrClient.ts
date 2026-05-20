@@ -187,6 +187,7 @@ export async function publishMatome(params: {
       ['summary', params.summary],
       ['published_at', String(now)],
       ['t', 'matometr'],
+      ['client', 'matometr'],
     ],
     content,
   };
