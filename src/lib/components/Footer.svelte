@@ -1,9 +1,13 @@
+<script lang="ts">
+  import { base } from '$app/paths';
+</script>
+
 <footer>
   <div class="inner">
     <span>© 2025 まとめたー</span>
     <nav>
-      <a href="/guide">使い方</a>
-      <a href="/settings">設定</a>
+      <a href="{base}/guide">使い方</a>
+      <a href="{base}/settings">設定</a>
     </nav>
   </div>
 </footer>

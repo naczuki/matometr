@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { base } from '$app/paths';
   import { nip19 } from 'nostr-tools';
   import { currentUser } from '$lib/stores/currentUser';
 
@@ -68,7 +69,7 @@
 
 <header>
   <div class="inner">
-    <a href="/" class="logo">
+    <a href="{base}/" class="logo">
       <div class="logo-icon">📋</div>
       <div>
         <div class="logo-text">まとめたー</div>
@@ -78,7 +79,7 @@
 
     <div class="header-right">
       {#if $currentUser}
-        <a href="/new" class="btn-new-matome">
+        <a href="{base}/new" class="btn-new-matome">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
@@ -104,14 +105,14 @@
 
           {#if dropdownOpen}
             <div class="dropdown">
-              <a class="dropdown-item" href="/user/{$currentUser.npub}" on:click={closeDropdown}>
+              <a class="dropdown-item" href="{base}/user/{$currentUser.npub}" on:click={closeDropdown}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
                 マイまとめ
               </a>
-              <a class="dropdown-item" href="/settings" on:click={closeDropdown}>
+              <a class="dropdown-item" href="{base}/settings" on:click={closeDropdown}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="3" />
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
@@ -174,7 +175,7 @@
       </button>
       <div class="modal-foot">
         <p class="modal-help">
-          操作に困ったら <a href="/guide">使い方ガイド</a> をご覧ください
+          操作に困ったら <a href="{base}/guide">使い方ガイド</a> をご覧ください
         </p>
       </div>
     </div>
