@@ -1,8 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { base } from '$app/paths';
-  import { nip19 } from 'nostr-tools';
-  import { currentUser } from '$lib/stores/currentUser';
+  import { currentUser, logout } from '$lib/stores/auth';
 
   let showLoginModal = false;
   let dropdownOpen = false;
@@ -29,8 +27,7 @@
   }
 
   function handleLogout(): void {
-    document.dispatchEvent(new CustomEvent('nlLogout'));
-    currentUser.set(null);
+    logout();
     closeDropdown();
   }
 
@@ -43,29 +40,10 @@
       dropdownOpen = false;
     }
   }
-
-  onMount(() => {
-    const handleAuth = async (e: Event) => {
-      const { type } = (e as CustomEvent<{ type: string }>).detail;
-      if (type === 'login' || type === 'signup') {
-        try {
-          const pubkey = await window.nostr?.getPublicKey();
-          if (pubkey) {
-            currentUser.set({ pubkey, npub: nip19.npubEncode(pubkey) });
-          }
-        } catch {
-          // nostr extension not available
-        }
-      } else if (type === 'logout') {
-        currentUser.set(null);
-      }
-    };
-    document.addEventListener('nlAuth', handleAuth);
-    return () => document.removeEventListener('nlAuth', handleAuth);
-  });
 </script>
 
 <svelte:window on:click={handleWindowClick} />
+
 
 <header>
   <div class="inner">

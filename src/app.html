@@ -14,13 +14,20 @@
   </head>
   <body data-sveltekit-preload-data="hover">
     <div style="display: contents">%sveltekit.body%</div>
-    <script
-      src="https://www.unpkg.com/nostr-login@latest/dist/unpkg.js"
-      data-no-banner="true"
-      data-perms="sign_event:30023"
-      data-bunkers="nsec.app"
-      data-theme="default"
-    ></script>
+    <script>
+      (function () {
+        var s = document.createElement('script');
+        s.src = 'https://www.unpkg.com/nostr-login@latest/dist/unpkg.js';
+        s.dataset.noBanner = 'true';
+        s.dataset.perms = 'sign_event:30023';
+        s.dataset.bunkers = 'nsec.app';
+        s.dataset.theme = 'default';
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          s.dataset.darkMode = 'true';
+        }
+        document.body.appendChild(s);
+      })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/@konemono/nostr-share-component@latest/dist/nostr-share-component.min.js"></script>
   </body>
 </html>

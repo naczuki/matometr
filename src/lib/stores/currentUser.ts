@@ -1,4 +1,2 @@
-import { writable } from 'svelte/store';
-import type { UserProfile } from '$lib/types';
-
-export const currentUser = writable<UserProfile | null>(null);
+// 後方互換性のため auth.ts から再エクスポート
+export { currentUser } from '$lib/stores/auth';
