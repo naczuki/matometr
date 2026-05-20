@@ -48,6 +48,10 @@ export function logout(): void {
 
 // ページ読み込み時に一度だけ呼ぶ（+layout.svelte の onMount から）
 export async function initAuth(): Promise<void> {
+  // nostr-login の launch() 内部が nsec.app/.well-known/nostr.json を
+  // fetch するため、先にブラウザキャッシュへ入れておく
+  fetch('https://nsec.app/.well-known/nostr.json').catch(() => {});
+
   await init({
     noBanner: true,
     perms: 'sign_event:30023',
