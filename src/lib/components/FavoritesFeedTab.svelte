@@ -50,7 +50,7 @@
       activeSub?.unsubscribe();
       activeSub = fetchFavoriteReactions(user.pubkey, {
         until,
-        limit: 100,
+        limit: 30,
         relays: readRelays
       }).subscribe({
         next: (r) => {
