@@ -5,6 +5,7 @@
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import { currentUser } from '$lib/stores/auth';
   import { publishMatome } from '$lib/services/NostrClient';
+  import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
   import { dndzone } from 'svelte-dnd-action';
   import type { DndEvent } from 'svelte-dnd-action';
   import type { EditorBlock } from '$lib/types';
@@ -45,7 +46,10 @@
     try {
       const decoded = nip19.decode(m[1]);
       if (decoded.type === 'nevent') return `nostr:${m[1]}`;
-      if (decoded.type === 'note') return `nostr:${nip19.neventEncode({ id: decoded.data })}`;
+      if (decoded.type === 'note') {
+        const nevent = nip19.neventEncode({ id: decoded.data, relays: [DEFAULT_RELAYS_JP[0]] });
+        return `nostr:${nevent}`;
+      }
     } catch { /* 無効な bech32 */ }
     return null;
   }
@@ -181,7 +185,7 @@
                     <input
                       class="paste-input"
                       type="text"
-                      placeholder="nostr:nevent1… または njump.me の URL"
+                      placeholder="投稿の URL / nevent1 / note1 を貼り付け"
                       on:input={(e) => handleNoteInput(block.id, e.currentTarget.value)}
                     />
                   {/if}

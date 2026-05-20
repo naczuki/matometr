@@ -14,11 +14,21 @@
   let failed = false;
 
   onMount(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const sub = fetchNoteById(eventId).subscribe({
-      next: (n) => { note = n; requestProfile(n.pubkey); },
-      error: () => { failed = true; }
+      next: (n) => {
+        note = n;
+        requestProfile(n.pubkey);
+        if (timer) clearTimeout(timer);
+      },
+      error: () => { failed = true; },
+      complete: () => { if (!note) failed = true; }
     });
-    return () => sub.unsubscribe();
+    timer = setTimeout(() => { if (!note) failed = true; }, 10_000);
+    return () => {
+      sub.unsubscribe();
+      if (timer) clearTimeout(timer);
+    };
   });
 
   $: profile = note ? $profiles.get(note.pubkey) : undefined;
@@ -56,11 +66,6 @@
     if (seg.type === 'mention') requestProfile(seg.pubkey);
   }
 
-  // エラー時リンク用
-  $: errorRef = (() => {
-    try { return nip19.neventEncode({ id: eventId }); } catch { return ''; }
-  })();
-
   function shortNpub(pubkey: string): string {
     if (!pubkey) return '…';
     try {
@@ -86,14 +91,7 @@
 
 <div class="quoted">
   {#if failed}
-    <div class="quoted-error">
-      <span>引用元を表示できません</span>
-      {#if errorRef}
-        <a href="https://njump.me/{errorRef}" target="_blank" rel="noopener noreferrer">
-          nostr:{shortRef(errorRef)}
-        </a>
-      {/if}
-    </div>
+    <div class="quoted-error">この投稿が見つかりませんでした</div>
   {:else if !note}
     <span class="quoted-state">取得中…</span>
   {:else}
@@ -232,23 +230,9 @@
   }
 
   .quoted-error {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
     font-size: 12px;
     color: var(--ink3);
     font-family: var(--font-ui);
-  }
-
-  .quoted-error a {
-    color: var(--accent);
-    text-decoration: none;
-    font-size: 11px;
-    word-break: break-all;
-  }
-
-  .quoted-error a:hover {
-    text-decoration: underline;
   }
 
   .quoted-state {
