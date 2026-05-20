@@ -56,7 +56,10 @@
 <header>
   <div class="inner">
     <a href="{base}/" class="logo">
-      <div class="logo-text">まとめたー<span class="logo-sub">matometr</span></div>
+      <div class="logo-stack">
+        <div class="logo-text">まとめたー</div>
+        <span class="logo-sub">matometr</span>
+      </div>
     </a>
 
     <div class="header-right">
@@ -185,6 +188,12 @@
     text-decoration: none;
   }
 
+  .logo-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .logo-text {
     font-family: var(--font-ui);
     font-weight: 800;
@@ -192,16 +201,16 @@
     color: var(--accent);
     letter-spacing: -0.02em;
     line-height: 1;
-    display: flex;
-    align-items: baseline;
-    gap: 5px;
   }
 
   .logo-sub {
+    font-family: 'Josefin Sans', sans-serif;
+    font-weight: 600;
     font-size: 11px;
-    font-weight: 500;
     color: var(--ink3);
-    letter-spacing: 0.02em;
+    letter-spacing: 0.12em;
+    align-self: flex-end;
+    line-height: 1.2;
   }
 
   .header-right {
