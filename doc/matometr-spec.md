@@ -104,7 +104,8 @@ Nostrのキュレーションサイト。投稿を集めて、コメント・見
     ["title", "Nostr日本語リレー事情まとめ 2025年版"],
     ["summary", "「リレーって何を選べばいいの？」..."],
     ["published_at", "1716109200"],
-    ["t", "matometr"]
+    ["t", "matometr"],
+    ["client", "matometr"]
   ],
   "content": "# タイトル\n\n説明文\n\n## 見出し\n\nnostr:nevent1abc...\n\n> まとめ主のコメント\n\nnostr:nevent1def...\n\n> もうひとつのコメント"
 }
@@ -122,6 +123,7 @@ Nostrのキュレーションサイト。投稿を集めて、コメント・見
 | コメント | content内に `> ` で始まる引用ブロック |
 | 見出し | content内に `## ` |
 | d-tag | `matometr-{ULID}` |
+| clientタグ | `["client", "matometr"]`（NIP-89） |
 | 削除 | NIP-09（kind:5、`["e", id], ["k", "30023"]`） |
 
 ### コンテンツ記法（マークダウン）

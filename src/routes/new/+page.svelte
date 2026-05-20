@@ -1,15 +1,13 @@
 <script lang="ts">
   import { nip19 } from 'nostr-tools';
   import { base } from '$app/paths';
+  import { goto } from '$app/navigation';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import { currentUser } from '$lib/stores/auth';
+  import { publishMatome } from '$lib/services/NostrClient';
   import { dndzone } from 'svelte-dnd-action';
   import type { DndEvent } from 'svelte-dnd-action';
-
-  type NoteBlock = { id: string; type: 'nevent'; nevent: string };
-  type CommentBlock = { id: string; type: 'comment'; text: string };
-  type HeadingBlock = { id: string; type: 'heading'; text: string };
-  type EditorBlock = NoteBlock | CommentBlock | HeadingBlock;
+  import type { EditorBlock } from '$lib/types';
 
   let title = '';
   let summary = '';
@@ -80,6 +78,24 @@
   }
 
   $: noteCount = blocks.filter((b) => b.type === 'nevent' && b.nevent).length;
+  $: canPublish = title.trim().length > 0 && noteCount > 0;
+
+  let publishing = false;
+  let publishError = '';
+
+  async function handlePublish(): Promise<void> {
+    if (!canPublish || publishing) return;
+    publishing = true;
+    publishError = '';
+    try {
+      const naddr = await publishMatome({ title: title.trim(), summary: summary.trim(), blocks });
+      await goto(`${base}/matome/${naddr}`);
+    } catch (e) {
+      publishError = e instanceof Error ? e.message : '公開に失敗しました';
+    } finally {
+      publishing = false;
+    }
+  }
 </script>
 
 <svelte:head>
@@ -206,9 +222,18 @@
     </section>
 
     <!-- アクション -->
+    {#if publishError}
+      <p class="publish-error">{publishError}</p>
+    {/if}
     <div class="action-bar">
       <a href="{base}/" class="btn-cancel">キャンセル</a>
-      <button class="btn-publish" disabled>公開する</button>
+      <button
+        class="btn-publish"
+        disabled={!canPublish || publishing}
+        on:click={handlePublish}
+      >
+        {publishing ? '公開中…' : '公開する'}
+      </button>
     </div>
   </div>
 {/if}
@@ -521,6 +546,17 @@
   .add-btn:hover {
     border-color: var(--accent);
     background: var(--accent-pale);
+  }
+
+  /* エラー */
+  .publish-error {
+    font-size: 13px;
+    color: #dc2626;
+    background: #fff5f5;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
   }
 
   /* アクションバー */
