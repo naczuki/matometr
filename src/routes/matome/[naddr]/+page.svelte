@@ -107,11 +107,6 @@
     setTimeout(() => { copiedUrl = false; }, 1500);
   }
 
-  function shareNos(): void {
-    if (!matome) return;
-    window.open(`https://njump.me/${matome.naddr}`, '_blank', 'noopener');
-  }
-
   function shareX(): void {
     if (!matome) return;
     const text = encodeURIComponent(`${matome.title} ${currentUrl}`);
@@ -206,10 +201,11 @@
         <div class="stat-item"><b>{matome.postCount}</b>件の投稿</div>
 
         <div class="stat-share-row">
-          <!-- Nos -->
-          <button class="share-btn" title="Nostrで開く" aria-label="Nostrで開く" on:click={shareNos}>
-            <span class="nos-label">Nos</span>
-          </button>
+          <!-- Nos: nostr-share-component -->
+          <nostr-share
+            data-text="{matome.title} {currentUrl}"
+            style="--nostr-color: white;"
+          ></nostr-share>
 
           <!-- X -->
           <button class="share-btn" title="Xでシェア" aria-label="Xでシェア" on:click={shareX}>
@@ -457,6 +453,36 @@
     margin-left: auto;
   }
 
+  /* nostr-share-component: 他のボタンと同じ正方形スタイル */
+  :global(nostr-share::part(button)) {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.12s, transform 0.12s, box-shadow 0.12s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  :global(nostr-share::part(button):hover) {
+    background: var(--accent-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(249, 115, 22, 0.35);
+  }
+
+  :global(nostr-share::part(text)) {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 800;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
   /* 共通シェアボタン */
   .share-btn {
     display: inline-flex;
@@ -477,14 +503,6 @@
     background: var(--accent-dark);
     transform: translateY(-1px);
     box-shadow: 0 3px 8px rgba(249, 115, 22, 0.35);
-  }
-
-  .nos-label {
-    font-family: 'M PLUS Rounded 1c', sans-serif;
-    font-weight: 800;
-    font-size: 11px;
-    line-height: 1;
-    letter-spacing: -0.02em;
   }
 
   /* ⋮ ドロップダウン */
