@@ -3,6 +3,7 @@
   import { base } from '$app/paths';
   import { nip19 } from 'nostr-tools';
   import { currentUser } from '$lib/stores/currentUser';
+  import { fetchProfiles } from '$lib/services/NostrClient';
 
   let showLoginModal = false;
   let dropdownOpen = false;
@@ -51,7 +52,12 @@
         try {
           const pubkey = await window.nostr?.getPublicKey();
           if (pubkey) {
-            currentUser.set({ pubkey, npub: nip19.npubEncode(pubkey) });
+            const npub = nip19.npubEncode(pubkey);
+            currentUser.set({ pubkey, npub });
+            // kind:0 を取得して名前・アバターを反映
+            fetchProfiles([pubkey]).subscribe((profile) => {
+              currentUser.set(profile);
+            });
           }
         } catch {
           // nostr extension not available
