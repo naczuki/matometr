@@ -7,6 +7,10 @@ export type NaddrSegment = { type: 'naddr'; naddr: string };
 export type UrlSegment = { type: 'url'; url: string };
 export type ContentSegment = TextSegment | MentionSegment | QuoteSegment | NaddrSegment | UrlSegment;
 
+function isSafeUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url);
+}
+
 const IMAGE_RE = /https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:[?#][^\s]*)?/gi;
 
 export function extractImages(content: string): { text: string; urls: string[] } {
@@ -32,7 +36,11 @@ export function parseNostrRefs(text: string): ContentSegment[] {
     }
 
     if (match[2]) {
-      segments.push({ type: 'url', url: match[2] });
+      if (isSafeUrl(match[2])) {
+        segments.push({ type: 'url', url: match[2] });
+      } else {
+        segments.push({ type: 'text', content: match[2] });
+      }
       lastIndex = start + match[0].length;
       continue;
     }

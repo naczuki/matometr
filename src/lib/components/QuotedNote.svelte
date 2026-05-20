@@ -164,6 +164,7 @@
     font-size: 13px;
     color: var(--ink2);
     line-height: 1.7;
+    overflow-wrap: anywhere;
     word-break: break-word;
   }
 
