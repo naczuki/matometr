@@ -57,21 +57,11 @@
   <div class="inner">
     <a href="{base}/" class="logo">
       <div class="logo-icon">📋</div>
-      <div>
-        <div class="logo-text">まとめたー</div>
-        <div class="logo-sub">matometr · Nostr キュレーション</div>
-      </div>
+      <div class="logo-text">まとめたー</div>
     </a>
 
     <div class="header-right">
       {#if $currentUser}
-        <a href="{base}/new" class="btn-new-matome">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          まとめを作る
-        </a>
         <div class="dropdown-wrap">
           <button class="user-avatar-btn" on:click={toggleDropdown}>
             <div class="user-avatar">
@@ -218,13 +208,6 @@
     line-height: 1;
   }
 
-  .logo-sub {
-    font-size: 11px;
-    color: var(--ink3);
-    line-height: 1;
-    margin-top: 3px;
-  }
-
   .header-right {
     display: flex;
     align-items: center;
@@ -245,27 +228,6 @@
   }
 
   .btn-login:hover {
-    background: var(--accent-dark);
-  }
-
-  .btn-new-matome {
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    border-radius: var(--radius-btn);
-    padding: 8px 16px;
-    font-family: var(--font-ui);
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background 0.12s;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    text-decoration: none;
-  }
-
-  .btn-new-matome:hover {
     background: var(--accent-dark);
   }
 
