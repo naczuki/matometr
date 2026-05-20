@@ -1,11 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { nip19 } from 'nostr-tools';
+  import { base } from '$app/paths';
   import type { Note } from '$lib/types';
   import { fetchNoteById } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
+  import { parseNostrRefs } from '$lib/utils/nostrContent';
+  import QuotedNote from '$lib/components/QuotedNote.svelte';
 
   export let nevent: string;
   export let comment: string | null;
@@ -67,11 +70,21 @@
   }
 
   $: parsedContent = note ? extractImages(note.content) : { text: '', urls: [] };
+  $: segments = parseNostrRefs(parsedContent.text);
+
+  // メンション対象のプロフィールをリクエスト
+  $: for (const seg of segments) {
+    if (seg.type === 'mention') requestProfile(seg.pubkey);
+  }
 
   let failedImages: Set<string> = new Set();
 
   function onImgError(url: string): void {
     failedImages = new Set([...failedImages, url]);
+  }
+
+  function shortenNaddr(naddr: string): string {
+    return naddr.slice(0, 12) + '…' + naddr.slice(-4);
   }
 </script>
 
@@ -97,7 +110,28 @@
       </div>
       <span class="note-time">{timeAgo(note.createdAt)}</span>
     </div>
-    <div class="note-content">{parsedContent.text}</div>
+    <div class="note-content">
+      {#each segments as segment}
+        {#if segment.type === 'text'}
+          <span class="text-seg">{segment.content}</span>
+        {:else if segment.type === 'mention'}
+          {@const mp = $profiles.get(segment.pubkey)}
+          <a
+            class="mention-link"
+            href="{base}/user/{nip19.npubEncode(segment.pubkey)}"
+          >@{mp?.displayName ?? mp?.name ?? shortNpub(segment.pubkey)}</a>
+        {:else if segment.type === 'quote'}
+          <QuotedNote eventId={segment.eventId} />
+        {:else if segment.type === 'naddr'}
+          <a
+            class="naddr-link"
+            href="https://njump.me/{segment.naddr}"
+            target="_blank"
+            rel="noopener noreferrer"
+          >nostr:{shortenNaddr(segment.naddr)}</a>
+        {/if}
+      {/each}
+    </div>
     {#if parsedContent.urls.length > 0}
       <div class="note-images">
         {#each parsedContent.urls as url}
@@ -206,8 +240,32 @@
     font-size: 14px;
     line-height: 1.85;
     color: var(--ink);
-    white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  .text-seg {
+    white-space: pre-wrap;
+  }
+
+  .mention-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .mention-link:hover {
+    text-decoration: underline;
+  }
+
+  .naddr-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 12px;
+    word-break: break-all;
+  }
+
+  .naddr-link:hover {
+    text-decoration: underline;
   }
 
   .note-images {
