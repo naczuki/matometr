@@ -7,7 +7,7 @@
   import { currentUser } from '$lib/stores/auth';
   import { publishMatome } from '$lib/services/NostrClient';
   import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
-  import { dndzone } from 'svelte-dnd-action';
+  import { dragHandleZone, dragHandle } from 'svelte-dnd-action';
   import type { DndEvent } from 'svelte-dnd-action';
   import type { EditorBlock } from '$lib/types';
 
@@ -166,7 +166,7 @@
       {:else}
         <div
           class="block-list"
-          use:dndzone={{ items: blocks, flipDurationMs: FLIP_MS }}
+          use:dragHandleZone={{ items: blocks, flipDurationMs: FLIP_MS, delayTouchStart: 250 }}
           on:consider={handleDndConsider}
           on:finalize={handleDndFinalize}
         >
@@ -177,7 +177,7 @@
               class:is-comment={block.type === 'comment'}
             >
               <!-- ドラッグハンドル -->
-              <div class="drag-handle" aria-label="ドラッグで並び替え">⋮⋮</div>
+              <div class="drag-handle" use:dragHandle aria-label="ドラッグで並び替え">⋮⋮</div>
 
               <!-- コンテンツ -->
               <div class="block-body">
