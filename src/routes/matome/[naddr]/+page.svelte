@@ -8,7 +8,9 @@
   import type { MatomeBlock } from '$lib/entities/Matome';
   import { fetchMatomeByAddress } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
+  import { currentUser } from '$lib/stores/auth';
   import { avatarStyle } from '$lib/utils/avatar';
+  import { NOSLI_BASE_URL } from '$lib/utils/constants';
   import NoteCard from '$lib/components/NoteCard.svelte';
 
   $: naddr = $page.params.naddr;
@@ -51,6 +53,8 @@
   $: nostrRef = matome
     ? 'nostr:' + nip19.neventEncode({ id: matome.id, author: matome.pubkey, kind: 30023 })
     : '';
+
+  $: isMine = !!$currentUser && matome?.pubkey === $currentUser.pubkey;
 
   $: profile = $profiles.get(matome?.pubkey ?? '');
   $: authorName = profile?.displayName ?? profile?.name ?? shortNpub(matome?.pubkey ?? '');
@@ -260,6 +264,21 @@
           </div>
         </div>
       </div>
+
+      {#if isMine && matome.isMatometr}
+        <div class="detail-actions">
+          <a href="{base}/edit/{matome.naddr}" class="btn-edit">まとめたーで編集</a>
+        </div>
+      {:else if isMine && matome.isNosli}
+        <div class="detail-actions">
+          <a
+            href="{NOSLI_BASE_URL}/li/{matome.naddr}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-edit-ext"
+          >nosliで編集 ↗</a>
+        </div>
+      {/if}
     </div>
 
     {#each renderPlan as block}
@@ -446,6 +465,46 @@
     gap: 6px;
     align-items: center;
     margin-left: auto;
+  }
+
+  .detail-actions {
+    margin-top: 12px;
+  }
+
+  .btn-edit {
+    display: inline-block;
+    padding: 8px 18px;
+    border-radius: var(--radius-btn);
+    background: var(--accent);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font-ui);
+    text-decoration: none;
+    transition: background 0.12s;
+  }
+
+  .btn-edit:hover {
+    background: var(--accent-dark);
+  }
+
+  .btn-edit-ext {
+    display: inline-block;
+    padding: 8px 18px;
+    border-radius: var(--radius-btn);
+    border: 1.5px solid var(--border2);
+    background: var(--surface);
+    color: var(--ink2);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font-ui);
+    text-decoration: none;
+    transition: border-color 0.12s, color 0.12s;
+  }
+
+  .btn-edit-ext:hover {
+    border-color: var(--ink2);
+    color: var(--ink);
   }
 
   /* nostr-share-component: Mochiy Pop One・横長・オレンジ */

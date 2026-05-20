@@ -161,24 +161,8 @@ function blocksToContent(blocks: EditorBlock[]): string {
   return parts.join('\n\n');
 }
 
-/**
- * まとめを NIP-23 kind:30023 イベントとして署名・公開する。
- * 成功したら naddr1 文字列を返す。
- * 署名には NIP-07（window.nostr）を使用。
- */
-export async function publishMatome(params: {
-  title: string;
-  summary: string;
-  blocks: EditorBlock[];
-}): Promise<string> {
-  if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
-
-  const pubkey = await window.nostr.getPublicKey();
-  const dTag = `matometr-${ulid()}`;
-  const now = Math.floor(Date.now() / 1000);
-  const content = blocksToContent(params.blocks);
-
-  const eTags = params.blocks
+function buildETags(blocks: EditorBlock[]): string[][] {
+  return blocks
     .filter((b): b is NoteEditorBlock => b.type === 'nevent' && Boolean(b.nevent))
     .flatMap((b) => {
       try {
@@ -190,25 +174,15 @@ export async function publishMatome(params: {
         return [];
       }
     });
+}
 
-  const eventParams = {
-    kind: 30023 as const,
-    created_at: now,
-    tags: [
-      ['d', dTag],
-      ['title', params.title],
-      ['summary', params.summary],
-      ['published_at', String(now)],
-      ['t', 'matometr'],
-      ['client', 'matometr'],
-      ...eTags,
-    ],
-    content,
-  };
-
-  const naddr = nip19.naddrEncode({ kind: 30023, pubkey, identifier: dTag });
-
-  await new Promise<void>((resolve, reject) => {
+async function sendToRelays(eventParams: {
+  kind: 30023;
+  created_at: number;
+  tags: string[][];
+  content: string;
+}): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
     let published = false;
     const sub = getClient()
       .send(eventParams, { signer: nip07Signer() })
@@ -226,7 +200,6 @@ export async function publishMatome(params: {
         },
       });
 
-    // 20 秒でタイムアウト
     setTimeout(() => {
       if (!published) {
         sub.unsubscribe();
@@ -234,8 +207,73 @@ export async function publishMatome(params: {
       }
     }, 20_000);
   });
+}
 
-  return naddr;
+/**
+ * まとめを NIP-23 kind:30023 イベントとして署名・公開する。
+ * 成功したら naddr1 文字列を返す。
+ */
+export async function publishMatome(params: {
+  title: string;
+  summary: string;
+  blocks: EditorBlock[];
+}): Promise<string> {
+  if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
+
+  const pubkey = await window.nostr.getPublicKey();
+  const dTag = `matometr-${ulid()}`;
+  const now = Math.floor(Date.now() / 1000);
+
+  await sendToRelays({
+    kind: 30023 as const,
+    created_at: now,
+    tags: [
+      ['d', dTag],
+      ['title', params.title],
+      ['summary', params.summary],
+      ['published_at', String(now)],
+      ['t', 'matometr'],
+      ['client', 'matometr'],
+      ...buildETags(params.blocks),
+    ],
+    content: blocksToContent(params.blocks),
+  });
+
+  return nip19.naddrEncode({ kind: 30023, pubkey, identifier: dTag });
+}
+
+/**
+ * 既存まとめを同じ d-tag で上書き公開する（NIP-23 replace）。
+ * 成功したら naddr1 文字列を返す。
+ */
+export async function updateMatome(params: {
+  dTag: string;
+  publishedAt: number;
+  title: string;
+  summary: string;
+  blocks: EditorBlock[];
+}): Promise<string> {
+  if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
+
+  const pubkey = await window.nostr.getPublicKey();
+  const now = Math.floor(Date.now() / 1000);
+
+  await sendToRelays({
+    kind: 30023 as const,
+    created_at: now,
+    tags: [
+      ['d', params.dTag],
+      ['title', params.title],
+      ['summary', params.summary],
+      ['published_at', String(params.publishedAt)],
+      ['t', 'matometr'],
+      ['client', 'matometr'],
+      ...buildETags(params.blocks),
+    ],
+    content: blocksToContent(params.blocks),
+  });
+
+  return nip19.naddrEncode({ kind: 30023, pubkey, identifier: params.dTag });
 }
 
 /**

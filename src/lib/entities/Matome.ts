@@ -58,6 +58,10 @@ export class Matome {
     this.rawEvent = params.rawEvent;
   }
 
+  get isMatometr(): boolean {
+    return this.rawEvent.tags.some(([k, v]) => k === 't' && v === 'matometr');
+  }
+
   get postCount(): number {
     return this.blocks.filter((b) => b.type === 'nevent').length;
   }
