@@ -5,8 +5,7 @@
   import { goto } from '$app/navigation';
   import { nip19 } from 'nostr-tools';
   import type { AddressPointer } from 'nostr-tools/nip19';
-  import { dragHandleZone, dragHandle } from 'svelte-dnd-action';
-  import type { DndEvent } from 'svelte-dnd-action';
+  import { sortableAction } from '$lib/actions/sortable';
   import { fetchMatomeByAddress, updateMatome, fetchNotesByIds } from '$lib/services/NostrClient';
   import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
   import { currentUser } from '$lib/stores/auth';
@@ -95,7 +94,12 @@
     blocks = blocks.filter((b) => b.id !== id);
   }
 
-  const FLIP_MS = 200;
+  function handleSort(oldIndex: number, newIndex: number): void {
+    const updated = [...blocks];
+    const [moved] = updated.splice(oldIndex, 1);
+    updated.splice(newIndex, 0, moved);
+    blocks = updated;
+  }
 
   let sortLoading = false;
   let lastSortOrder: 'asc' | 'desc' | null = null;
@@ -145,14 +149,6 @@
       : [...otherBlocks, ...sorted];
 
     lastSortOrder = nextOrder;
-  }
-
-  function handleDndConsider(e: CustomEvent<DndEvent<EditorBlock>>): void {
-    blocks = e.detail.items;
-  }
-
-  function handleDndFinalize(e: CustomEvent<DndEvent<EditorBlock>>): void {
-    blocks = e.detail.items;
   }
 
   function parseNostrInput(raw: string): string | null {
@@ -287,9 +283,7 @@
       {:else}
         <div
           class="block-list"
-          use:dragHandleZone={{ items: blocks, flipDurationMs: FLIP_MS, delayTouchStart: 250 }}
-          on:consider={handleDndConsider}
-          on:finalize={handleDndFinalize}
+          use:sortableAction={{ onSort: handleSort }}
         >
           {#each blocks as block (block.id)}
             <div
@@ -297,7 +291,7 @@
               class:is-heading={block.type === 'heading'}
               class:is-comment={block.type === 'comment'}
             >
-              <div class="drag-handle" use:dragHandle aria-label="ドラッグで並び替え">⋮⋮</div>
+              <div class="drag-handle" aria-hidden="true">⋮⋮</div>
 
               <div class="block-body">
                 {#if block.type === 'nevent'}
@@ -544,14 +538,19 @@
     padding: 4px 2px;
     color: var(--ink3);
     font-size: 14px;
-    cursor: grab;
     line-height: 1;
     user-select: none;
     letter-spacing: -2px;
   }
 
-  .drag-handle:active {
-    cursor: grabbing;
+  :global(.sortable-ghost) {
+    opacity: 0.4;
+    background: var(--accent-pale);
+    border-color: var(--accent-mid) !important;
+  }
+
+  :global(.sortable-chosen) {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   }
 
   .block-body {
