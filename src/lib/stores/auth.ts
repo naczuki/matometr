@@ -46,11 +46,46 @@ export function logout(): void {
   nlLogout();
 }
 
+// nostr-login の launch() が同期的にこのURLを fetch するため、
+// ブラウザキャッシュに頼らず明示的に JS メモリへキャッシュして再利用させる
+const NSEC_NOSTR_JSON_URL = 'https://nsec.app/.well-known/nostr.json';
+let nsecJsonResponse: Response | null = null;
+let nsecJsonPromise: Promise<Response> | null = null;
+let nativeFetch: typeof fetch | null = null;
+
+function fetchNsecJsonCached(): Promise<Response> {
+  if (nsecJsonResponse) return Promise.resolve(nsecJsonResponse.clone());
+  if (nsecJsonPromise) return nsecJsonPromise.then((r) => r.clone());
+  const f = nativeFetch ?? fetch;
+  nsecJsonPromise = f(NSEC_NOSTR_JSON_URL);
+  nsecJsonPromise
+    .then((r) => {
+      nsecJsonResponse = r.clone();
+    })
+    .catch(() => {
+      nsecJsonPromise = null;
+    });
+  return nsecJsonPromise.then((r) => r.clone());
+}
+
+function patchFetch(): void {
+  if (nativeFetch || typeof window === 'undefined') return;
+  nativeFetch = window.fetch.bind(window);
+  window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string'
+      ? input
+      : input instanceof URL ? input.toString() : input.url;
+    if (url === NSEC_NOSTR_JSON_URL) return fetchNsecJsonCached();
+    return nativeFetch!(input, init);
+  }) as typeof fetch;
+}
+
 // ページ読み込み時に一度だけ呼ぶ（+layout.svelte の onMount から）
 export async function initAuth(): Promise<void> {
-  // nostr-login の launch() 内部が nsec.app/.well-known/nostr.json を
-  // fetch するため、先にブラウザキャッシュへ入れておく
-  fetch('https://nsec.app/.well-known/nostr.json').catch(() => {});
+  patchFetch();
+  // 先読み開始（fire-and-forget）。完了すれば JS メモリにキャッシュされ、
+  // nostr-login が同じURLを fetch したときに即座に返る
+  fetchNsecJsonCached();
 
   await init({
     noBanner: true,
