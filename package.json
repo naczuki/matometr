@@ -36,6 +36,7 @@
     "@konemono/nostr-share-component": "^0.4.4",
     "nostr-tools": "^2.10.4",
     "rx-nostr": "^3.1.3",
+    "svelte-dnd-action": "^0.9.69",
     "ulid": "^2.3.0"
   }
 }
