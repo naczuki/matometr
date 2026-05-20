@@ -123,7 +123,25 @@
     if (!matome) return;
     window.open(`https://nostter.app/${matome.naddr}`, '_blank', 'noopener');
   }
+
+  let menuOpen = false;
+
+  function handleMenuToggle(e: MouseEvent): void {
+    e.stopPropagation();
+    menuOpen = !menuOpen;
+  }
+
+  function handleDocClick(): void {
+    menuOpen = false;
+  }
+
+  function openNjump(): void {
+    if (!matome) return;
+    window.open(`https://njump.me/${matome.naddr}`, '_blank', 'noopener');
+  }
 </script>
+
+<svelte:window on:click={handleDocClick} />
 
 <svelte:head>
   <title>{matome?.title ?? 'まとめ詳細'} | まとめたー</title>
@@ -176,26 +194,39 @@
       <div class="detail-stats">
         <div class="stat-item"><b>{matome.postCount}</b>件の投稿</div>
         <div class="stat-share-row">
-          <button class="share-btn nostter" title="nostterで開く" aria-label="nostterで開く" on:click={shareNostter}>
-            <svg width="16" height="16" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#7c3aed"/><text x="16" y="22" text-anchor="middle" fill="white" font-size="20" font-weight="bold" font-family="serif">N</text></svg>
-          </button>
-          <button class="share-btn x" title="Xでシェア" aria-label="Xでシェア" on:click={shareX}>
+          <button class="share-btn nos-btn" title="Nostrで開く" aria-label="Nostrで開く" on:click={shareNostter}>Nos</button>
+          <button class="share-btn" title="Xでシェア" aria-label="Xでシェア" on:click={shareX}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
           </button>
-          <button class="share-btn copy" title="URLをコピー" aria-label="URLをコピー" on:click={copyUrl}>
+          <button class="share-btn copy-btn" title="URLをコピー" aria-label="URLをコピー" on:click={copyUrl}>
             {#if copiedUrl}
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
             {:else}
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             {/if}
           </button>
-          <button class="share-btn nevent-btn" title="naddr をコピー" aria-label="naddr をコピー" on:click={copyNaddr}>
-            {#if copiedNaddr}
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-            {:else}
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <div class="menu-wrap">
+            <button class="share-btn" title="その他" aria-label="その他のオプション" on:click={handleMenuToggle}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+            </button>
+            {#if menuOpen}
+              <div class="menu-dropdown" role="menu">
+                <button class="menu-item" role="menuitem" on:click={() => { copyNaddr(); menuOpen = false; }}>
+                  {#if copiedNaddr}
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    コピーしました
+                  {:else}
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    naddr をコピー
+                  {/if}
+                </button>
+                <button class="menu-item" role="menuitem" on:click={() => { openNjump(); menuOpen = false; }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  njump.me で開く
+                </button>
+              </div>
             {/if}
-          </button>
+          </div>
         </div>
       </div>
     </div>
@@ -383,27 +414,58 @@
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
   }
 
-  .share-btn.nostter {
-    border-color: #ddd6fe;
-    background: #f5f3ff;
-    color: #7c3aed;
+  .share-btn.nos-btn {
+    font-family: var(--font-ui);
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: -0.02em;
+    line-height: 1;
   }
 
-  .share-btn.x {
-    border-color: #d1d5db;
-    color: var(--ink);
-  }
-
-  .share-btn.copy {
+  .share-btn.copy-btn {
     border-color: var(--accent-mid);
     background: var(--accent-pale);
     color: var(--accent-dark);
   }
 
-  .share-btn.nevent-btn {
-    border-color: #fde68a;
-    background: #fffbeb;
-    color: #92400e;
+  .menu-wrap {
+    position: relative;
+  }
+
+  .menu-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    padding: 4px;
+    min-width: 168px;
+    z-index: 50;
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink2);
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: var(--font-ui);
+    text-align: left;
+    transition: background 0.1s;
+    white-space: nowrap;
+  }
+
+  .menu-item:hover {
+    background: var(--bg);
   }
 
   /* ===== ブロック ===== */
