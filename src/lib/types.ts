@@ -12,6 +12,7 @@ export interface UserProfile {
   picture?: string;
   about?: string;
   nip05?: string;
+  emojis?: Record<string, string>;
 }
 
 export interface Note {
