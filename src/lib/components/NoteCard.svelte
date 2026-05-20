@@ -11,7 +11,6 @@
   import QuotedNote from '$lib/components/QuotedNote.svelte';
 
   export let nevent: string;
-  export let comment: string | null;
   export let num: number;
   export let total: number;
 
@@ -150,12 +149,6 @@
             />
           {/if}
         {/each}
-      </div>
-    {/if}
-    {#if comment}
-      <div class="editor-comment">
-        <span class="editor-label">まとめコメント</span>
-        {comment}
       </div>
     {/if}
   {/if}
@@ -306,29 +299,6 @@
     text-decoration: underline;
   }
 
-  .editor-comment {
-    margin-top: 12px;
-    padding: 10px 14px;
-    background: var(--bg);
-    border-radius: 10px;
-    border: 1.5px solid var(--border);
-    font-size: 13px;
-    color: var(--ink2);
-    line-height: 1.7;
-  }
-
-  .editor-label {
-    display: inline-block;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--accent);
-    background: var(--accent-mid);
-    padding: 1px 8px;
-    border-radius: var(--radius-btn);
-    margin-right: 8px;
-    margin-bottom: 4px;
-    font-family: var(--font-ui);
-  }
 
   .load-placeholder {
     font-size: 13px;
