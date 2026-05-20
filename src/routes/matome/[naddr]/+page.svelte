@@ -474,7 +474,18 @@
     box-shadow: 0 3px 8px rgba(249, 115, 22, 0.35);
   }
 
+  /* アイコン（ダチョウSVG）を非表示 */
+  :global(nostr-share .nostr-icon) {
+    display: none;
+  }
+
+  /* テキストを "Nostr" → "Nos" に差し替え */
   :global(nostr-share::part(text)) {
+    font-size: 0;
+  }
+
+  :global(nostr-share::part(text)::before) {
+    content: 'Nos';
     font-family: 'Mochiy Pop One', sans-serif;
     font-size: 13px;
   }
