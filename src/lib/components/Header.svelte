@@ -1,7 +1,7 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import { launch } from 'nostr-login';
   import { currentUser, logout } from '$lib/stores/auth';
+  import type { StartScreens } from '@konemono/nostr-login/dist/types';
 
   let showLoginModal = false;
   let dropdownOpen = false;
@@ -15,10 +15,11 @@
     showLoginModal = false;
   }
 
-  async function launchNostrLogin(screen: Parameters<typeof launch>[0]): Promise<void> {
+  async function launchNostrLogin(screen: StartScreens): Promise<void> {
     launching = true;
     hideLoginModal();
     try {
+      const { launch } = await import('@konemono/nostr-login');
       await launch(screen);
     } finally {
       launching = false;
