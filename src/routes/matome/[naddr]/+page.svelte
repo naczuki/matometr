@@ -48,6 +48,10 @@
     }
   });
 
+  $: nostrRef = matome
+    ? 'nostr:' + nip19.neventEncode({ id: matome.id, author: matome.pubkey, kind: 30023 })
+    : '';
+
   $: profile = $profiles.get(matome?.pubkey ?? '');
   $: authorName = profile?.displayName ?? profile?.name ?? shortNpub(matome?.pubkey ?? '');
   $: authorPicture = profile?.picture ?? null;
@@ -202,7 +206,7 @@
 
         <div class="stat-share-row">
           <!-- Nos: nostr-share-component（スロットでテキスト上書き） -->
-          <nostr-share data-text="{matome.title} {currentUrl}"><span class="nos-label">Nos</span></nostr-share>
+          <nostr-share data-text="{matome.title} {nostrRef}"><span class="nos-label">Nos</span></nostr-share>
 
           <!-- X -->
           <button class="share-btn" title="Xでシェア" aria-label="Xでシェア" on:click={shareX}>

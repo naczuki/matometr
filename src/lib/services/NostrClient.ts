@@ -7,7 +7,7 @@ import type { AddressPointer } from 'nostr-tools/nip19';
 import { ulid } from 'ulid';
 import { DEFAULT_RELAYS } from '$lib/stores/relays';
 import { Matome } from '$lib/entities/Matome';
-import type { UserProfile, Note, EditorBlock } from '$lib/types';
+import type { UserProfile, Note, EditorBlock, NoteEditorBlock } from '$lib/types';
 
 let _client: RxNostr | null = null;
 
@@ -178,6 +178,19 @@ export async function publishMatome(params: {
   const now = Math.floor(Date.now() / 1000);
   const content = blocksToContent(params.blocks);
 
+  const eTags = params.blocks
+    .filter((b): b is NoteEditorBlock => b.type === 'nevent' && Boolean(b.nevent))
+    .flatMap((b) => {
+      try {
+        const decoded = nip19.decode(b.nevent.replace(/^nostr:/, ''));
+        if (decoded.type !== 'nevent') return [];
+        const relay = decoded.data.relays?.[0] ?? '';
+        return [['e', decoded.data.id, relay, 'mention']];
+      } catch {
+        return [];
+      }
+    });
+
   const eventParams = {
     kind: 30023 as const,
     created_at: now,
@@ -188,6 +201,7 @@ export async function publishMatome(params: {
       ['published_at', String(now)],
       ['t', 'matometr'],
       ['client', 'matometr'],
+      ...eTags,
     ],
     content,
   };
