@@ -1,31 +1,51 @@
 <script lang="ts">
   import { base } from '$app/paths';
+  import { nip19 } from 'nostr-tools';
+  import type { Matome } from '$lib/entities/Matome';
+  import { avatarStyle } from '$lib/utils/avatar';
+  import { timeAgo } from '$lib/utils/time';
 
-  export let naddr: string;
-  export let avatarInitial: string;
-  export let avatarBg: string;
-  export let avatarFg: string;
-  export let authorName: string;
-  export let timeAgo: string;
-  export let title: string;
-  export let preview: string;
-  export let postCount: number;
-  export let tag: string;
-  export let likes: number;
+  export let matome: Matome;
+
+  $: style = avatarStyle(matome.pubkey);
+
+  $: displayName = (() => {
+    try {
+      const npub = nip19.npubEncode(matome.pubkey);
+      return npub.slice(0, 12) + '…';
+    } catch {
+      return matome.pubkey.slice(0, 8) + '…';
+    }
+  })();
+
+  $: preview = (() => {
+    if (matome.summary) return matome.summary;
+    const block = matome.blocks.find((b) => b.type === 'paragraph' || b.type === 'comment');
+    return block?.content ?? '';
+  })();
+
+  $: firstTag = matome.tags[0] ?? '';
+  $: elapsed = timeAgo(matome.createdAt);
 </script>
 
-<a href="{base}/matome/{naddr}" class="card">
+<a href="{base}/matome/{matome.naddr}" class="card">
   <div class="author">
-    <div class="avatar" style="background:{avatarBg};color:{avatarFg};">{avatarInitial}</div>
-    <span class="author-name">{authorName}</span>
-    <span class="time">{timeAgo}</span>
+    <div class="avatar" style="background:{style.bg};color:{style.fg};">{style.initial}</div>
+    <span class="author-name">{displayName}</span>
+    <span class="time">{elapsed}</span>
   </div>
-  <div class="title">{title}</div>
-  <div class="preview">{preview}</div>
+  <div class="title">{matome.title}</div>
+  {#if preview}
+    <div class="preview">{preview}</div>
+  {/if}
   <div class="footer">
-    <span class="count">{postCount}件の投稿</span>
-    <span class="tag">#{tag}</span>
-    <span class="likes">♡ {likes}</span>
+    <span class="count">{matome.postCount}件の投稿</span>
+    {#if firstTag}
+      <span class="tag">#{firstTag}</span>
+    {/if}
+    {#if matome.isNosli}
+      <span class="nosli-badge">nosli</span>
+    {/if}
   </div>
 </a>
 
@@ -131,10 +151,14 @@
     font-weight: 500;
   }
 
-  .likes {
-    margin-left: auto;
-    font-size: 12px;
+  .nosli-badge {
+    font-size: 11px;
     color: var(--ink3);
+    background: var(--bg);
+    padding: 3px 10px;
+    border-radius: var(--radius-btn);
+    border: 1px solid var(--border2);
     font-family: var(--font-ui);
+    font-style: italic;
   }
 </style>
