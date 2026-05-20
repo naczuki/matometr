@@ -201,11 +201,8 @@
         <div class="stat-item"><b>{matome.postCount}</b>件の投稿</div>
 
         <div class="stat-share-row">
-          <!-- Nos: nostr-share-component -->
-          <nostr-share
-            data-text="{matome.title} {currentUrl}"
-            style="--nostr-color: white;"
-          ></nostr-share>
+          <!-- Nos: nostr-share-component（スロットでテキスト上書き） -->
+          <nostr-share data-text="{matome.title} {currentUrl}"><span class="nos-label">Nos</span></nostr-share>
 
           <!-- X -->
           <button class="share-btn" title="Xでシェア" aria-label="Xでシェア" on:click={shareX}>
@@ -465,7 +462,6 @@
     transition: background 0.12s, transform 0.12s, box-shadow 0.12s;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
   }
 
   :global(nostr-share::part(button):hover) {
@@ -474,7 +470,7 @@
     box-shadow: 0 3px 8px rgba(249, 115, 22, 0.35);
   }
 
-  :global(nostr-share::part(text)) {
+  .nos-label {
     font-family: 'Mochiy Pop One', sans-serif;
     font-size: 13px;
   }
