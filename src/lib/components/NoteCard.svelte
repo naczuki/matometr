@@ -230,6 +230,7 @@
     font-size: 14px;
     line-height: 1.85;
     color: var(--ink);
+    overflow-wrap: anywhere;
     word-break: break-word;
   }
 
