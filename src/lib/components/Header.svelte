@@ -137,7 +137,7 @@
         <div class="choice-icon">{launching ? '…' : '✓'}</div>
         <div class="choice-body">
           <div class="choice-title">{launching ? '読み込み中…' : 'すでにアカウントを持っている'}</div>
-          <div class="choice-desc">他のNostrアプリ（Damus・Amethystなど）を使ったことがある方</div>
+          <div class="choice-desc">すでにNostrアカウントをお持ちの方はこちら</div>
         </div>
         <span class="choice-arrow">›</span>
       </button>
@@ -145,7 +145,7 @@
         <div class="choice-icon">＋</div>
         <div class="choice-body">
           <div class="choice-title">はじめて使う（新規登録）</div>
-          <div class="choice-desc">Nostrのアカウントをこれから作ります。1分くらいで完了します</div>
+          <div class="choice-desc">アカウント作成は無料・メールアドレス不要です。<br />作ったアカウントはNostr対応アプリすべてで使えます。</div>
         </div>
         <span class="choice-arrow">›</span>
       </button>
