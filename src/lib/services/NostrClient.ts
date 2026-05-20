@@ -161,23 +161,39 @@ function blocksToContent(blocks: EditorBlock[]): string {
   return parts.join('\n\n');
 }
 
-function buildETags(blocks: EditorBlock[]): string[][] {
-  return blocks
-    .filter((b): b is NoteEditorBlock => b.type === 'nevent' && Boolean(b.nevent))
-    .flatMap((b) => {
-      try {
-        const decoded = nip19.decode(b.nevent.replace(/^nostr:/, ''));
-        if (decoded.type !== 'nevent') return [];
-        const relay = decoded.data.relays?.[0] ?? '';
-        return [['e', decoded.data.id, relay, 'mention']];
-      } catch {
-        return [];
+function buildMentionTags(blocks: EditorBlock[]): string[][] {
+  const seenIds = new Set<string>();
+  const seenPubkeys = new Set<string>();
+  const qTags: string[][] = [];
+  const pTags: string[][] = [];
+
+  for (const block of blocks) {
+    if (block.type !== 'nevent' || !block.nevent) continue;
+    try {
+      const decoded = nip19.decode(block.nevent.replace(/^nostr:/, ''));
+      if (decoded.type !== 'nevent') continue;
+      const { id, relays, author } = decoded.data;
+      const relay = relays?.[0] ?? '';
+
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        qTags.push(['q', id, relay, author ?? '']);
       }
-    });
+
+      if (author && !seenPubkeys.has(author)) {
+        seenPubkeys.add(author);
+        pTags.push(['p', author, relay]);
+      }
+    } catch {
+      // 無効な nevent は無視
+    }
+  }
+
+  return [...qTags, ...pTags];
 }
 
 async function sendToRelays(eventParams: {
-  kind: 30023;
+  kind: number;
   created_at: number;
   tags: string[][];
   content: string;
@@ -234,7 +250,7 @@ export async function publishMatome(params: {
       ['published_at', String(now)],
       ['t', 'matometr'],
       ['client', 'matometr'],
-      ...buildETags(params.blocks),
+      ...buildMentionTags(params.blocks),
     ],
     content: blocksToContent(params.blocks),
   });
@@ -268,7 +284,7 @@ export async function updateMatome(params: {
       ['published_at', String(params.publishedAt)],
       ['t', 'matometr'],
       ['client', 'matometr'],
-      ...buildETags(params.blocks),
+      ...buildMentionTags(params.blocks),
     ],
     content: blocksToContent(params.blocks),
   });
@@ -277,7 +293,24 @@ export async function updateMatome(params: {
 }
 
 /**
- * nosli 互換まとめ（t:nosli）を取得。
+ * まとめを NIP-09 の kind:5 削除イベントとして署名・公開する。
+ */
+export async function deleteMatome(eventId: string): Promise<void> {
+  if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
+
+  const now = Math.floor(Date.now() / 1000);
+  await sendToRelays({
+    kind: 5,
+    created_at: now,
+    tags: [
+      ['e', eventId],
+      ['k', '30023'],
+    ],
+    content: '',
+  });
+}
+
+/**
  * eタグ有り・コメントなしのため閲覧のみ（編集は nosli へ誘導）。
  */
 export function fetchNosliList(limit = 10): Observable<Matome> {

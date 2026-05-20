@@ -106,8 +106,10 @@ Nostrのキュレーションサイト。投稿を集めて、コメント・見
     ["published_at", "1716109200"],
     ["t", "matometr"],
     ["client", "matometr"],
-    ["e", "<eventId1>", "<relayHint>", "mention"],
-    ["e", "<eventId2>", "<relayHint>", "mention"]
+    ["q", "<eventId1>", "<relayHint>", "<authorPubkey1>"],
+    ["q", "<eventId2>", "<relayHint>", "<authorPubkey2>"],
+    ["p", "<authorPubkey1>", "<relayHint>"],
+    ["p", "<authorPubkey2>", "<relayHint>"]
   ],
   "content": "# タイトル\n\n説明文\n\n## 見出し\n\nnostr:nevent1abc...\n\n> まとめ主のコメント\n\nnostr:nevent1def...\n\n> もうひとつのコメント"
 }
@@ -119,7 +121,8 @@ Nostrのキュレーションサイト。投稿を集めて、コメント・見
 |---|---|
 | kind | `30023`（NIP-23 Long-form Content） |
 | 必須タグ | `d`, `title`, `summary`, `published_at`, `t: matometr` |
-| eタグ | `["e", eventId, relayHint, "mention"]`（引用投稿ごとに1件、NIP準拠） |
+| qタグ | `["q", eventId, relayHint, authorPubkey]`（引用投稿ごとに1件・重複除去） |
+| pタグ | `["p", pubkey, relayHint]`（引用先著者ごとに1件・重複除去、NIP-27） |
 | t:nosliタグ | **なし**（nosliの取得フィルタが `#t:nosli` のため、付けなければ干渉しない） |
 | 投稿引用 | content内に `nostr:nevent1...` 単独行で記述 |
 | コメント | content内に `> ` で始まる引用ブロック |

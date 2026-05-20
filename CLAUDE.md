@@ -92,7 +92,8 @@ matometr/
 詳しくは [`docs/matometr-spec.md`](./docs/matometr-spec.md) 参照。実装時の要点：
 
 - **kind**: `30023`（NIP-23 Long-form Content）
-- **eタグを付ける**：`["e", eventId, relayHint, "mention"]` を引用投稿ごとに1件（NIP準拠）
+- **qタグを付ける**：`["q", eventId, relayHint, authorPubkey]` を引用投稿ごとに1件（重複除去）
+- **pタグを付ける**：`["p", pubkey, relayHint]` を引用先著者ごとに1件（重複除去、NIP-27）
 - **`t: nosli` タグは付けない**（nosliの取得フィルタが `#t:nosli` のため、付けなければ干渉しない）
 - **`t: matometr` タグは必須**
 - **投稿引用は content 内に `nostr:nevent1...` 単独行**で書く
