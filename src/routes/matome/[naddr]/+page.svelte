@@ -453,7 +453,7 @@
     margin-left: auto;
   }
 
-  /* nostr-share-component */
+  /* nostr-share-component: Mochiy Pop One・横長・オレンジ */
   :global(nostr-share::part(button)) {
     background: var(--accent);
     color: white;
