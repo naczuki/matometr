@@ -104,6 +104,83 @@ export function fetchNoteById(eventId: string): Observable<Note> {
 }
 
 /**
+ * kind:3 フォローリストから p タグの pubkey 配列を取得。
+ */
+export function fetchFollowList(pubkey: string): Observable<string[]> {
+  const client = getClient();
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [3], authors: [pubkey], limit: 1 }
+  });
+  return client.use(rxReq).pipe(
+    map(({ event }) => {
+      const seen = new Set<string>();
+      for (const tag of event.tags) {
+        if (tag[0] === 'p' && tag[1] && /^[0-9a-f]{64}$/.test(tag[1])) seen.add(tag[1]);
+      }
+      return [...seen];
+    }),
+    take(1)
+  );
+}
+
+/**
+ * NIP-65 kind:10002 リレーリストから read リレー URL を取得。
+ * marker なしは read/write 両用とみなす。
+ */
+export function fetchUserReadRelays(pubkey: string): Observable<string[]> {
+  const client = getClient();
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [10002], authors: [pubkey], limit: 1 }
+  });
+  return client.use(rxReq).pipe(
+    map(({ event }) => {
+      const relays: string[] = [];
+      for (const tag of event.tags) {
+        if (tag[0] !== 'r' || !tag[1]) continue;
+        if (tag[2] === 'write') continue;
+        relays.push(tag[1]);
+      }
+      return relays;
+    }),
+    take(1)
+  );
+}
+
+/**
+ * 指定 pubkey 群の kind:1 を取得。
+ * until を渡せば過去方向に辿れる。relays 指定があれば追加で問い合わせる。
+ */
+export function fetchNotesFromAuthors(
+  authors: string[],
+  options: { until?: number; limit?: number; relays?: string[] } = {}
+): Observable<Note> {
+  if (authors.length === 0) return EMPTY;
+  const client = getClient();
+  const { until, limit = 30, relays } = options;
+  const filter = until
+    ? { kinds: [1], authors, limit, until }
+    : { kinds: [1], authors, limit };
+  const rxReq = createRxOneshotReq({ filters: filter });
+
+  const useOptions = relays && relays.length > 0
+    ? { on: { relays, defaultReadRelays: true } }
+    : undefined;
+
+  return client.use(rxReq, useOptions).pipe(
+    uniq(),
+    map(
+      ({ event }): Note => ({
+        id: event.id,
+        pubkey: event.pubkey,
+        content: event.content,
+        createdAt: event.created_at,
+        tags: event.tags
+      })
+    )
+  );
+}
+
+/**
  * 複数 pubkey の kind:0 プロフィールを一括取得。EOSE で complete する。
  */
 export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {

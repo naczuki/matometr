@@ -11,6 +11,7 @@
   import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
   import { currentUser } from '$lib/stores/auth';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
+  import AddNoteModal from '$lib/components/AddNoteModal.svelte';
   import type { EditorBlock } from '$lib/types';
 
   $: naddr = $page.params.naddr;
@@ -66,8 +67,20 @@
     }
   });
 
-  function addNote(): void {
-    blocks = [...blocks, { id: crypto.randomUUID(), type: 'nevent', nevent: '' }];
+  let showAddModal = false;
+
+  function openAddModal(): void {
+    showAddModal = true;
+  }
+
+  function handleModalAdd(e: CustomEvent<{ nevents: string[] }>): void {
+    const newBlocks: EditorBlock[] = e.detail.nevents.map((nevent) => ({
+      id: crypto.randomUUID(),
+      type: 'nevent',
+      nevent
+    }));
+    blocks = [...blocks, ...newBlocks];
+    showAddModal = false;
   }
 
   function addComment(): void {
@@ -280,7 +293,7 @@
       {/if}
 
       <div class="add-buttons">
-        <button class="add-btn" on:click={addNote}>＋ 投稿を追加</button>
+        <button class="add-btn" on:click={openAddModal}>＋ 投稿を追加</button>
         <button class="add-btn" on:click={addComment}>＋ コメントを追加</button>
         <button class="add-btn" on:click={addHeading}>＋ 見出しを追加</button>
       </div>
@@ -300,6 +313,12 @@
       </button>
     </div>
   </div>
+
+  <AddNoteModal
+    open={showAddModal}
+    on:add={handleModalAdd}
+    on:close={() => (showAddModal = false)}
+  />
 {/if}
 
 <style>
