@@ -92,8 +92,8 @@ matometr/
 詳しくは [`docs/matometr-spec.md`](./docs/matometr-spec.md) 参照。実装時の要点：
 
 - **kind**: `30023`（NIP-23 Long-form Content）
-- **eタグは付けない**（nosli互換性を意図的に切る）
-- **`t: nosli` タグも付けない**（nosli側で編集されてコメントが消えるのを防ぐ）
+- **eタグを付ける**：`["e", eventId, relayHint, "mention"]` を引用投稿ごとに1件（NIP準拠）
+- **`t: nosli` タグは付けない**（nosliの取得フィルタが `#t:nosli` のため、付けなければ干渉しない）
 - **`t: matometr` タグは必須**
 - **投稿引用は content 内に `nostr:nevent1...` 単独行**で書く
 - **コメントは `> ` 引用ブロック**、**見出しは `## `**
@@ -135,8 +135,7 @@ npm run preview       # ローカルプレビュー
 ## やってほしくないこと
 
 - **`any` 型を使わない**
-- **`eタグ` を付けてまとめを公開しない**（仕様で禁止）
-- **`t: nosli` タグを付けない**
+- **`t: nosli` タグを付けない**（nosliに干渉しないよう）
 - **秘密鍵（nsec）を直接扱うコードを書かない**（必ずnostr-login経由で `window.nostr.signEvent()` を使う）
 - **localStorage以外の場所に下書きを保存しない**（MVPの範囲）
 - **メタデータリレーへの接続コードを追加しない**（MVPで不要と判断済）
@@ -173,7 +172,7 @@ npm run format        # Prettier 実行
 PRやコード提案を出すとき、Claude自身が確認すべきこと：
 
 - [ ] 仕様書（`docs/matometr-spec.md`）に違反していないか
-- [ ] eタグ・`t: nosli`タグを付けていないか
+- [ ] `t: nosli` タグを付けていないか
 - [ ] 型エラーがないか
 - [ ] ライト/ダーク両方で見た目が崩れないか
 - [ ] モバイル幅（375px以下）で破綻していないか
