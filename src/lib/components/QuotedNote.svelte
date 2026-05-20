@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { nip19 } from 'nostr-tools';
+  import { base } from '$app/paths';
   import type { Note } from '$lib/types';
   import { fetchNoteById } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
+  import { parseNostrRefs } from '$lib/utils/nostrContent';
 
   export let eventId: string;
 
@@ -27,6 +29,23 @@
   let picFailed = false;
   $: picture, (picFailed = false);
 
+  // 画像URLは除去（引用カードでは画像表示しない）
+  function stripImages(content: string): string {
+    const IMAGE_RE = /https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:[?#][^\s]*)?/gi;
+    return content.replace(IMAGE_RE, '').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  $: segments = note ? parseNostrRefs(stripImages(note.content)) : [];
+
+  $: for (const seg of segments) {
+    if (seg.type === 'mention') requestProfile(seg.pubkey);
+  }
+
+  // エラー時リンク用
+  $: errorRef = (() => {
+    try { return nip19.neventEncode({ id: eventId }); } catch { return ''; }
+  })();
+
   function shortNpub(pubkey: string): string {
     if (!pubkey) return '…';
     try {
@@ -37,15 +56,25 @@
     }
   }
 
-  function truncate(text: string, max = 140): string {
-    const oneLiner = text.replace(/\n+/g, ' ');
-    return oneLiner.length > max ? oneLiner.slice(0, max) + '…' : oneLiner;
+  function shortRef(encoded: string): string {
+    return encoded.slice(0, 14) + '…';
+  }
+
+  function safeNeventEncode(id: string): string {
+    try { return nip19.neventEncode({ id }); } catch { return ''; }
   }
 </script>
 
 <div class="quoted">
   {#if failed}
-    <span class="quoted-state">投稿を取得できませんでした</span>
+    <div class="quoted-error">
+      <span>引用元を表示できません</span>
+      {#if errorRef}
+        <a href="https://njump.me/{errorRef}" target="_blank" rel="noopener noreferrer">
+          nostr:{shortRef(errorRef)}
+        </a>
+      {/if}
+    </div>
   {:else if !note}
     <span class="quoted-state">取得中…</span>
   {:else}
@@ -59,7 +88,30 @@
       </div>
       <span class="quoted-name">{authorName}</span>
     </div>
-    <div class="quoted-content">{truncate(note.content)}</div>
+    <div class="quoted-content">
+      {#each segments as segment}
+        {#if segment.type === 'text'}
+          <span class="text-seg">{segment.content}</span>
+        {:else if segment.type === 'mention'}
+          {@const mp = $profiles.get(segment.pubkey)}
+          <a class="mention-link" href="{base}/user/{nip19.npubEncode(segment.pubkey)}">
+            @{mp?.displayName ?? mp?.name ?? shortNpub(segment.pubkey)}
+          </a>
+        {:else if segment.type === 'quote'}
+          <!-- ネスト1段まで：引用はリンクのみ、カード展開しない -->
+          {@const ne = safeNeventEncode(segment.eventId)}
+          {#if ne}
+            <a class="quote-ref-link" href="https://njump.me/{ne}" target="_blank" rel="noopener noreferrer">
+              nostr:{shortRef(ne)}
+            </a>
+          {/if}
+        {:else if segment.type === 'naddr'}
+          <a class="naddr-link" href="https://njump.me/{segment.naddr}" target="_blank" rel="noopener noreferrer">
+            nostr:{shortRef(segment.naddr)}
+          </a>
+        {/if}
+      {/each}
+    </div>
   {/if}
 </div>
 
@@ -113,6 +165,49 @@
     color: var(--ink2);
     line-height: 1.7;
     word-break: break-word;
+  }
+
+  .text-seg {
+    white-space: pre-wrap;
+  }
+
+  .mention-link,
+  .quote-ref-link,
+  .naddr-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 12px;
+  }
+
+  .mention-link {
+    font-weight: 600;
+    font-size: inherit;
+  }
+
+  .mention-link:hover,
+  .quote-ref-link:hover,
+  .naddr-link:hover {
+    text-decoration: underline;
+  }
+
+  .quoted-error {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--ink3);
+    font-family: var(--font-ui);
+  }
+
+  .quoted-error a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 11px;
+    word-break: break-all;
+  }
+
+  .quoted-error a:hover {
+    text-decoration: underline;
   }
 
   .quoted-state {
