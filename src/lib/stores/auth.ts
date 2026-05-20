@@ -58,7 +58,7 @@ export async function initAuth(): Promise<void> {
     bunkers: 'nsec.app',
     theme: 'default',
     title: 'まとめたー',
-    description: 'Nostrのキュレーションサービス',
+    description: '無料・メールアドレス不要でアカウントを作れます',
     darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
     onAuth: (npub, options) => {
       if (options.type === 'login' || options.type === 'signup') {

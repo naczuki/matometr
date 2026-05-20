@@ -61,6 +61,7 @@
   $: authorName = profile?.displayName ?? profile?.name ?? shortNpub(matome?.pubkey ?? '');
   $: authorPicture = profile?.picture ?? null;
   $: authorStyle = matome ? avatarStyle(matome.pubkey) : { bg: '#e5e5e5', fg: '#737373', initial: '?' };
+  $: authorNpub = matome ? (() => { try { return nip19.npubEncode(matome!.pubkey); } catch { return null; } })() : null;
 
   let authorImgFailed = false;
   $: authorPicture, (authorImgFailed = false);
@@ -204,17 +205,23 @@
       {/if}
 
       <div class="detail-meta">
-        <div class="detail-avatar" style="background:{authorStyle.bg};color:{authorStyle.fg};">
-          {#if authorPicture && !authorImgFailed}
-            <img src={authorPicture} alt="" on:error={() => (authorImgFailed = true)} />
-          {:else}
-            {authorStyle.initial}
-          {/if}
-        </div>
-        <div>
-          <div class="detail-author-name">{authorName}</div>
-          <div class="detail-author-pub">{shortNpub(matome.pubkey)}</div>
-        </div>
+        <a
+          href={authorNpub ? `${base}/user/${authorNpub}` : undefined}
+          class="detail-author-link"
+          aria-label="{authorName} のユーザーページ"
+        >
+          <div class="detail-avatar" style="background:{authorStyle.bg};color:{authorStyle.fg};">
+            {#if authorPicture && !authorImgFailed}
+              <img src={authorPicture} alt="" on:error={() => (authorImgFailed = true)} />
+            {:else}
+              {authorStyle.initial}
+            {/if}
+          </div>
+          <div>
+            <div class="detail-author-name">{authorName}</div>
+            <div class="detail-author-pub">{shortNpub(matome.pubkey)}</div>
+          </div>
+        </a>
         <span class="detail-date">{formatDate(matome.publishedAt)}</span>
       </div>
 
@@ -450,6 +457,21 @@
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+  }
+
+  .detail-author-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    border-radius: 8px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+    transition: background 0.12s;
+  }
+
+  .detail-author-link:hover {
+    background: var(--accent-pale);
   }
 
   .detail-avatar {
