@@ -25,6 +25,8 @@
 
   --radius-card: 16px;
   --radius-btn: 9999px;
+
+  --note-chevron: #c4b8ac;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -40,6 +42,8 @@
     --ink3: #78716c;
     --border: #44403c;
     --border2: #57534e;
+
+    --note-chevron: #65605c;
   }
 }
 

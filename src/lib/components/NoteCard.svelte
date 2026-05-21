@@ -387,7 +387,7 @@
     align-items: center;
     gap: 3px;
     font-size: 12px;
-    color: #a8a29e;
+    color: var(--ink3);
     flex-shrink: 0;
     margin-left: auto;
     cursor: pointer;
@@ -398,14 +398,14 @@
   }
 
   .note-time:hover {
-    background: #faf5f0;
+    background: var(--accent-pale);
   }
 
   .note-time-chevron {
     width: 11px;
     height: 11px;
     flex-shrink: 0;
-    color: #c4b8ac;
+    color: var(--note-chevron);
   }
 
   .note-menu {
