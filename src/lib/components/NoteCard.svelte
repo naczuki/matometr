@@ -7,7 +7,7 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
-  import { parseNostrRefs, extractImages, isSafeUrl } from '$lib/utils/nostrContent';
+  import { parseNostrRefs, extractImages, resolveTagRefs, isSafeUrl } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey } from '$lib/utils/nostr';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
 
@@ -63,7 +63,7 @@
     return map;
   })();
 
-  $: parsedContent = note ? extractImages(note.content) : { text: '', urls: [], videoUrls: [] };
+  $: parsedContent = note ? extractImages(resolveTagRefs(note.content, note.tags)) : { text: '', urls: [], videoUrls: [] };
   $: segments = parseNostrRefs(parsedContent.text, emojiMap);
 
   $: imetaMap = (() => {

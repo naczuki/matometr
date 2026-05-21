@@ -6,7 +6,7 @@
   import { fetchNoteById } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
-  import { parseNostrRefs, isSafeUrl } from '$lib/utils/nostrContent';
+  import { parseNostrRefs, resolveTagRefs, isSafeUrl } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey } from '$lib/utils/nostr';
   import { timeAgo } from '$lib/utils/time';
 
@@ -64,7 +64,7 @@
     failedEmojis = new Set([...failedEmojis, shortcode]);
   }
 
-  $: segments = note ? parseNostrRefs(stripImages(note.content), emojiMap) : [];
+  $: segments = note ? parseNostrRefs(stripImages(resolveTagRefs(note.content, note.tags)), emojiMap) : [];
 
   $: for (const seg of segments) {
     if (seg.type === 'mention') requestProfile(seg.pubkey);
