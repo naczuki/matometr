@@ -6,5 +6,7 @@ export function timeAgo(unixSeconds: number): string {
   if (diff < 86400 * 2) return '昨日';
   if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}日前`;
   const d = new Date(unixSeconds * 1000);
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
+  const now = new Date();
+  const yearPrefix = d.getFullYear() !== now.getFullYear() ? `${d.getFullYear()}年` : '';
+  return `${yearPrefix}${d.getMonth() + 1}月${d.getDate()}日`;
 }
