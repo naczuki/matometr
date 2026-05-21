@@ -104,6 +104,17 @@ export function fetchNoteById(eventId: string): Observable<Note> {
   );
 }
 
+export function fetchNoteByIdWithRelay(eventId: string): Observable<{ note: Note; relay: string }> {
+  const client = getClient();
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [1, 42], ids: [eventId], limit: 1 }
+  });
+  return client.use(rxReq).pipe(
+    map(({ event, from }) => ({ note: toNote(event), relay: from })),
+    take(1)
+  );
+}
+
 /**
  * kind:3 フォローリストから p タグの pubkey 配列を取得。
  */

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { nip19 } from 'nostr-tools';
   import { base } from '$app/paths';
   import type { Note } from '$lib/types';
-  import { fetchNoteById } from '$lib/services/NostrClient';
+  import { fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
@@ -17,6 +17,14 @@
 
   let note: Note | null = null;
   let loadError = false;
+  let fetchedFrom = '';
+
+  let menuOpen = false;
+  let menuX = 0;
+  let menuY = 0;
+  let copyToast = false;
+  let toastTimer: ReturnType<typeof setTimeout> | null = null;
+  let removeDocListener: (() => void) | null = null;
 
   onMount(() => {
     const str = nevent.replace('nostr:', '');
@@ -32,9 +40,10 @@
     }
 
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const sub = fetchNoteById(eventId).subscribe({
-      next: (n) => {
+    const sub = fetchNoteByIdWithRelay(eventId).subscribe({
+      next: ({ note: n, relay }) => {
         note = n;
+        fetchedFrom = relay;
         requestProfile(n.pubkey);
         if (timer) clearTimeout(timer);
       },
@@ -116,6 +125,44 @@
   function shortenNaddr(naddr: string): string {
     return naddr.slice(0, 12) + '…' + naddr.slice(-4);
   }
+
+  $: menuNevent = (() => {
+    if (!note) return '';
+    try {
+      return nip19.neventEncode({ id: note.id, relays: fetchedFrom ? [fetchedFrom] : [] });
+    } catch { return ''; }
+  })();
+
+  function openMenu(e: MouseEvent): void {
+    e.stopPropagation();
+    const MENU_W = 175;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    let x = rect.left;
+    let y = rect.bottom + 6;
+    if (x + MENU_W > window.innerWidth) x = window.innerWidth - MENU_W - 8;
+    menuX = x;
+    menuY = y;
+    menuOpen = true;
+    const handler = (): void => { menuOpen = false; removeDocListener = null; };
+    document.addEventListener('click', handler, { once: true });
+    removeDocListener = () => document.removeEventListener('click', handler);
+  }
+
+  async function copyNevent(): Promise<void> {
+    if (!menuNevent) return;
+    menuOpen = false;
+    try {
+      await navigator.clipboard.writeText(menuNevent);
+      copyToast = true;
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { copyToast = false; }, 2000);
+    } catch { /* clipboard API 利用不可 */ }
+  }
+
+  onDestroy(() => {
+    removeDocListener?.();
+    if (toastTimer) clearTimeout(toastTimer);
+  });
 </script>
 
 <div class="note-card">
@@ -138,7 +185,9 @@
         <div class="note-name">{truncateName(authorName)}</div>
         <div class="note-pub">{shortNpubFromPubkey(note.pubkey)}</div>
       </div>
-      <span class="note-time">{timeAgo(note.createdAt)}</span>
+      <!-- svelte-ignore a11y-interactive-supports-focus -->
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <span class="note-time" role="button" on:click={openMenu}>{timeAgo(note.createdAt)}</span>
     </div>
     <div class="note-content">
       {#each segments as segment}
@@ -233,6 +282,30 @@
   {/if}
 </div>
 
+{#if menuOpen && menuNevent}
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-interactive-supports-focus -->
+  <div
+    class="note-menu"
+    style="left:{menuX}px;top:{menuY}px"
+    role="menu"
+    on:click|stopPropagation
+  >
+    <a
+      class="note-menu-item"
+      href="https://nostter.app/{menuNevent}"
+      target="_blank"
+      rel="noopener noreferrer"
+      on:click={() => (menuOpen = false)}
+    >nostterで開く</a>
+    <div class="note-menu-item" role="menuitem" on:click={copyNevent}>neventをコピー</div>
+  </div>
+{/if}
+
+{#if copyToast}
+  <div class="copy-toast" aria-live="polite">コピーしました</div>
+{/if}
+
 <style>
   .note-card {
     background: var(--surface);
@@ -313,6 +386,63 @@
     color: var(--ink3);
     flex-shrink: 0;
     margin-left: auto;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin-right: -4px;
+    transition: background 0.1s, color 0.1s;
+  }
+
+  .note-time:hover {
+    background: var(--accent-mid);
+    color: var(--accent-dark);
+  }
+
+  .note-menu {
+    position: fixed;
+    z-index: 200;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    min-width: 160px;
+  }
+
+  .note-menu-item {
+    display: block;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--ink);
+    font-family: var(--font-ui);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.1s;
+    user-select: none;
+  }
+
+  .note-menu-item + .note-menu-item {
+    border-top: 1px solid var(--border);
+  }
+
+  .note-menu-item:hover {
+    background: var(--bg);
+  }
+
+  .copy-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--surface);
+    font-size: 13px;
+    font-family: var(--font-ui);
+    padding: 8px 18px;
+    border-radius: 20px;
+    z-index: 300;
+    pointer-events: none;
+    white-space: nowrap;
   }
 
   .note-content {
