@@ -123,14 +123,14 @@
           disabled={sortLoading}
           type="button"
           on:click={() => sortByTime('desc')}
-        >{sortLoading && lastSortOrder !== 'asc' ? '…' : '新しい順'}</button>
+        >新しい順</button>
         <button
           class="sort-seg-btn"
           class:active={lastSortOrder === 'asc'}
           disabled={sortLoading}
           type="button"
           on:click={() => sortByTime('asc')}
-        >{sortLoading && lastSortOrder !== 'desc' ? '…' : '古い順'}</button>
+        >古い順</button>
       </div>
     {/if}
   </div>
