@@ -34,6 +34,27 @@ export function extractImages(content: string): { text: string; urls: string[]; 
   return { text, urls, videoUrls };
 }
 
+const TAG_REF_RE = /#\[(\d+)\]/g;
+
+/**
+ * NIP-08 廃止形式 #[N] をノート自身の tags[N] を使って展開する。
+ * e タグ → nostr:nevent1…、p タグ → nostr:npub1…、それ以外 → 除去。
+ */
+export function resolveTagRefs(content: string, tags: string[][]): string {
+  return content.replace(TAG_REF_RE, (_match, indexStr: string) => {
+    const idx = parseInt(indexStr, 10);
+    const tag = tags[idx];
+    if (!tag || tag.length < 2) return '';
+    if (tag[0] === 'e' && tag[1]) {
+      try { return `nostr:${nip19.neventEncode({ id: tag[1] })}`; } catch { return ''; }
+    }
+    if (tag[0] === 'p' && tag[1]) {
+      try { return `nostr:${nip19.npubEncode(tag[1])}`; } catch { return ''; }
+    }
+    return '';
+  });
+}
+
 // Group 1: nostr ref  Group 2: URL  Group 3: emoji shortcode
 const CONTENT_RE =
   /nostr:(npub1[a-z0-9]+|nprofile1[a-z0-9]+|nevent1[a-z0-9]+|note1[a-z0-9]+|naddr1[a-z0-9]+)|(https?:\/\/[^\s<>"]+)|:([a-zA-Z0-9_]+):/gi;

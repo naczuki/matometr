@@ -7,7 +7,7 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
-  import { parseNostrRefs, extractImages, isSafeUrl } from '$lib/utils/nostrContent';
+  import { parseNostrRefs, extractImages, resolveTagRefs, isSafeUrl } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey } from '$lib/utils/nostr';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
 
@@ -31,14 +31,20 @@
       return;
     }
 
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const sub = fetchNoteById(eventId).subscribe({
       next: (n) => {
         note = n;
         requestProfile(n.pubkey);
+        if (timer) clearTimeout(timer);
       },
       error: () => { loadError = true; }
     });
-    return () => sub.unsubscribe();
+    timer = setTimeout(() => { if (!note) loadError = true; }, 10_000);
+    return () => {
+      sub.unsubscribe();
+      if (timer) clearTimeout(timer);
+    };
   });
 
   $: profile = note ? $profiles.get(note.pubkey) : undefined;
@@ -63,7 +69,7 @@
     return map;
   })();
 
-  $: parsedContent = note ? extractImages(note.content) : { text: '', urls: [], videoUrls: [] };
+  $: parsedContent = note ? extractImages(resolveTagRefs(note.content, note.tags)) : { text: '', urls: [], videoUrls: [] };
   $: segments = parseNostrRefs(parsedContent.text, emojiMap);
 
   $: imetaMap = (() => {
