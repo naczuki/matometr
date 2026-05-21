@@ -8,8 +8,10 @@
   import { avatarStyle } from '$lib/utils/avatar';
   import { parseNostrRefs, isSafeUrl } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey } from '$lib/utils/nostr';
+  import { timeAgo } from '$lib/utils/time';
 
   export let eventId: string;
+  export let showDate: boolean = false;
 
   let note: Note | null = null;
   let failed = false;
@@ -96,6 +98,9 @@
         {/if}
       </div>
       <span class="quoted-name">{truncateName(authorName)}</span>
+      {#if showDate && note}
+        <span class="quoted-date">{timeAgo(note.createdAt)}</span>
+      {/if}
     </div>
     <div class="quoted-content">
       {#each segments as segment}
@@ -181,6 +186,14 @@
     font-weight: 700;
     color: var(--ink);
     font-family: var(--font-ui);
+  }
+
+  .quoted-date {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--ink3);
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .quoted-content {

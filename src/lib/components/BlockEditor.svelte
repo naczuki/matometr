@@ -43,14 +43,15 @@
     blocks = updated;
   }
 
-  async function sortByTime(): Promise<void> {
+  async function sortByTime(order: 'asc' | 'desc'): Promise<void> {
+    if (sortLoading) return;
+
     const hasNonNevent = blocks.some(b => b.type === 'comment' || b.type === 'heading');
     if (hasNonNevent) {
       const ok = window.confirm('コメントや見出しの位置がリセットされます。続けますか？');
       if (!ok) return;
     }
 
-    const nextOrder: 'asc' | 'desc' = lastSortOrder === 'asc' ? 'desc' : 'asc';
     const sortableBlocks = blocks.filter((b): b is NoteEditorBlock => b.type === 'nevent' && !!b.nevent);
     const otherBlocks = blocks.filter(b => {
       if (b.type !== 'nevent') return true;
@@ -80,14 +81,14 @@
       const idB = eventIdFromNevent(b.nevent) ?? '';
       const tA = createdAtMap.get(idA) ?? 0;
       const tB = createdAtMap.get(idB) ?? 0;
-      return nextOrder === 'asc' ? tA - tB : tB - tA;
+      return order === 'asc' ? tA - tB : tB - tA;
     });
 
-    blocks = nextOrder === 'asc'
+    blocks = order === 'asc'
       ? [...sorted, ...otherBlocks]
       : [...otherBlocks, ...sorted];
 
-    lastSortOrder = nextOrder;
+    lastSortOrder = order;
   }
 
   function handleNoteInput(id: string, raw: string): void {
@@ -115,9 +116,22 @@
       <span class="blocks-badge">{noteCount}件の投稿</span>
     {/if}
     {#if noteCount >= 1}
-      <button class="sort-btn" type="button" on:click={sortByTime} disabled={sortLoading}>
-        {sortLoading ? '…' : lastSortOrder === 'asc' ? '↑ 古い順' : lastSortOrder === 'desc' ? '↓ 新しい順' : '↕ 時系列に並べる'}
-      </button>
+      <div class="sort-segment">
+        <button
+          class="sort-seg-btn"
+          class:active={lastSortOrder === 'desc'}
+          disabled={sortLoading}
+          type="button"
+          on:click={() => sortByTime('desc')}
+        >{sortLoading && lastSortOrder !== 'asc' ? '…' : '新しい順'}</button>
+        <button
+          class="sort-seg-btn"
+          class:active={lastSortOrder === 'asc'}
+          disabled={sortLoading}
+          type="button"
+          on:click={() => sortByTime('asc')}
+        >{sortLoading && lastSortOrder !== 'desc' ? '…' : '古い順'}</button>
+      </div>
     {/if}
   </div>
 
@@ -141,7 +155,7 @@
               {#if block.nevent}
                 {@const eventId = eventIdFromNevent(block.nevent)}
                 {#if eventId}
-                  <QuotedNote {eventId} />
+                  <QuotedNote {eventId} showDate={true} />
                 {:else}
                   <p class="parse-error">この投稿は表示できません</p>
                 {/if}
@@ -225,27 +239,37 @@
     padding: 2px 10px;
   }
 
-  .sort-btn {
+  .sort-segment {
     margin-left: auto;
-    background: var(--surface);
+    display: flex;
+    background: var(--bg);
     border: 1.5px solid var(--border2);
     border-radius: 999px;
+    padding: 2px;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .sort-seg-btn {
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
     color: var(--ink2);
     font-family: var(--font-ui);
     font-size: 12px;
     font-weight: 700;
-    padding: 4px 12px;
     cursor: pointer;
-    transition: all 0.12s;
     white-space: nowrap;
+    transition: background 0.12s, color 0.12s;
   }
 
-  .sort-btn:hover:not(:disabled) {
-    border-color: var(--accent);
-    color: var(--accent);
+  .sort-seg-btn.active {
+    background: var(--accent);
+    color: #fff;
   }
 
-  .sort-btn:disabled {
+  .sort-seg-btn:disabled {
     opacity: 0.5;
     cursor: wait;
   }
