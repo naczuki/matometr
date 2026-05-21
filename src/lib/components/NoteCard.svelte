@@ -323,11 +323,14 @@
 
   .note-video {
     max-width: 85%;
-    width: 100%;
+    max-height: 400px;
+    width: auto;
     height: auto;
+    object-fit: contain;
     border-radius: 8px;
     display: block;
     background: #000;
+    margin: 0 auto;
   }
 
   .note-images {
