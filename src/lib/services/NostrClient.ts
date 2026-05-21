@@ -36,14 +36,12 @@ function getClient(): RxNostr {
  * kind:30023 + t:matometr のまとめ一覧を取得。
  * リレーから EOSE が届いた時点で Observable が complete する。
  */
-export function fetchMatomeList(limit = 30): Observable<Matome> {
+export function fetchMatomeList(limit = 30, until?: number): Observable<Matome> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
-    filters: {
-      kinds: [30023],
-      '#t': ['matometr'],
-      limit
-    }
+    filters: until
+      ? { kinds: [30023], '#t': ['matometr'], limit, until }
+      : { kinds: [30023], '#t': ['matometr'], limit }
   });
 
   return client.use(rxReq).pipe(
@@ -476,14 +474,12 @@ export async function deleteMatome(eventId: string): Promise<void> {
 /**
  * eタグ有り・コメントなしのため閲覧のみ（編集は nosli へ誘導）。
  */
-export function fetchNosliList(limit = 10): Observable<Matome> {
+export function fetchNosliList(limit = 10, until?: number): Observable<Matome> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
-    filters: {
-      kinds: [30023],
-      '#t': ['nosli'],
-      limit
-    }
+    filters: until
+      ? { kinds: [30023], '#t': ['nosli'], limit, until }
+      : { kinds: [30023], '#t': ['nosli'], limit }
   });
 
   return client.use(rxReq).pipe(
