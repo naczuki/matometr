@@ -195,7 +195,6 @@
                 class="note-video"
                 on:error={() => onVideoError(url)}
               ></video>
-              <a class="open-btn" href={url} target="_blank" rel="noopener noreferrer" aria-label="元ファイルを開く">↗</a>
             </div>
           {/if}
         {/each}
@@ -220,7 +219,6 @@
                   on:error={() => onImgError(url)}
                 />
               </a>
-              <a class="open-btn" href={url} target="_blank" rel="noopener noreferrer" aria-label="元ファイルを開く">↗</a>
             </div>
           {/if}
         {/each}
@@ -401,27 +399,6 @@
     margin: 0 auto;
   }
 
-  .open-btn {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    background: rgba(0, 0, 0, 0.5);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    text-decoration: none;
-    z-index: 1;
-    transition: background 0.12s;
-  }
-
-  .open-btn:hover {
-    background: rgba(0, 0, 0, 0.75);
-  }
 
   .url-link {
     color: var(--accent);
