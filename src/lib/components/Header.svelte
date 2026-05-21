@@ -90,13 +90,6 @@
                 </svg>
                 マイまとめ
               </a>
-              <a class="dropdown-item" href="{base}/settings" on:click={closeDropdown}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-                設定
-              </a>
               <div class="dropdown-divider" />
               <button class="dropdown-item danger" on:click={handleLogout}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -143,18 +136,12 @@
         </div>
         <span class="choice-arrow">›</span>
       </button>
-      <button class="choice-card" on:click={() => launchNostrLogin('welcome-signup')} disabled={launching}>
-        <div class="choice-icon">＋</div>
-        <div class="choice-body">
-          <div class="choice-title">はじめて使う（新規登録）</div>
-          <div class="choice-desc">アカウント作成は無料・メールアドレス不要です。<br />作ったアカウントはNostr対応アプリすべてで使えます。</div>
-        </div>
-        <span class="choice-arrow">›</span>
-      </button>
-      <div class="modal-foot">
-        <p class="modal-help">
-          操作に困ったら <a href="{base}/guide">使い方ガイド</a> をご覧ください
+      <div class="modal-nostr-info">
+        <p>まとめたーはNostrというSNSの投稿をまとめるサービスです。<br />ご利用にはNostrのアカウントが必要です。</p>
+        <p>作者がふだん使っているNostrアプリ：<br />
+          ・<a href="https://nostter.app" target="_blank" rel="noopener noreferrer">nostter（ブラウザですぐ使えます）↗</a>
         </p>
+        <p>アカウントを作成後、『すでにアカウントをお持ちの方』からログインできます。</p>
       </div>
     </div>
   </div>
@@ -519,23 +506,33 @@
     flex-shrink: 0;
   }
 
-  .modal-foot {
-    margin-top: 14px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-    text-align: center;
+  .modal-nostr-info {
+    margin-top: 4px;
+    padding: 12px 14px;
+    background: var(--bg);
+    border-radius: 10px;
+    border-left: 3px solid var(--accent);
+    font-size: 12px;
+    color: var(--ink2);
+    line-height: 1.7;
   }
 
-  .modal-help {
-    font-size: 12px;
-    color: var(--ink3);
+  .modal-nostr-info p {
+    margin: 0 0 8px;
+  }
+
+  .modal-nostr-info p:last-child {
     margin: 0;
   }
 
-  .modal-help a {
+  .modal-nostr-info a {
     color: var(--accent);
     font-weight: 700;
     text-decoration: none;
+  }
+
+  .modal-nostr-info a:hover {
+    text-decoration: underline;
   }
 
   @media (max-width: 640px) {
