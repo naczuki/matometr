@@ -19,14 +19,19 @@ export function isSafeUrl(url: string): boolean {
 }
 
 const IMAGE_RE = /https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:[?#][^\s]*)?/gi;
+const VIDEO_RE = /https?:\/\/[^\s]+\.(?:mp4|webm|mov|m4v)(?:[?#][^\s]*)?/gi;
 
-export function extractImages(content: string): { text: string; urls: string[] } {
+export function extractImages(content: string): { text: string; urls: string[]; videoUrls: string[] } {
+  const videoUrls: string[] = [];
   const urls: string[] = [];
+  VIDEO_RE.lastIndex = 0;
+  IMAGE_RE.lastIndex = 0;
   const text = content
+    .replace(VIDEO_RE, (url) => { videoUrls.push(url); return ''; })
     .replace(IMAGE_RE, (url) => { urls.push(url); return ''; })
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-  return { text, urls };
+  return { text, urls, videoUrls };
 }
 
 // Group 1: nostr ref  Group 2: URL  Group 3: emoji shortcode
