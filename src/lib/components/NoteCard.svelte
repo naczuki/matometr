@@ -12,8 +12,8 @@
   import QuotedNote from '$lib/components/QuotedNote.svelte';
 
   export let nevent: string;
-  export let num: number;
-  export let total: number;
+  export let num: number = 0;
+  export let total: number = 0;
 
   let note: Note | null = null;
   let loadError = false;
@@ -88,7 +88,7 @@
 </script>
 
 <div class="note-card">
-  <div class="note-num">{num} / {total}</div>
+  {#if total > 0}<div class="note-num">{num} / {total}</div>{/if}
 
   {#if loadError}
     <div class="load-error">この投稿は取得できませんでした</div>

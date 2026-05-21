@@ -14,7 +14,10 @@
   import { shortNpubFromPubkey } from '$lib/utils/nostr';
   import { NOSLI_BASE_URL } from '$lib/utils/constants';
   import NoteCard from '$lib/components/NoteCard.svelte';
+  import NaddrCard from '$lib/components/NaddrCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import { parseMarkdownContent } from '$lib/utils/markdown';
+  import type { ContentSegment } from '$lib/utils/markdown';
 
   $: naddr = $page.params.naddr;
 
@@ -85,6 +88,11 @@
   }
 
   $: renderPlan = matome ? buildRenderPlan(matome.blocks) : [];
+
+  let mdSegments: ContentSegment[] = [];
+  $: if (matome && !matome.isMatometr) {
+    mdSegments = parseMarkdownContent(matome.content);
+  }
 
   function formatDate(unixSeconds: number): string {
     const d = new Date(unixSeconds * 1000);
@@ -291,17 +299,31 @@
       {/if}
     </div>
 
-    {#each renderPlan as block}
-      {#if block.type === 'heading'}
-        <div class="block-heading">{block.content}</div>
-      {:else if block.type === 'note'}
-        <NoteCard nevent={block.nevent} num={block.num} total={matome.postCount} />
-      {:else if block.type === 'comment'}
-        <div class="block-comment">{block.content}</div>
-      {:else if block.type === 'paragraph'}
-        <p class="block-paragraph">{block.content}</p>
-      {/if}
-    {/each}
+    {#if matome.isMatometr}
+      {#each renderPlan as block}
+        {#if block.type === 'heading'}
+          <div class="block-heading">{block.content}</div>
+        {:else if block.type === 'note'}
+          <NoteCard nevent={block.nevent} num={block.num} total={matome.postCount} />
+        {:else if block.type === 'comment'}
+          <div class="block-comment">{block.content}</div>
+        {:else if block.type === 'paragraph'}
+          <p class="block-paragraph">{block.content}</p>
+        {/if}
+      {/each}
+    {:else}
+      <div class="md-body">
+        {#each mdSegments as seg}
+          {#if seg.type === 'html'}
+            {@html seg.html}
+          {:else if seg.type === 'nevent'}
+            <NoteCard nevent={seg.ref} />
+          {:else if seg.type === 'naddr'}
+            <NaddrCard ref={seg.ref} />
+          {/if}
+        {/each}
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -789,6 +811,107 @@
     height: 1px;
     background: var(--border);
     margin: 4px 0;
+  }
+
+  /* ===== マークダウン記事 ===== */
+  .md-body {
+    font-size: 15px;
+    line-height: 1.85;
+    color: var(--ink2);
+    word-break: break-word;
+  }
+
+  :global(.md-body h1),
+  :global(.md-body h2),
+  :global(.md-body h3),
+  :global(.md-body h4) {
+    font-family: var(--font-ui);
+    font-weight: 800;
+    color: var(--ink);
+    margin: 1.4em 0 0.5em;
+    line-height: 1.4;
+  }
+
+  :global(.md-body h1) { font-size: 20px; }
+  :global(.md-body h2) { font-size: 17px; border-left: 4px solid var(--accent); padding-left: 12px; }
+  :global(.md-body h3) { font-size: 15px; }
+
+  :global(.md-body p) {
+    margin: 0.8em 0;
+  }
+
+  :global(.md-body strong) {
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  :global(.md-body em) {
+    font-style: italic;
+  }
+
+  :global(.md-body a) {
+    color: var(--accent);
+    text-decoration: underline;
+    word-break: break-all;
+  }
+
+  :global(.md-body blockquote) {
+    margin: 12px 0;
+    padding: 10px 16px;
+    background: var(--accent-pale);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    color: var(--ink2);
+    font-size: 14px;
+  }
+
+  :global(.md-body pre) {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 12px 0;
+  }
+
+  :global(.md-body code) {
+    font-family: monospace;
+    font-size: 0.9em;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  :global(.md-body pre code) {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  :global(.md-body ul),
+  :global(.md-body ol) {
+    padding-left: 1.5em;
+    margin: 0.6em 0;
+  }
+
+  :global(.md-body li) {
+    margin: 0.25em 0;
+  }
+
+  :global(.md-body hr) {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+  }
+
+  :global(.md-body img) {
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 8px 0;
   }
 
   /* ===== ブロック ===== */
