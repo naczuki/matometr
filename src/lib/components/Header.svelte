@@ -124,10 +124,6 @@
         まとめを作ったり、いいねしたりするには<br />
         <b>Nostrアカウント</b>でログインしてください
       </p>
-      <div class="modal-note">
-        <b>Nostrってなに？</b><br />
-        メールや電話番号を使わない、新しい仕組みのSNSの基盤です。アカウントひとつで色々なアプリで使えます。
-      </div>
       <button class="choice-card primary" on:click={() => launchNostrLogin('welcome-login')} disabled={launching}>
         <div class="choice-icon">{launching ? '…' : '✓'}</div>
         <div class="choice-body">
@@ -136,6 +132,10 @@
         </div>
         <span class="choice-arrow">›</span>
       </button>
+      <div class="modal-note">
+        <b>Nostrってなに？</b><br />
+        メールや電話番号を使わない、新しい仕組みのSNSの基盤です。アカウントひとつで色々なアプリで使えます。
+      </div>
       <div class="modal-nostr-info">
         <p>まとめたーはNostrというSNSの投稿をまとめるサービスです。<br />ご利用にはNostrのアカウントが必要です。</p>
         <p>作者がふだん使っているNostrアプリ：<br />
