@@ -1,20 +1,65 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { page } from '$app/stores';
   import { base } from '$app/paths';
   import { goto } from '$app/navigation';
+  import { nip19 } from 'nostr-tools';
+  import type { AddressPointer } from 'nostr-tools/nip19';
   import { currentUser } from '$lib/stores/auth';
-  import { publishMatome } from '$lib/services/NostrClient';
+  import { publishMatome, fetchMatomeByAddress } from '$lib/services/NostrClient';
   import BlockEditor from '$lib/components/BlockEditor.svelte';
-  import type { EditorBlock } from '$lib/types';
+  import type { EditorBlock, MatomeBlock } from '$lib/types';
 
   let title = '';
   let summary = '';
   let blocks: EditorBlock[] = [];
+  let importing = false;
 
   $: noteCount = blocks.filter((b) => b.type === 'nevent' && b.nevent).length;
   $: canPublish = title.trim().length > 0 && noteCount > 0;
 
   let publishing = false;
   let publishError = '';
+
+  onMount(() => {
+    const from = $page.url.searchParams.get('from');
+    if (!from) return;
+
+    try {
+      const decoded = nip19.decode(from);
+      if (decoded.type !== 'naddr') return;
+      const pointer = decoded.data as AddressPointer;
+      importing = true;
+      const sub = fetchMatomeByAddress(pointer).subscribe({
+        next: (m) => {
+          title = m.title;
+          summary = m.summary ?? '';
+          blocks = matomeBlocksToEditorBlocks(m.blocks);
+        },
+        complete: () => { importing = false; },
+        error: () => { importing = false; }
+      });
+      return () => sub.unsubscribe();
+    } catch {
+      // ignore invalid naddr
+    }
+  });
+
+  function matomeBlocksToEditorBlocks(matomeBlocks: MatomeBlock[]): EditorBlock[] {
+    const result: EditorBlock[] = [];
+    for (const b of matomeBlocks) {
+      if (b.type === 'nevent') {
+        result.push({ id: crypto.randomUUID(), type: 'nevent', nevent: b.content });
+      } else if (b.type === 'comment') {
+        result.push({ id: crypto.randomUUID(), type: 'comment', text: b.content });
+      } else if (b.type === 'heading') {
+        result.push({ id: crypto.randomUUID(), type: 'heading', text: b.content });
+      } else if (b.type === 'paragraph' && b.content.trim()) {
+        result.push({ id: crypto.randomUUID(), type: 'comment', text: b.content });
+      }
+    }
+    return result;
+  }
 
   async function handlePublish(): Promise<void> {
     if (!canPublish || publishing) return;
@@ -42,7 +87,11 @@
   </div>
 {:else}
   <div class="page">
-    <h1 class="page-title">まとめを作る</h1>
+    <h1 class="page-title">{importing ? 'nosliからインポート' : 'まとめを作る'}</h1>
+
+    {#if importing}
+      <div class="import-banner">nosliまとめを読み込み中…</div>
+    {/if}
 
     <section class="card">
       <div class="field">
@@ -115,6 +164,17 @@
     font-weight: 800;
     color: var(--ink);
     margin: 0 0 20px;
+  }
+
+  .import-banner {
+    font-size: 13px;
+    color: var(--accent-dark);
+    background: var(--accent-pale);
+    border: 1.5px solid var(--accent-mid);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-family: var(--font-ui);
   }
 
   .card {
