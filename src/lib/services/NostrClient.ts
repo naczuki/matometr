@@ -24,7 +24,8 @@ let _client: RxNostr | null = null;
 function getClient(): RxNostr {
   if (_client) return _client;
   _client = createRxNostr({
-    verifier: async (event) => verifyEvent(event as Parameters<typeof verifyEvent>[0])
+    verifier: async (event) => verifyEvent(event as Parameters<typeof verifyEvent>[0]),
+    eoseTimeout: 6000
   });
   _client.setDefaultRelays(DEFAULT_RELAYS);
   console.log('[NostrClient] initialized. relays:', DEFAULT_RELAYS);

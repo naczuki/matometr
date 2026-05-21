@@ -1,7 +1,6 @@
 import { writable } from 'svelte/store';
 
 export const DEFAULT_RELAYS_JP = [
-  'wss://relay-jp.nostr.wirednet.jp/',
   'wss://yabu.me/',
   'wss://r.kojira.io/',
   'wss://nrelay-jp.c-stellar.net/'
