@@ -119,21 +119,17 @@
       <span class="blocks-badge">{noteCount}件の投稿</span>
     {/if}
     {#if noteCount >= 1}
-      <div class="sort-segment">
-        <button
-          class="sort-seg-btn"
-          class:active={lastSortOrder === 'desc'}
-          disabled={sortLoading}
-          type="button"
-          on:click={() => sortByTime('desc')}
-        >新しい順</button>
-        <button
-          class="sort-seg-btn"
-          class:active={lastSortOrder === 'asc'}
-          disabled={sortLoading}
-          type="button"
-          on:click={() => sortByTime('asc')}
-        >古い順</button>
+      <!-- svelte-ignore a11y-interactive-supports-focus -->
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <div
+        class="sort-segment"
+        class:disabled={sortLoading}
+        role="button"
+        aria-label="並び順を切り替え"
+        on:click={() => !sortLoading && sortByTime(lastSortOrder === 'asc' ? 'desc' : 'asc')}
+      >
+        <span class="sort-seg-opt" class:active={lastSortOrder === 'desc'}>新しい順</span>
+        <span class="sort-seg-opt" class:active={lastSortOrder === 'asc'}>古い順</span>
       </div>
     {/if}
   </div>
@@ -251,30 +247,32 @@
     padding: 2px;
     gap: 2px;
     flex-shrink: 0;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.12s;
   }
 
-  .sort-seg-btn {
+  .sort-segment.disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+
+  .sort-seg-opt {
     padding: 3px 10px;
     border-radius: 999px;
-    border: none;
     background: transparent;
     color: var(--ink2);
     font-family: var(--font-ui);
     font-size: 12px;
     font-weight: 700;
-    cursor: pointer;
     white-space: nowrap;
     transition: background 0.12s, color 0.12s;
+    pointer-events: none;
   }
 
-  .sort-seg-btn.active {
+  .sort-seg-opt.active {
     background: var(--accent);
     color: #fff;
-  }
-
-  .sort-seg-btn:disabled {
-    opacity: 0.5;
-    cursor: wait;
   }
 
   .empty-state {
