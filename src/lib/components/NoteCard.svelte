@@ -31,14 +31,20 @@
       return;
     }
 
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const sub = fetchNoteById(eventId).subscribe({
       next: (n) => {
         note = n;
         requestProfile(n.pubkey);
+        if (timer) clearTimeout(timer);
       },
       error: () => { loadError = true; }
     });
-    return () => sub.unsubscribe();
+    timer = setTimeout(() => { if (!note) loadError = true; }, 10_000);
+    return () => {
+      sub.unsubscribe();
+      if (timer) clearTimeout(timer);
+    };
   });
 
   $: profile = note ? $profiles.get(note.pubkey) : undefined;
