@@ -199,6 +199,14 @@
       </div>
     {:else if matome && isMine && matome.isNosli}
       <div class="mgmt-btns">
+        <a href="{base}/new?from={matome.naddr}" class="mgmt-btn mgmt-btn-import">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          インポート
+        </a>
         <a
           href="{NOSLI_BASE_URL}/li/{matome.naddr}"
           target="_blank"
@@ -257,7 +265,18 @@
             <div class="detail-author-pub">{shortNpubFromPubkey(matome.pubkey)}</div>
           </div>
         </a>
-        <span class="detail-date">{formatDate(matome.publishedAt)}</span>
+        <div class="detail-dates">
+          <div class="detail-date-row">
+            <span class="detail-date-label">作成</span>
+            <span>{formatDate(matome.publishedAt)}</span>
+          </div>
+          {#if matome.createdAt !== matome.publishedAt}
+            <div class="detail-date-row">
+              <span class="detail-date-label">更新</span>
+              <span>{formatDate(matome.createdAt)}</span>
+            </div>
+          {/if}
+        </div>
       </div>
 
       <div class="detail-stats">
@@ -502,6 +521,17 @@
     border-color: #dc2626;
   }
 
+  .mgmt-btn-import {
+    background: var(--surface);
+    color: var(--accent);
+    border: 1.5px solid var(--accent-mid);
+  }
+
+  .mgmt-btn-import:hover {
+    background: var(--accent-pale);
+    border-color: var(--accent);
+  }
+
   .mgmt-btn-nosli {
     background: var(--surface);
     color: var(--ink3);
@@ -615,10 +645,27 @@
     font-family: monospace;
   }
 
-  .detail-date {
+  .detail-dates {
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+  }
+
+  .detail-date-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     font-size: 12px;
     color: var(--ink3);
-    margin-left: auto;
+  }
+
+  .detail-date-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--ink3);
+    font-family: var(--font-ui);
   }
 
   .detail-stats {
