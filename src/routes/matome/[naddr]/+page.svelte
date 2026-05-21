@@ -90,7 +90,7 @@
   $: renderPlan = matome ? buildRenderPlan(matome.blocks) : [];
 
   let mdSegments: ContentSegment[] = [];
-  $: if (matome && !matome.isMatometr) {
+  $: if (matome && !matome.isMatometr && !matome.isNosli) {
     mdSegments = parseMarkdownContent(matome.content);
   }
 
@@ -369,7 +369,7 @@
 
     </div>
 
-    {#if matome.isMatometr}
+    {#if matome.isMatometr || matome.isNosli}
       {#each renderPlan as block}
         {#if block.type === 'heading'}
           <div class="block-heading">{block.content}</div>
