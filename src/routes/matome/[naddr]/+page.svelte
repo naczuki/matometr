@@ -94,7 +94,8 @@
   // share actions
   let copiedUrl = false;
   async function copyUrl(): Promise<void> {
-    await navigator.clipboard.writeText(currentUrl);
+    const text = matome ? `${matome.title}\n${currentUrl}` : currentUrl;
+    await navigator.clipboard.writeText(text);
     copiedUrl = true;
     setTimeout(() => { copiedUrl = false; }, 1500);
   }
