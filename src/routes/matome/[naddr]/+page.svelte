@@ -101,9 +101,11 @@
 
   function shareX(): void {
     if (!matome) return;
-    const text = encodeURIComponent(`${matome.title} ${currentUrl}`);
+    const text = encodeURIComponent(`${matome.title}\n${currentUrl}`);
     window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank', 'noopener');
   }
+
+  $: shareText = matome ? `${matome.title}\nnostr:${matome.naddr}` : '';
 
   // ⋮ menu
   let menuOpen = false;
@@ -216,7 +218,7 @@
 
         <div class="stat-share-row">
           <!-- Nos: nostr-share-component（スロットでテキスト上書き） -->
-          <nostr-share data-text="{matome.title} nostr:{matome.naddr}"><span class="nos-label">Nos</span></nostr-share>
+          <nostr-share data-text={shareText}><span class="nos-label">Nos</span></nostr-share>
 
           <!-- X -->
           <button class="share-btn" title="Xでシェア" aria-label="Xでシェア" on:click={shareX}>
