@@ -177,7 +177,7 @@
 
 <div class="wrap">
   <div class="nav-row">
-    <a href="{base}/" class="back-btn">← まとめ一覧にもどる</a>
+    <a href="{base}/" class="back-btn">← 一覧に戻る</a>
     {#if matome && isMine && matome.isMatometr}
       <div class="mgmt-btns">
         <a href="{base}/edit/{matome.naddr}" class="mgmt-btn mgmt-btn-edit">
@@ -267,12 +267,12 @@
         </a>
         <div class="detail-dates">
           <div class="detail-date-row">
-            <span class="detail-date-label">作成</span>
+            <span class="detail-date-label">作成日</span>
             <span>{formatDate(matome.publishedAt)}</span>
           </div>
           {#if matome.createdAt !== matome.publishedAt}
             <div class="detail-date-row">
-              <span class="detail-date-label">更新</span>
+              <span class="detail-date-label">更新日</span>
               <span>{formatDate(matome.createdAt)}</span>
             </div>
           {/if}
@@ -451,7 +451,7 @@
     align-items: center;
     gap: 8px;
     margin-bottom: 20px;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
   }
 
   .back-btn {
@@ -662,10 +662,9 @@
   }
 
   .detail-date-label {
-    font-size: 10px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 400;
     color: var(--ink3);
-    font-family: var(--font-ui);
   }
 
   .detail-stats {
