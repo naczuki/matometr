@@ -176,7 +176,45 @@
 </svelte:head>
 
 <div class="wrap">
-  <a href="{base}/" class="back-btn">← まとめ一覧にもどる</a>
+  <div class="nav-row">
+    <a href="{base}/" class="back-btn">← まとめ一覧にもどる</a>
+    {#if matome && isMine && matome.isMatometr}
+      <div class="mgmt-btns">
+        <a href="{base}/edit/{matome.naddr}" class="mgmt-btn mgmt-btn-edit">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          編集
+        </a>
+        <button class="mgmt-btn mgmt-btn-delete" on:click={() => (showDeleteConfirm = true)}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+          削除
+        </button>
+      </div>
+    {:else if matome && isMine && matome.isNosli}
+      <div class="mgmt-btns">
+        <a
+          href="{NOSLI_BASE_URL}/li/{matome.naddr}"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mgmt-btn mgmt-btn-nosli"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          nosliで編集
+        </a>
+      </div>
+    {/if}
+  </div>
 
   {#if loading}
     <div class="state">
@@ -282,21 +320,6 @@
         </div>
       </div>
 
-      {#if isMine && matome.isMatometr}
-        <div class="detail-actions">
-          <a href="{base}/edit/{matome.naddr}" class="btn-edit">まとめたーで編集</a>
-          <button class="btn-delete" on:click={() => (showDeleteConfirm = true)}>削除</button>
-        </div>
-      {:else if isMine && matome.isNosli}
-        <div class="detail-actions">
-          <a
-            href="{NOSLI_BASE_URL}/li/{matome.naddr}"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="btn-edit-ext"
-          >nosliで編集 ↗</a>
-        </div>
-      {/if}
     </div>
 
     {#if matome.isMatometr}
@@ -404,6 +427,14 @@
     padding: 24px 20px 64px;
   }
 
+  .nav-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: nowrap;
+  }
+
   .back-btn {
     display: inline-flex;
     align-items: center;
@@ -413,17 +444,73 @@
     color: var(--accent);
     background: var(--surface);
     border: 1.5px solid var(--accent-mid);
-    border-radius: var(--radius-btn);
+    border-radius: 9999px;
     padding: 7px 16px;
     cursor: pointer;
-    margin-bottom: 20px;
     font-family: var(--font-ui);
     text-decoration: none;
     transition: background 0.12s;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .back-btn:hover {
     background: var(--accent-pale);
+  }
+
+  .mgmt-btns {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .mgmt-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 14px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font-ui);
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+
+  .mgmt-btn-edit {
+    background: var(--accent);
+    color: #fff;
+    border: 1.5px solid transparent;
+  }
+
+  .mgmt-btn-edit:hover {
+    background: var(--accent-dark);
+  }
+
+  .mgmt-btn-delete {
+    background: var(--surface);
+    color: #dc2626;
+    border: 1.5px solid #fca5a5;
+  }
+
+  .mgmt-btn-delete:hover {
+    background: #fff5f5;
+    border-color: #dc2626;
+  }
+
+  .mgmt-btn-nosli {
+    background: var(--surface);
+    color: var(--ink3);
+    border: 1.5px solid var(--border2);
+  }
+
+  .mgmt-btn-nosli:hover {
+    border-color: var(--ink3);
+    color: var(--ink2);
   }
 
   .state {
@@ -563,62 +650,6 @@
     margin-left: auto;
   }
 
-  .detail-actions {
-    margin-top: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .btn-edit {
-    display: inline-block;
-    padding: 8px 18px;
-    border-radius: var(--radius-btn);
-    background: var(--accent);
-    color: #fff;
-    font-size: 13px;
-    font-weight: 700;
-    font-family: var(--font-ui);
-    text-decoration: none;
-    transition: background 0.12s;
-  }
-
-  .btn-edit:hover {
-    background: var(--accent-dark);
-  }
-
-  .btn-edit-ext {
-    display: inline-block;
-    padding: 8px 18px;
-    border-radius: var(--radius-btn);
-    border: 1.5px solid var(--border2);
-    background: var(--surface);
-    color: var(--ink2);
-    font-size: 13px;
-    font-weight: 700;
-    font-family: var(--font-ui);
-    text-decoration: none;
-    transition: border-color 0.12s, color 0.12s;
-  }
-
-  .btn-delete {
-    padding: 8px 16px;
-    border-radius: var(--radius-btn);
-    border: 1.5px solid #fca5a5;
-    background: transparent;
-    color: #dc2626;
-    font-size: 13px;
-    font-weight: 700;
-    font-family: var(--font-ui);
-    cursor: pointer;
-    transition: background 0.12s, border-color 0.12s;
-  }
-
-  .btn-delete:hover {
-    background: #fff5f5;
-    border-color: #dc2626;
-  }
-
   /* 削除確認ダイアログ */
   .dialog-overlay {
     position: fixed;
@@ -712,11 +743,6 @@
 
   .dialog-btn-delete:not(:disabled):hover {
     background: #b91c1c;
-  }
-
-  .btn-edit-ext:hover {
-    border-color: var(--ink2);
-    color: var(--ink);
   }
 
   /* nostr-share-component: Mochiy Pop One・横長・オレンジ */
