@@ -137,11 +137,10 @@
     e.stopPropagation();
     const MENU_W = 175;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    let x = rect.left;
-    let y = rect.bottom + 6;
-    if (x + MENU_W > window.innerWidth) x = window.innerWidth - MENU_W - 8;
+    let x = rect.right - MENU_W;
+    if (x < 8) x = 8;
     menuX = x;
-    menuY = y;
+    menuY = rect.bottom + 6;
     menuOpen = true;
     const handler = (): void => { menuOpen = false; removeDocListener = null; };
     document.addEventListener('click', handler, { once: true });
@@ -187,7 +186,9 @@
       </div>
       <!-- svelte-ignore a11y-interactive-supports-focus -->
       <!-- svelte-ignore a11y-click-events-have-key-events -->
-      <span class="note-time" role="button" on:click={openMenu}>{timeAgo(note.createdAt)}</span>
+      <span class="note-time" role="button" on:click={openMenu}>
+        {timeAgo(note.createdAt)}<span class="note-time-chevron" aria-hidden="true">▾</span>
+      </span>
     </div>
     <div class="note-content">
       {#each segments as segment}
@@ -382,6 +383,9 @@
   }
 
   .note-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
     font-size: 12px;
     color: var(--ink3);
     flex-shrink: 0;
@@ -396,6 +400,16 @@
   .note-time:hover {
     background: var(--accent-mid);
     color: var(--accent-dark);
+  }
+
+  .note-time:hover .note-time-chevron {
+    color: var(--accent-dark);
+  }
+
+  .note-time-chevron {
+    font-size: 9px;
+    color: var(--border2);
+    line-height: 1;
   }
 
   .note-menu {
