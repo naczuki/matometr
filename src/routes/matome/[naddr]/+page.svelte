@@ -1115,4 +1115,12 @@
     white-space: pre;
     word-break: break-all;
   }
+
+  @media (max-width: 480px) {
+    .back-btn,
+    .mgmt-btn {
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+  }
 </style>
