@@ -187,7 +187,7 @@
       <!-- svelte-ignore a11y-interactive-supports-focus -->
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <span class="note-time" role="button" on:click={openMenu}>
-        {timeAgo(note.createdAt)}<span class="note-time-chevron" aria-hidden="true">▾</span>
+        {timeAgo(note.createdAt)}<svg class="note-time-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
       </span>
     </div>
     <div class="note-content">
@@ -385,31 +385,27 @@
   .note-time {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
+    gap: 3px;
     font-size: 12px;
-    color: var(--ink3);
+    color: #a8a29e;
     flex-shrink: 0;
     margin-left: auto;
     cursor: pointer;
-    border-radius: 4px;
-    padding: 2px 4px;
+    border-radius: 6px;
+    padding: 3px 4px;
     margin-right: -4px;
-    transition: background 0.1s, color 0.1s;
+    transition: background 0.1s;
   }
 
   .note-time:hover {
-    background: var(--accent-mid);
-    color: var(--accent-dark);
-  }
-
-  .note-time:hover .note-time-chevron {
-    color: var(--accent-dark);
+    background: #faf5f0;
   }
 
   .note-time-chevron {
-    font-size: 9px;
-    color: var(--border2);
-    line-height: 1;
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+    color: #c4b8ac;
   }
 
   .note-menu {
