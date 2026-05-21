@@ -119,14 +119,21 @@
   // ⋮ menu
   let menuOpen = false;
   let copiedNaddr = false;
+  let editMenuOpen = false;
 
   function handleMenuToggle(e: MouseEvent): void {
     e.stopPropagation();
     menuOpen = !menuOpen;
   }
 
+  function handleEditMenuToggle(e: MouseEvent): void {
+    e.stopPropagation();
+    editMenuOpen = !editMenuOpen;
+  }
+
   function handleDocClick(): void {
     menuOpen = false;
+    editMenuOpen = false;
   }
 
   async function copyNaddr(): Promise<void> {
@@ -177,7 +184,7 @@
 
 <div class="wrap">
   <div class="nav-row">
-    <a href="{base}/" class="back-btn">← 一覧に戻る</a>
+    <a href="{base}/" class="back-btn">← まとめ一覧にもどる</a>
     {#if matome && isMine && matome.isMatometr}
       <div class="mgmt-btns">
         <a href="{base}/edit/{matome.naddr}" class="mgmt-btn mgmt-btn-edit">
@@ -199,27 +206,48 @@
       </div>
     {:else if matome && isMine && matome.isNosli}
       <div class="mgmt-btns">
-        <a href="{base}/new?from={matome.naddr}" class="mgmt-btn mgmt-btn-import">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          インポート
-        </a>
-        <a
-          href="{NOSLI_BASE_URL}/li/{matome.naddr}"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="mgmt-btn mgmt-btn-nosli"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-            <polyline points="15 3 21 3 21 9"/>
-            <line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
-          nosliで編集
-        </a>
+        <div class="edit-menu-wrap">
+          <button class="mgmt-btn mgmt-btn-nosli-edit" on:click={handleEditMenuToggle}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            編集
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          {#if editMenuOpen}
+            <div class="edit-dropdown" role="menu">
+              <a
+                class="edit-dropdown-item"
+                role="menuitem"
+                href="{base}/new?from={matome.naddr}"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                インポートして編集
+              </a>
+              <a
+                class="edit-dropdown-item"
+                role="menuitem"
+                href="{NOSLI_BASE_URL}/li/{matome.naddr}"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                  <polyline points="15 3 21 3 21 9"/>
+                  <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+                nosliで編集
+              </a>
+            </div>
+          {/if}
+        </div>
       </div>
     {/if}
   </div>
@@ -521,27 +549,54 @@
     border-color: #dc2626;
   }
 
-  .mgmt-btn-import {
-    background: var(--surface);
-    color: var(--accent);
-    border: 1.5px solid var(--accent-mid);
+  .edit-menu-wrap {
+    position: relative;
   }
 
-  .mgmt-btn-import:hover {
-    background: var(--accent-pale);
-    border-color: var(--accent);
-  }
-
-  .mgmt-btn-nosli {
+  .mgmt-btn-nosli-edit {
     background: var(--surface);
-    color: var(--ink3);
+    color: var(--ink2);
     border: 1.5px solid var(--border2);
   }
 
-  .mgmt-btn-nosli:hover {
-    border-color: var(--ink3);
-    color: var(--ink2);
+  .mgmt-btn-nosli-edit:hover {
+    border-color: var(--ink2);
   }
+
+  .edit-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    min-width: 160px;
+    z-index: 100;
+    overflow: hidden;
+    padding: 4px;
+  }
+
+  .edit-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    font-family: var(--font-ui);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background 0.1s;
+    white-space: nowrap;
+  }
+
+  .edit-dropdown-item:hover {
+    background: var(--accent-pale);
+    color: var(--accent);
+  }
+
 
   .state {
     text-align: center;
@@ -1116,11 +1171,4 @@
     word-break: break-all;
   }
 
-  @media (max-width: 480px) {
-    .back-btn,
-    .mgmt-btn {
-      padding: 5px 10px;
-      font-size: 12px;
-    }
-  }
 </style>
