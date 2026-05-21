@@ -97,7 +97,7 @@ export function fetchMatomeByAddress(pointer: AddressPointer): Observable<Matome
 export function fetchNoteById(eventId: string): Observable<Note> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
-    filters: { kinds: [1], ids: [eventId], limit: 1 }
+    filters: { kinds: [1, 42], ids: [eventId], limit: 1 }
   });
   return client.use(rxReq).pipe(
     map(({ event }) => toNote(event)),

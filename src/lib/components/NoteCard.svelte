@@ -63,7 +63,7 @@
     return map;
   })();
 
-  $: parsedContent = note ? extractImages(note.content) : { text: '', urls: [] };
+  $: parsedContent = note ? extractImages(note.content) : { text: '', urls: [], videoUrls: [] };
   $: segments = parseNostrRefs(parsedContent.text, emojiMap);
 
   // メンション対象のプロフィールをリクエスト
@@ -72,10 +72,15 @@
   }
 
   let failedImages: Set<string> = new Set();
+  let failedVideos: Set<string> = new Set();
   let failedEmojis: Set<string> = new Set();
 
   function onImgError(url: string): void {
     failedImages = new Set([...failedImages, url]);
+  }
+
+  function onVideoError(url: string): void {
+    failedVideos = new Set([...failedVideos, url]);
   }
 
   function onEmojiError(shortcode: string): void {
@@ -150,6 +155,27 @@
         {/if}
       {/each}
     </div>
+    {#if parsedContent.videoUrls.length > 0}
+      <div class="note-videos">
+        {#each parsedContent.videoUrls as url}
+          {#if failedVideos.has(url)}
+            <div class="img-error">
+              <span>🎬 動画を読み込めませんでした</span>
+              <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+            </div>
+          {:else}
+            <!-- svelte-ignore a11y-media-has-caption -->
+            <video
+              src={url}
+              controls
+              preload="metadata"
+              class="note-video"
+              on:error={() => onVideoError(url)}
+            ></video>
+          {/if}
+        {/each}
+      </div>
+    {/if}
     {#if parsedContent.urls.length > 0}
       <div class="note-images" class:multi={parsedContent.urls.length > 1}>
         {#each parsedContent.urls as url}
@@ -286,6 +312,22 @@
 
   .naddr-link:hover {
     text-decoration: underline;
+  }
+
+  .note-videos {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .note-video {
+    max-width: 85%;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+    background: #000;
   }
 
   .note-images {

@@ -43,7 +43,8 @@
   // 画像URLは除去（引用カードでは画像表示しない）
   function stripImages(content: string): string {
     const IMAGE_RE = /https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:[?#][^\s]*)?/gi;
-    return content.replace(IMAGE_RE, '').replace(/\n{3,}/g, '\n\n').trim();
+    const VIDEO_RE = /https?:\/\/[^\s]+\.(?:mp4|webm|mov|m4v)(?:[?#][^\s]*)?/gi;
+    return content.replace(VIDEO_RE, '').replace(IMAGE_RE, '').replace(/\n{3,}/g, '\n\n').trim();
   }
 
   $: emojiMap = (() => {
