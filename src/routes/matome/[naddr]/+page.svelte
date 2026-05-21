@@ -554,13 +554,13 @@
   }
 
   .mgmt-btn-nosli-edit {
-    background: var(--surface);
-    color: var(--ink2);
-    border: 1.5px solid var(--border2);
+    background: var(--accent);
+    color: #fff;
+    border: 1.5px solid transparent;
   }
 
   .mgmt-btn-nosli-edit:hover {
-    border-color: var(--ink2);
+    background: var(--accent-dark);
   }
 
   .edit-dropdown {
