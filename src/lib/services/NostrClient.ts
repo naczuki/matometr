@@ -210,7 +210,7 @@ export function fetchNotesByIds(
   const client = getClient();
   const { relays } = options;
   const rxReq = createRxOneshotReq({
-    filters: { kinds: [1], ids, limit: ids.length }
+    filters: { kinds: [1, 42], ids, limit: ids.length }
   });
 
   return client.use(rxReq, withRelays(relays)).pipe(
