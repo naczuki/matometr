@@ -66,6 +66,26 @@
   $: parsedContent = note ? extractImages(note.content) : { text: '', urls: [], videoUrls: [] };
   $: segments = parseNostrRefs(parsedContent.text, emojiMap);
 
+  $: imetaMap = (() => {
+    const map = new Map<string, string>();
+    if (!note) return map;
+    for (const tag of note.tags) {
+      if (tag[0] !== 'imeta') continue;
+      let url = '';
+      let image = '';
+      for (let i = 1; i < tag.length; i++) {
+        const sp = tag[i].indexOf(' ');
+        if (sp === -1) continue;
+        const key = tag[i].slice(0, sp);
+        const val = tag[i].slice(sp + 1);
+        if (key === 'url') url = val;
+        if (key === 'image') image = val;
+      }
+      if (url && image) map.set(url, image);
+    }
+    return map;
+  })();
+
   // メンション対象のプロフィールをリクエスト
   $: for (const seg of segments) {
     if (seg.type === 'mention') requestProfile(seg.pubkey);
@@ -164,14 +184,19 @@
               <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
             </div>
           {:else}
-            <!-- svelte-ignore a11y-media-has-caption -->
-            <video
-              src={url}
-              controls
-              preload="metadata"
-              class="note-video"
-              on:error={() => onVideoError(url)}
-            ></video>
+            <div class="media-wrap video-wrap">
+              <!-- svelte-ignore a11y-media-has-caption -->
+              <video
+                src={`${url}#t=0.1`}
+                controls
+                preload="metadata"
+                playsinline
+                poster={imetaMap.get(url)}
+                class="note-video"
+                on:error={() => onVideoError(url)}
+              ></video>
+              <a class="open-btn" href={url} target="_blank" rel="noopener noreferrer" aria-label="元ファイルを開く">↗</a>
+            </div>
           {/if}
         {/each}
       </div>
@@ -185,13 +210,18 @@
               <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
             </div>
           {:else}
-            <img
-              src={url}
-              alt=""
-              class="note-img"
-              loading="lazy"
-              on:error={() => onImgError(url)}
-            />
+            <div class="media-wrap">
+              <a href={url} target="_blank" rel="noopener noreferrer" class="img-link">
+                <img
+                  src={url}
+                  alt=""
+                  class="note-img"
+                  loading="lazy"
+                  on:error={() => onImgError(url)}
+                />
+              </a>
+              <a class="open-btn" href={url} target="_blank" rel="noopener noreferrer" aria-label="元ファイルを開く">↗</a>
+            </div>
           {/if}
         {/each}
       </div>
@@ -321,18 +351,6 @@
     margin-top: 10px;
   }
 
-  .note-video {
-    max-width: 85%;
-    max-height: 400px;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-    border-radius: 8px;
-    display: block;
-    background: #000;
-    margin: 0 auto;
-  }
-
   .note-images {
     display: grid;
     grid-template-columns: 1fr;
@@ -344,18 +362,65 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .note-images.multi .note-img {
+  .media-wrap {
+    position: relative;
+    display: block;
+    max-width: 85%;
+    margin: 0 auto;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .note-images.multi .media-wrap {
     max-width: 100%;
-    width: 100%;
+  }
+
+  .video-wrap {
+    background: #000;
+  }
+
+  .img-link {
+    display: block;
+    line-height: 0;
   }
 
   .note-img {
-    max-width: 85%;
+    width: 100%;
     height: auto;
     object-fit: contain;
-    border-radius: 8px;
+    display: block;
+  }
+
+  .note-video {
+    max-width: 100%;
+    max-height: 400px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
     display: block;
     margin: 0 auto;
+  }
+
+  .open-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    text-decoration: none;
+    z-index: 1;
+    transition: background 0.12s;
+  }
+
+  .open-btn:hover {
+    background: rgba(0, 0, 0, 0.75);
   }
 
   .url-link {
