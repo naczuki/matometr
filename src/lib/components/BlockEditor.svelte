@@ -11,6 +11,7 @@
   let showAddModal = false;
   let sortLoading = false;
   let lastSortOrder: 'asc' | 'desc' | null = null;
+  let createdAtCache = new Map<string, number>();
 
   $: noteCount = blocks.filter((b) => b.type === 'nevent' && b.nevent).length;
 
@@ -58,29 +59,31 @@
       return !b.nevent;
     });
 
-    const idsToFetch = sortableBlocks
+    const allIds = sortableBlocks
       .map(b => eventIdFromNevent(b.nevent))
       .filter((id): id is string => id !== null);
 
-    if (idsToFetch.length === 0) return;
+    if (allIds.length === 0) return;
 
-    sortLoading = true;
-    const createdAtMap = new Map<string, number>();
-    await new Promise<void>((resolve) => {
-      fetchNotesByIds(idsToFetch).subscribe({
-        next: (n) => createdAtMap.set(n.id, n.createdAt),
-        complete: resolve,
-        error: resolve
+    const uncachedIds = allIds.filter(id => !createdAtCache.has(id));
+    if (uncachedIds.length > 0) {
+      sortLoading = true;
+      await new Promise<void>((resolve) => {
+        fetchNotesByIds(uncachedIds).subscribe({
+          next: (n) => createdAtCache.set(n.id, n.createdAt),
+          complete: resolve,
+          error: resolve
+        });
+        setTimeout(resolve, 10_000);
       });
-      setTimeout(resolve, 10_000);
-    });
-    sortLoading = false;
+      sortLoading = false;
+    }
 
     const sorted = [...sortableBlocks].sort((a, b) => {
       const idA = eventIdFromNevent(a.nevent) ?? '';
       const idB = eventIdFromNevent(b.nevent) ?? '';
-      const tA = createdAtMap.get(idA) ?? 0;
-      const tB = createdAtMap.get(idB) ?? 0;
+      const tA = createdAtCache.get(idA) ?? 0;
+      const tB = createdAtCache.get(idB) ?? 0;
       return order === 'asc' ? tA - tB : tB - tA;
     });
 
