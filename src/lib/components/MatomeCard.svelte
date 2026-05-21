@@ -51,7 +51,7 @@
       {/if}
     </div>
     <span class="author-name">{displayName}</span>
-    <span class="time"><span class="time-label">更新</span>{elapsed}</span>
+    <span class="time"><span class="time-label">更新日</span>{elapsed}</span>
   </div>
   <div class="title">{matome.title}</div>
   {#if preview}
@@ -134,9 +134,8 @@
   }
 
   .time-label {
-    font-size: 10px;
-    font-weight: 700;
-    font-family: var(--font-ui);
+    font-size: 11px;
+    font-weight: 400;
   }
 
   .title {
