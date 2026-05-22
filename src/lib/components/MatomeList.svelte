@@ -8,8 +8,7 @@
   import type { Tab } from '$lib/types';
   import { DEFAULT_RELAYS } from '$lib/stores/relays';
 
-  // rx-nostr の EventPacket.from はスラッシュなしで返るため、
-  // Map/Set キーと per-relay fetch 引数を統一するために正規化する
+  // rx-nostr の EventPacket.from はスラッシュなしで返るため正規化
   const RELAYS: string[] = DEFAULT_RELAYS.map((r) => r.replace(/\/$/, ''));
 
   export let tab: Tab;
@@ -21,12 +20,28 @@
   let subs: Subscription[] = [];
 
   const rawMap = new Map<string, Matome>();
-
-  // Per-relay oldest-seen cursors; absent = relay returned no events yet
   const nosliCursors = new Map<string, number>();
   const matometrCursors = new Map<string, number>();
   const exhaustedNosli = new Set<string>();
   const exhaustedMatometr = new Set<string>();
+
+  // 30日以上のギャップがあれば ascending-relay の末尾と判断し、
+  // ギャップ直前のイベントを cursor にする。
+  // 例）nos.lol が 2023-12-17 → 2023-04-08（8ヶ月飛び）を返した場合、
+  //     cursor = 2023-12-17 となり、次の until=2023-12-16 で正しく潜れる。
+  const GAP_THRESHOLD_S = 30 * 24 * 3600;
+
+  function computeCursorFromBuffer(timestamps: number[]): number | undefined {
+    if (timestamps.length === 0) return undefined;
+    const desc = [...timestamps].sort((a, b) => b - a);
+    let maxGap = 0;
+    let splitIdx = desc.length - 1;
+    for (let i = 0; i < desc.length - 1; i++) {
+      const gap = desc[i] - desc[i + 1];
+      if (gap > maxGap) { maxGap = gap; splitIdx = i; }
+    }
+    return maxGap > GAP_THRESHOLD_S ? desc[splitIdx] : desc[desc.length - 1];
+  }
 
   function addMatome(m: Matome): void {
     const key = `${m.pubkey}:${m.dTag}`;
@@ -37,11 +52,6 @@
     }
   }
 
-  function updateCursor(relay: string, createdAt: number, cursors: Map<string, number>): void {
-    const cur = cursors.get(relay);
-    if (cur === undefined || createdAt < cur) cursors.set(relay, createdAt);
-  }
-
   function computeHasMore(): boolean {
     return (
       RELAYS.some((r) => !exhaustedNosli.has(r)) ||
@@ -50,12 +60,26 @@
   }
 
   onMount(() => {
-    console.log('[ML] RELAYS (normalized):', RELAYS);
+    console.log('[ML] RELAYS:', RELAYS);
     let pending = 2;
+    const nosliBuffer = new Map<string, number[]>();
+    const matometrBuffer = new Map<string, number[]>();
+
+    function pushBuffer(relay: string, createdAt: number, buf: Map<string, number[]>): void {
+      if (!buf.has(relay)) buf.set(relay, []);
+      buf.get(relay)!.push(createdAt);
+    }
 
     function done(): void {
       if (--pending > 0) return;
-      console.log('[ML] initial load complete');
+      for (const [relay, ts] of nosliBuffer) {
+        const cursor = computeCursorFromBuffer(ts);
+        if (cursor !== undefined) nosliCursors.set(relay, cursor);
+      }
+      for (const [relay, ts] of matometrBuffer) {
+        const cursor = computeCursorFromBuffer(ts);
+        if (cursor !== undefined) matometrCursors.set(relay, cursor);
+      }
       console.log('[ML] nosliCursors:', Object.fromEntries(
         [...nosliCursors].map(([r, t]) => [r, new Date(t * 1000).toISOString()])
       ));
@@ -75,7 +99,7 @@
     const s1 = fetchMatomeListWithRelay(30).subscribe({
       next: ({ matome, relay }) => {
         addMatome(matome);
-        updateCursor(relay, matome.createdAt, matometrCursors);
+        pushBuffer(relay, matome.createdAt, matometrBuffer);
       },
       complete: done,
       error: done
@@ -84,7 +108,7 @@
     const s2 = fetchNosliListWithRelay(30).subscribe({
       next: ({ matome, relay }) => {
         addMatome(matome);
-        updateCursor(relay, matome.createdAt, nosliCursors);
+        pushBuffer(relay, matome.createdAt, nosliBuffer);
       },
       complete: done,
       error: done
@@ -115,14 +139,14 @@
 
     function checkDone(): void {
       if (++completed < total) return;
-      console.log('[ML] loadMore done | batchNosli:', Object.fromEntries(batchNosli), '| batchMatometr:', Object.fromEntries(batchMatometr));
+      console.log('[ML] loadMore done | batchNosli:', Object.fromEntries(batchNosli));
       for (const [r, count] of batchNosli) {
         if (count === 0) exhaustedNosli.add(r);
       }
       for (const [r, count] of batchMatometr) {
         if (count === 0) exhaustedMatometr.add(r);
       }
-      console.log('[ML] exhaustedNosli:', [...exhaustedNosli], '| exhaustedMatometr:', [...exhaustedMatometr]);
+      console.log('[ML] exhaustedNosli:', [...exhaustedNosli]);
       loadingMore = false;
       hasMore = computeHasMore();
     }
@@ -130,14 +154,19 @@
     for (const relay of activeNosli) {
       const cursor = nosliCursors.get(relay);
       const until = cursor !== undefined ? cursor - 1 : undefined;
-      console.log(`[ML] nosli REQ → ${relay} | until=${until ? new Date(until * 1000).toISOString() : 'none'} (${until})`);
+      console.log(`[ML] nosli REQ → ${relay} | until=${until ? new Date(until * 1000).toISOString() : 'none'}`);
+      const buf: number[] = [];
       const sub = fetchNosliListWithRelay(30, until, [relay]).subscribe({
         next: ({ matome, relay: r }) => {
           addMatome(matome);
-          updateCursor(r, matome.createdAt, nosliCursors);
+          buf.push(matome.createdAt);
           batchNosli.set(r, (batchNosli.get(r) ?? 0) + 1);
         },
-        complete: checkDone,
+        complete: () => {
+          const cursor = computeCursorFromBuffer(buf);
+          if (cursor !== undefined) nosliCursors.set(relay, cursor);
+          checkDone();
+        },
         error: checkDone
       });
       subs = [...subs, sub];
@@ -146,14 +175,19 @@
     for (const relay of activeMatometr) {
       const cursor = matometrCursors.get(relay);
       const until = cursor !== undefined ? cursor - 1 : undefined;
-      console.log(`[ML] matometr REQ → ${relay} | until=${until ? new Date(until * 1000).toISOString() : 'none'} (${until})`);
+      console.log(`[ML] matometr REQ → ${relay} | until=${until ? new Date(until * 1000).toISOString() : 'none'}`);
+      const buf: number[] = [];
       const sub = fetchMatomeListWithRelay(30, until, [relay]).subscribe({
         next: ({ matome, relay: r }) => {
           addMatome(matome);
-          updateCursor(r, matome.createdAt, matometrCursors);
+          buf.push(matome.createdAt);
           batchMatometr.set(r, (batchMatometr.get(r) ?? 0) + 1);
         },
-        complete: checkDone,
+        complete: () => {
+          const cursor = computeCursorFromBuffer(buf);
+          if (cursor !== undefined) matometrCursors.set(relay, cursor);
+          checkDone();
+        },
         error: checkDone
       });
       subs = [...subs, sub];
