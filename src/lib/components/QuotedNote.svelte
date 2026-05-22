@@ -5,10 +5,10 @@
   import type { Note } from '$lib/types';
   import { fetchNoteById } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
-  import { avatarStyle } from '$lib/utils/avatar';
   import { parseNostrRefs, extractImages, resolveTagRefs, buildEmojiMap } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey } from '$lib/utils/nostr';
   import { timeAgo } from '$lib/utils/time';
+  import Avatar from '$lib/components/Avatar.svelte';
 
   export let eventId: string;
   export let showDate: boolean = false;
@@ -36,11 +36,7 @@
 
   $: profile = note ? $profiles.get(note.pubkey) : undefined;
   $: authorName = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(note?.pubkey ?? '');
-  $: authorStyle = note ? avatarStyle(note.pubkey) : { bg: '#e5e5e5', fg: '#737373', initial: '?' };
   $: picture = profile?.picture ?? null;
-
-  let picFailed = false;
-  $: picture, (picFailed = false);
 
   $: emojiMap = note ? buildEmojiMap(note.tags) : new Map<string, string>();
 
@@ -76,13 +72,7 @@
     <span class="quoted-state">取得中…</span>
   {:else}
     <div class="quoted-header">
-      <div class="quoted-avatar" style="background:{authorStyle.bg};color:{authorStyle.fg};">
-        {#if picture && !picFailed}
-          <img src={picture} alt="" on:error={() => (picFailed = true)} />
-        {:else}
-          {authorStyle.initial}
-        {/if}
-      </div>
+      <Avatar pubkey={note.pubkey} {picture} size={20} />
       <span class="quoted-name">{truncateName(authorName)}</span>
       {#if showDate && note}
         <span class="quoted-date">{timeAgo(note.createdAt)}</span>
@@ -144,27 +134,6 @@
     align-items: center;
     gap: 6px;
     margin-bottom: 5px;
-  }
-
-  .quoted-avatar {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 9px;
-    font-weight: 700;
-    font-family: var(--font-ui);
-    flex-shrink: 0;
-    overflow: hidden;
-  }
-
-  .quoted-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
   }
 
   .quoted-name {

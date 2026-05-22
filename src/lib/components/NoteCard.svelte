@@ -5,11 +5,11 @@
   import type { Note } from '$lib/types';
   import { fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
-  import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
   import { parseNostrRefs, extractImages, resolveTagRefs, buildEmojiMap } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey } from '$lib/utils/nostr';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
+  import Avatar from '$lib/components/Avatar.svelte';
 
   export let nevent: string;
   export let num: number = 0;
@@ -58,11 +58,7 @@
 
   $: profile = note ? $profiles.get(note.pubkey) : undefined;
   $: authorName = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(note?.pubkey ?? '');
-  $: authorStyle = note ? avatarStyle(note.pubkey) : { bg: '#e5e5e5', fg: '#737373', initial: '?' };
   $: picture = profile?.picture ?? null;
-
-  let imgFailed = false;
-  $: picture, (imgFailed = false);
 
   function truncateName(name: string, max = 30): string {
     return name.length > max ? name.slice(0, max) + '…' : name;
@@ -174,13 +170,7 @@
     <div class="load-placeholder">取得中…</div>
   {:else}
     <div class="note-header">
-      <div class="avatar" style="background:{authorStyle.bg};color:{authorStyle.fg};">
-        {#if picture && !imgFailed}
-          <img src={picture} alt="" on:error={() => (imgFailed = true)} />
-        {:else}
-          {authorStyle.initial}
-        {/if}
-      </div>
+      <Avatar pubkey={note.pubkey} {picture} size={36} />
       <div class="note-meta">
         <div class="note-name">{truncateName(authorName)}</div>
         <div class="note-pub">{shortNpubFromPubkey(note.pubkey)}</div>
@@ -359,27 +349,6 @@
     align-items: center;
     gap: 10px;
     margin-bottom: 11px;
-  }
-
-  .avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-ui);
-    font-size: 14px;
-    font-weight: 700;
-    overflow: hidden;
-  }
-
-  .avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
   }
 
   .note-meta {

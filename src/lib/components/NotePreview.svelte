@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { Note } from '$lib/types';
   import { profiles, requestProfile } from '$lib/stores/profiles';
-  import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
   import { extractImages, parseNostrRefs, buildEmojiMap } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey } from '$lib/utils/nostr';
+  import Avatar from '$lib/components/Avatar.svelte';
 
   export let note: Note;
   export let selected = false;
@@ -12,8 +12,7 @@
 
   $: requestProfile(note.pubkey);
   $: profile = $profiles.get(note.pubkey);
-  $: style = avatarStyle(note.pubkey);
-  $: picture = profile?.picture;
+  $: picture = profile?.picture ?? null;
   $: author = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(note.pubkey);
   $: parsed = extractImages(note.content);
   $: emojiMap = buildEmojiMap(note.tags);
@@ -37,13 +36,7 @@
   <div class="check" aria-hidden="true">{selected ? '✓' : ''}</div>
   <div class="post-body">
     <div class="post-header">
-      <div class="avatar" style="background:{style.bg};color:{style.fg};">
-        {#if picture}
-          <img src={picture} alt="" on:error={hideOnError} />
-        {:else}
-          {style.initial}
-        {/if}
-      </div>
+      <Avatar pubkey={note.pubkey} {picture} size={26} />
       <span class="author">{truncateName(author)}</span>
       <span class="time">{timeAgo(note.createdAt)}</span>
     </div>
@@ -125,26 +118,6 @@
     align-items: center;
     gap: 8px;
     margin-bottom: 6px;
-  }
-
-  .avatar {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 700;
-    font-family: var(--font-ui);
-  }
-
-  .avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
   }
 
   .author {
