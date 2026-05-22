@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import type { Subscription } from 'rxjs';
-  import { fetchAllMatomeList } from '$lib/services/NostrClient';
+  import { fetchMatomeList, fetchNosliList } from '$lib/services/NostrClient';
   import { Matome } from '$lib/entities/Matome';
   import MatomeCard from '$lib/components/MatomeCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -16,6 +16,7 @@
   let subs: Subscription[] = [];
 
   const rawMap = new Map<string, Matome>();
+  let pending = 2;
 
   function addMatome(m: Matome): void {
     const key = `${m.pubkey}:${m.dTag}`;
@@ -26,32 +27,43 @@
     }
   }
 
+  function onComplete(): void {
+    pending--;
+    if (pending <= 0) loading = false;
+  }
+
   function loadMore(): void {
     if (loadingMore || !hasMore || matomes.length === 0) return;
     loadingMore = true;
     const until = Math.min(...matomes.map((m) => m.createdAt)) - 1;
     const sizeBefore = rawMap.size;
+    let morePending = 2;
 
-    const s = fetchAllMatomeList(30, until).subscribe({
-      next: addMatome,
-      complete: () => {
+    function onMoreComplete(): void {
+      morePending--;
+      if (morePending <= 0) {
         loadingMore = false;
         if (rawMap.size === sizeBefore) hasMore = false;
-      },
-      error: () => {
-        loadingMore = false;
       }
+    }
+
+    const s1 = fetchMatomeList(30, until).subscribe({
+      next: addMatome,
+      complete: onMoreComplete,
+      error: onMoreComplete
     });
-    subs = [...subs, s];
+    const s2 = fetchNosliList(30, until).subscribe({
+      next: addMatome,
+      complete: onMoreComplete,
+      error: onMoreComplete
+    });
+    subs = [...subs, s1, s2];
   }
 
   onMount(() => {
-    const s = fetchAllMatomeList(30).subscribe({
-      next: addMatome,
-      complete: () => { loading = false; },
-      error: () => { loading = false; }
-    });
-    subs = [s];
+    const s1 = fetchMatomeList(30).subscribe({ next: addMatome, complete: onComplete, error: onComplete });
+    const s2 = fetchNosliList(30).subscribe({ next: addMatome, complete: onComplete, error: onComplete });
+    subs = [s1, s2];
   });
 
   onDestroy(() => {

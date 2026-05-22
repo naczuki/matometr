@@ -249,12 +249,12 @@ export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
   );
 }
 
-export function fetchAllMatomeList(limit = 30, until?: number): Observable<Matome> {
+export function fetchNosliList(limit = 10, until?: number): Observable<Matome> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
     filters: until
-      ? { kinds: [30023], '#t': ['matometr', 'nosli'], limit, until }
-      : { kinds: [30023], '#t': ['matometr', 'nosli'], limit }
+      ? { kinds: [30023], '#t': ['nosli'], limit, until }
+      : { kinds: [30023], '#t': ['nosli'], limit }
   });
 
   return client.use(rxReq).pipe(
