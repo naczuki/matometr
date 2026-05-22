@@ -493,6 +493,7 @@
 
   .note-images.multi {
     grid-template-columns: 1fr 1fr;
+    align-items: start;
   }
 
   .media-wrap {

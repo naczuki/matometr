@@ -58,6 +58,8 @@ function extractHashtags(text: string): string[] {
   return result;
 }
 
+const CLIENT_TAG = ['client', 'matometr', '31990:82b30d30444170e6a8c819e8406e362a3695454a4617894ce2706f3840c6c003:matometr', 'wss://yabu.me'];
+
 export async function publishMatome(params: {
   title: string;
   summary: string;
@@ -78,7 +80,7 @@ export async function publishMatome(params: {
       ['summary', params.summary],
       ['published_at', String(now)],
       ['t', 'matometr'],
-      ['client', 'matometr'],
+      CLIENT_TAG,
       ...buildMentionTags(params.blocks),
     ],
     content: blocksToContent(params.blocks),
@@ -108,7 +110,7 @@ export async function updateMatome(params: {
       ['summary', params.summary],
       ['published_at', String(params.publishedAt)],
       ['t', 'matometr'],
-      ['client', 'matometr'],
+      CLIENT_TAG,
       ...buildMentionTags(params.blocks),
     ],
     content: blocksToContent(params.blocks),
@@ -139,7 +141,7 @@ export async function publishAnnouncement(content: string): Promise<void> {
   await sendToRelays({
     kind: 1,
     created_at: now,
-    tags: [['client', 'matometr'], ...tTags],
+    tags: [CLIENT_TAG, ...tTags],
     content,
   });
 }
