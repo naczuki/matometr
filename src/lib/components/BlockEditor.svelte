@@ -46,6 +46,12 @@
   async function sortByTime(): Promise<void> {
     if (sortLoading) return;
 
+    const hasNonNevent = blocks.some(b => b.type === 'comment' || b.type === 'heading');
+    if (hasNonNevent) {
+      const ok = window.confirm('コメントや見出しの位置がリセットされます。続けますか？');
+      if (!ok) return;
+    }
+
     const sortableBlocks = blocks.filter((b): b is NoteEditorBlock => b.type === 'nevent' && !!b.nevent);
     const otherBlocks = blocks.filter(b => b.type !== 'nevent' || !b.nevent);
 
