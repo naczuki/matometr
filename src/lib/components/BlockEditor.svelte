@@ -10,7 +10,6 @@
 
   let showAddModal = false;
   let sortLoading = false;
-  let lastSortOrder: 'asc' | 'desc' | null = null;
   let createdAtCache = new Map<string, number>();
 
   $: noteCount = blocks.filter((b) => b.type === 'nevent' && b.nevent).length;
@@ -44,20 +43,11 @@
     blocks = updated;
   }
 
-  async function sortByTime(order: 'asc' | 'desc'): Promise<void> {
+  async function sortByTime(): Promise<void> {
     if (sortLoading) return;
 
-    const hasNonNevent = blocks.some(b => b.type === 'comment' || b.type === 'heading');
-    if (hasNonNevent) {
-      const ok = window.confirm('コメントや見出しの位置がリセットされます。続けますか？');
-      if (!ok) return;
-    }
-
     const sortableBlocks = blocks.filter((b): b is NoteEditorBlock => b.type === 'nevent' && !!b.nevent);
-    const otherBlocks = blocks.filter(b => {
-      if (b.type !== 'nevent') return true;
-      return !b.nevent;
-    });
+    const otherBlocks = blocks.filter(b => b.type !== 'nevent' || !b.nevent);
 
     const allIds = sortableBlocks
       .map(b => eventIdFromNevent(b.nevent))
@@ -84,14 +74,10 @@
       const idB = eventIdFromNevent(b.nevent) ?? '';
       const tA = createdAtCache.get(idA) ?? 0;
       const tB = createdAtCache.get(idB) ?? 0;
-      return order === 'asc' ? tA - tB : tB - tA;
+      return tA - tB;
     });
 
-    blocks = order === 'asc'
-      ? [...sorted, ...otherBlocks]
-      : [...otherBlocks, ...sorted];
-
-    lastSortOrder = order;
+    blocks = [...sorted, ...otherBlocks];
   }
 
   function handleNoteInput(id: string, raw: string): void {
@@ -119,18 +105,14 @@
       <span class="blocks-badge">{noteCount}件の投稿</span>
     {/if}
     {#if noteCount >= 1}
-      <!-- svelte-ignore a11y-interactive-supports-focus -->
-      <!-- svelte-ignore a11y-click-events-have-key-events -->
-      <div
-        class="sort-segment"
-        class:disabled={sortLoading}
-        role="button"
-        aria-label="並び順を切り替え"
-        on:click={() => !sortLoading && sortByTime(lastSortOrder === 'asc' ? 'desc' : 'asc')}
+      <button
+        class="btn-sort-time"
+        type="button"
+        disabled={sortLoading}
+        on:click={sortByTime}
       >
-        <span class="sort-seg-opt" class:active={lastSortOrder === 'desc'}>新しい順</span>
-        <span class="sort-seg-opt" class:active={lastSortOrder === 'asc'}>古い順</span>
-      </div>
+        {sortLoading ? '取得中…' : '時系列に並べる'}
+      </button>
     {/if}
   </div>
 
@@ -238,41 +220,30 @@
     padding: 2px 10px;
   }
 
-  .sort-segment {
+  .btn-sort-time {
     margin-left: auto;
-    display: flex;
-    background: var(--bg);
-    border: 1.5px solid var(--border2);
-    border-radius: 999px;
-    padding: 2px;
-    gap: 2px;
     flex-shrink: 0;
-    cursor: pointer;
-    user-select: none;
-    transition: opacity 0.12s;
-  }
-
-  .sort-segment.disabled {
-    opacity: 0.5;
-    cursor: wait;
-  }
-
-  .sort-seg-opt {
-    padding: 3px 10px;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--ink2);
-    font-family: var(--font-ui);
     font-size: 12px;
     font-weight: 700;
+    font-family: var(--font-ui);
+    color: var(--accent-dark);
+    background: var(--accent-pale);
+    border: 1.5px solid var(--accent-mid);
+    border-radius: 999px;
+    padding: 3px 12px;
+    cursor: pointer;
     white-space: nowrap;
-    transition: background 0.12s, color 0.12s;
-    pointer-events: none;
+    transition: all 0.12s;
   }
 
-  .sort-seg-opt.active {
-    background: var(--accent);
-    color: #fff;
+  .btn-sort-time:hover:not(:disabled) {
+    background: var(--accent-mid);
+    border-color: var(--accent);
+  }
+
+  .btn-sort-time:disabled {
+    opacity: 0.5;
+    cursor: wait;
   }
 
   .empty-state {
