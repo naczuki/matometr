@@ -481,18 +481,18 @@
   }
 
   .btn-create {
-    display: inline-flex;
-    align-items: center;
-    padding: 9px 18px;
-    border-radius: var(--radius-btn);
     background: var(--accent);
     color: #fff;
+    border: none;
+    border-radius: var(--radius-btn);
+    padding: 8px 20px;
+    font-family: var(--font-ui);
     font-size: 13px;
     font-weight: 700;
-    font-family: var(--font-ui);
+    cursor: pointer;
     text-decoration: none;
-    flex-shrink: 0;
     transition: background 0.12s;
+    white-space: nowrap;
   }
 
   .btn-create:hover {
