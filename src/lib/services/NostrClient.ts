@@ -482,6 +482,32 @@ export async function deleteMatome(eventId: string): Promise<void> {
   });
 }
 
+function extractHashtags(text: string): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const m of text.matchAll(/#(\S+)/g)) {
+    const tag = m[1].toLowerCase();
+    if (!seen.has(tag)) { seen.add(tag); result.push(tag); }
+  }
+  return result;
+}
+
+/**
+ * まとめ公開後の告知用 kind:1 を公開する。
+ * 本文のハッシュタグを t タグ化する。
+ */
+export async function publishAnnouncement(content: string): Promise<void> {
+  if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
+  const now = Math.floor(Date.now() / 1000);
+  const tTags = extractHashtags(content).map((tag) => ['t', tag]);
+  await sendToRelays({
+    kind: 1,
+    created_at: now,
+    tags: [['client', 'matometr'], ...tTags],
+    content,
+  });
+}
+
 /**
  * eタグ有り・コメントなしのため閲覧のみ（編集は nosli へ誘導）。
  */
