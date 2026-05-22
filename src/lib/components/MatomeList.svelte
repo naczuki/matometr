@@ -18,6 +18,7 @@
   let hasMore = true;
   let matomes: Matome[] = [];
   let subs: Subscription[] = [];
+  let appendMode = false;
 
   const rawMap = new Map<string, Matome>();
   const nosliCursors = new Map<string, number>();
@@ -48,7 +49,13 @@
     const existing = rawMap.get(key);
     if (!existing || m.createdAt > existing.createdAt) {
       rawMap.set(key, m);
-      matomes = [...rawMap.values()].sort((a, b) => b.createdAt - a.createdAt);
+      if (!appendMode) {
+        matomes = [...rawMap.values()].sort((a, b) => b.createdAt - a.createdAt);
+      } else if (!existing) {
+        matomes = [...matomes, m];
+      } else {
+        matomes = matomes.map((x) => (`${x.pubkey}:${x.dTag}` === key ? m : x));
+      }
     }
   }
 
@@ -87,7 +94,7 @@
       hasMore = computeHasMore();
     }
 
-    const s1 = fetchMatomeListWithRelay(30).subscribe({
+    const s1 = fetchMatomeListWithRelay(10).subscribe({
       next: ({ matome, relay }) => {
         addMatome(matome);
         pushBuffer(relay, matome.createdAt, matometrBuffer);
@@ -96,7 +103,7 @@
       error: done
     });
 
-    const s2 = fetchNosliListWithRelay(30).subscribe({
+    const s2 = fetchNosliListWithRelay(10).subscribe({
       next: ({ matome, relay }) => {
         addMatome(matome);
         pushBuffer(relay, matome.createdAt, nosliBuffer);
@@ -111,6 +118,7 @@
   function loadMore(): void {
     if (loadingMore || !hasMore) return;
     loadingMore = true;
+    appendMode = true;
 
     const activeNosli = RELAYS.filter((r) => !exhaustedNosli.has(r));
     const activeMatometr = RELAYS.filter((r) => !exhaustedMatometr.has(r));
@@ -142,7 +150,7 @@
       const cursor = nosliCursors.get(relay);
       const until = cursor !== undefined ? cursor - 1 : undefined;
       const buf: number[] = [];
-      const sub = fetchNosliListWithRelay(30, until, [relay]).subscribe({
+      const sub = fetchNosliListWithRelay(10, until, [relay]).subscribe({
         next: ({ matome, relay: r }) => {
           addMatome(matome);
           buf.push(matome.createdAt);
@@ -162,7 +170,7 @@
       const cursor = matometrCursors.get(relay);
       const until = cursor !== undefined ? cursor - 1 : undefined;
       const buf: number[] = [];
-      const sub = fetchMatomeListWithRelay(30, until, [relay]).subscribe({
+      const sub = fetchMatomeListWithRelay(10, until, [relay]).subscribe({
         next: ({ matome, relay: r }) => {
           addMatome(matome);
           buf.push(matome.createdAt);
