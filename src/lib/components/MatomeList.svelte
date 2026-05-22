@@ -203,7 +203,7 @@
     <div class="state-text">まだまとめがありません</div>
   </div>
 {:else}
-  <div class="grid">
+  <div class="matome-grid">
     {#each items as matome (matome.id)}
       <MatomeCard {matome} />
     {/each}
@@ -218,7 +218,7 @@
 {/if}
 
 <style>
-  .grid {
+  .matome-grid {
     max-width: 720px;
     margin: 0 auto;
     padding: 16px 20px 48px;
