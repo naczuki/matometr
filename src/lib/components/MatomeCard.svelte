@@ -113,6 +113,7 @@
     color: var(--ink);
     line-height: 1.5;
     margin-bottom: 10px;
+    overflow-wrap: break-word;
   }
 
   .preview {
