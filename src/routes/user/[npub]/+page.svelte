@@ -138,14 +138,14 @@
       <a href="{base}/" class="state-link">トップへ戻る</a>
     </div>
   {:else}
+    {#if isSelf}
+      <div class="page-action-bar">
+        <a href="{base}/new" class="btn-create">＋ まとめを作る</a>
+      </div>
+    {/if}
+
     <!-- プロフィールヘッダー -->
     <div class="profile-header">
-      {#if isSelf}
-        <div class="profile-header-top">
-          <a href="{base}/new" class="btn-create">＋ まとめを作る</a>
-        </div>
-      {/if}
-
       <div class="profile-main">
       <div class="avatar" style="background:{style.bg};color:{style.fg};">
         {#if picture && !imgFailed}
@@ -279,19 +279,19 @@
     padding: 24px 20px 64px;
   }
 
+  .page-action-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+  }
+
   /* プロフィールヘッダー */
   .profile-header {
     display: flex;
     flex-direction: column;
-    padding: 20px 0 24px;
+    padding: 0 0 24px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 24px;
-  }
-
-  .profile-header-top {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 16px;
   }
 
   .profile-main {
