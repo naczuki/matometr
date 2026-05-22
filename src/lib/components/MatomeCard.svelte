@@ -133,6 +133,8 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     margin-bottom: 12px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .footer {
