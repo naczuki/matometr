@@ -18,7 +18,6 @@
   let hasMore = true;
   let matomes: Matome[] = [];
   let subs: Subscription[] = [];
-  let appendMode = false;
 
   const rawMap = new Map<string, Matome>();
   const nosliCursors = new Map<string, number>();
@@ -49,13 +48,7 @@
     const existing = rawMap.get(key);
     if (!existing || m.createdAt > existing.createdAt) {
       rawMap.set(key, m);
-      if (!appendMode) {
-        matomes = [...rawMap.values()].sort((a, b) => b.createdAt - a.createdAt);
-      } else if (!existing) {
-        matomes = [...matomes, m];
-      } else {
-        matomes = matomes.map((x) => (`${x.pubkey}:${x.dTag}` === key ? m : x));
-      }
+      matomes = [...rawMap.values()].sort((a, b) => b.createdAt - a.createdAt);
     }
   }
 
@@ -115,76 +108,96 @@
     subs = [s1, s2];
   });
 
+  const LOAD_MORE_TARGET = 20;
+
   function loadMore(): void {
     if (loadingMore || !hasMore) return;
     loadingMore = true;
-    appendMode = true;
 
-    const activeNosli = RELAYS.filter((r) => !exhaustedNosli.has(r));
-    const activeMatometr = RELAYS.filter((r) => !exhaustedMatometr.has(r));
-    const total = activeNosli.length + activeMatometr.length;
+    const newBatch: Matome[] = [];
+    let loopCount = 0;
 
-    if (total === 0) {
-      hasMore = false;
-      loadingMore = false;
-      return;
-    }
+    function runBatch(): void {
+      const activeNosli = RELAYS.filter((r) => !exhaustedNosli.has(r));
+      const activeMatometr = RELAYS.filter((r) => !exhaustedMatometr.has(r));
+      const total = activeNosli.length + activeMatometr.length;
 
-    let completed = 0;
-    const batchNosli = new Map<string, number>(activeNosli.map((r) => [r, 0]));
-    const batchMatometr = new Map<string, number>(activeMatometr.map((r) => [r, 0]));
-
-    function checkDone(): void {
-      if (++completed < total) return;
-      for (const [r, count] of batchNosli) {
-        if (count === 0) exhaustedNosli.add(r);
+      if (total === 0 || newBatch.length >= LOAD_MORE_TARGET || loopCount >= 10) {
+        const sorted = [...newBatch].sort((a, b) => b.createdAt - a.createdAt);
+        matomes = [...matomes, ...sorted];
+        loadingMore = false;
+        hasMore = computeHasMore();
+        return;
       }
-      for (const [r, count] of batchMatometr) {
-        if (count === 0) exhaustedMatometr.add(r);
+
+      loopCount++;
+      let completed = 0;
+      const batchNosli = new Map<string, number>(activeNosli.map((r) => [r, 0]));
+      const batchMatometr = new Map<string, number>(activeMatometr.map((r) => [r, 0]));
+
+      function checkDone(): void {
+        if (++completed < total) return;
+        for (const [r, count] of batchNosli) {
+          if (count === 0) exhaustedNosli.add(r);
+        }
+        for (const [r, count] of batchMatometr) {
+          if (count === 0) exhaustedMatometr.add(r);
+        }
+        runBatch();
       }
-      loadingMore = false;
-      hasMore = computeHasMore();
+
+      for (const relay of activeNosli) {
+        const cursor = nosliCursors.get(relay);
+        const until = cursor !== undefined ? cursor - 1 : undefined;
+        const buf: number[] = [];
+        const sub = fetchNosliListWithRelay(10, until, [relay]).subscribe({
+          next: ({ matome, relay: r }) => {
+            const key = `${matome.pubkey}:${matome.dTag}`;
+            const existing = rawMap.get(key);
+            if (!existing || matome.createdAt > existing.createdAt) {
+              if (!existing) newBatch.push(matome);
+              rawMap.set(key, matome);
+            }
+            buf.push(matome.createdAt);
+            batchNosli.set(r, (batchNosli.get(r) ?? 0) + 1);
+          },
+          complete: () => {
+            const cursor = computeCursorFromBuffer(buf);
+            if (cursor !== undefined) nosliCursors.set(relay, cursor);
+            checkDone();
+          },
+          error: checkDone
+        });
+        subs = [...subs, sub];
+      }
+
+      for (const relay of activeMatometr) {
+        const cursor = matometrCursors.get(relay);
+        const until = cursor !== undefined ? cursor - 1 : undefined;
+        const buf: number[] = [];
+        const sub = fetchMatomeListWithRelay(10, until, [relay]).subscribe({
+          next: ({ matome, relay: r }) => {
+            const key = `${matome.pubkey}:${matome.dTag}`;
+            const existing = rawMap.get(key);
+            if (!existing || matome.createdAt > existing.createdAt) {
+              if (!existing) newBatch.push(matome);
+              rawMap.set(key, matome);
+            }
+            buf.push(matome.createdAt);
+            batchMatometr.set(r, (batchMatometr.get(r) ?? 0) + 1);
+          },
+          complete: () => {
+            const cursor = computeCursorFromBuffer(buf);
+            if (cursor !== undefined) matometrCursors.set(relay, cursor);
+            checkDone();
+          },
+          error: checkDone
+        });
+        subs = [...subs, sub];
+      }
     }
 
-    for (const relay of activeNosli) {
-      const cursor = nosliCursors.get(relay);
-      const until = cursor !== undefined ? cursor - 1 : undefined;
-      const buf: number[] = [];
-      const sub = fetchNosliListWithRelay(10, until, [relay]).subscribe({
-        next: ({ matome, relay: r }) => {
-          addMatome(matome);
-          buf.push(matome.createdAt);
-          batchNosli.set(r, (batchNosli.get(r) ?? 0) + 1);
-        },
-        complete: () => {
-          const cursor = computeCursorFromBuffer(buf);
-          if (cursor !== undefined) nosliCursors.set(relay, cursor);
-          checkDone();
-        },
-        error: checkDone
-      });
-      subs = [...subs, sub];
-    }
-
-    for (const relay of activeMatometr) {
-      const cursor = matometrCursors.get(relay);
-      const until = cursor !== undefined ? cursor - 1 : undefined;
-      const buf: number[] = [];
-      const sub = fetchMatomeListWithRelay(10, until, [relay]).subscribe({
-        next: ({ matome, relay: r }) => {
-          addMatome(matome);
-          buf.push(matome.createdAt);
-          batchMatometr.set(r, (batchMatometr.get(r) ?? 0) + 1);
-        },
-        complete: () => {
-          const cursor = computeCursorFromBuffer(buf);
-          if (cursor !== undefined) matometrCursors.set(relay, cursor);
-          checkDone();
-        },
-        error: checkDone
-      });
-      subs = [...subs, sub];
-    }
+    runBatch();
   }
 
   onDestroy(() => {
