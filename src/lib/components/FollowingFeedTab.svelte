@@ -8,8 +8,8 @@
     fetchNotesFromAuthors
   } from '$lib/services/NostrClient';
   import { currentUser } from '$lib/stores/auth';
-  import Spinner from '$lib/components/Spinner.svelte';
   import NotePreview from '$lib/components/NotePreview.svelte';
+  import FeedList from '$lib/components/FeedList.svelte';
   import { collectObservable } from '$lib/utils/rxCollect';
   import { neventFor } from '$lib/utils/nostr';
 
@@ -101,74 +101,16 @@
   }
 </script>
 
-{#if initLoading}
-  <div class="state">
-    <Spinner />
-    <div class="state-text">読み込み中…</div>
-  </div>
-{:else if initError}
-  <div class="state">
-    <div class="state-text">{initError}</div>
-  </div>
-{:else if notes.length === 0}
-  <div class="state">
-    <div class="state-text">表示できる投稿がありません</div>
-  </div>
-{:else}
-  <div class="feed">
-    {#each notes as note (note.id)}
-      <NotePreview {note} selected={selectedIds.has(note.id)} onClick={handleClick} />
-    {/each}
-
-    {#if !reachedEnd}
-      <button class="load-more" on:click={loadMore} disabled={loadMoreLoading}>
-        {loadMoreLoading ? '読み込み中…' : 'もっと読み込む'}
-      </button>
-    {/if}
-  </div>
-{/if}
-
-<style>
-  .state {
-    text-align: center;
-    padding: 40px 16px;
-  }
-
-  .state-text {
-    font-size: 13px;
-    color: var(--ink3);
-    font-family: var(--font-ui);
-  }
-
-  .feed {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding-bottom: 16px;
-  }
-
-  .load-more {
-    background: var(--surface);
-    border: 1.5px dashed var(--accent-mid);
-    color: var(--accent-dark);
-    font-family: var(--font-ui);
-    font-weight: 700;
-    font-size: 13px;
-    padding: 10px 20px;
-    border-radius: 999px;
-    cursor: pointer;
-    align-self: center;
-    margin: 8px auto 0;
-    transition: all 0.12s;
-  }
-
-  .load-more:hover:not(:disabled) {
-    border-color: var(--accent);
-    background: var(--accent-pale);
-  }
-
-  .load-more:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-</style>
+<FeedList
+  loading={initLoading}
+  loadingMore={loadMoreLoading}
+  error={initError}
+  empty={notes.length === 0}
+  {reachedEnd}
+  emptyMessage="表示できる投稿がありません"
+  onLoadMore={loadMore}
+>
+  {#each notes as note (note.id)}
+    <NotePreview {note} selected={selectedIds.has(note.id)} onClick={handleClick} />
+  {/each}
+</FeedList>

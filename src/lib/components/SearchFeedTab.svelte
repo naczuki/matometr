@@ -3,8 +3,8 @@
   import type { Subscription } from 'rxjs';
   import type { Note } from '$lib/types';
   import { fetchTagSearch } from '$lib/services/NostrClient';
-  import Spinner from '$lib/components/Spinner.svelte';
   import NotePreview from '$lib/components/NotePreview.svelte';
+  import FeedList from '$lib/components/FeedList.svelte';
   import { neventFor } from '$lib/utils/nostr';
 
   export let selectedIds: Set<string>;
@@ -117,32 +117,20 @@
   {/if}
 </div>
 
-{#if searchLoading}
-  <div class="state">
-    <Spinner />
-    <div class="state-text">検索中…</div>
-  </div>
-{:else if !hasSearched}
-  <div class="state">
-    <div class="state-text">キーワードを入力して検索してください</div>
-  </div>
-{:else if notes.length === 0}
-  <div class="state">
-    <div class="state-text">投稿が見つかりませんでした</div>
-  </div>
-{:else}
-  <div class="feed">
-    {#each notes as note (note.id)}
-      <NotePreview {note} selected={selectedIds.has(note.id)} onClick={handleClick} />
-    {/each}
-
-    {#if !reachedEnd}
-      <button class="load-more" on:click={loadMore} disabled={loadMoreLoading}>
-        {loadMoreLoading ? '読み込み中…' : 'もっと読み込む'}
-      </button>
-    {/if}
-  </div>
-{/if}
+<FeedList
+  loading={searchLoading}
+  loadingMore={loadMoreLoading}
+  error=""
+  empty={!hasSearched || notes.length === 0}
+  {reachedEnd}
+  emptyMessage={!hasSearched ? 'キーワードを入力して検索してください' : '投稿が見つかりませんでした'}
+  loadingMessage="検索中…"
+  onLoadMore={loadMore}
+>
+  {#each notes as note (note.id)}
+    <NotePreview {note} selected={selectedIds.has(note.id)} onClick={handleClick} />
+  {/each}
+</FeedList>
 
 <style>
   .search-area {
@@ -204,46 +192,4 @@
     color: #dc2626;
   }
 
-  .state {
-    text-align: center;
-    padding: 32px 16px;
-  }
-
-  .state-text {
-    font-size: 13px;
-    color: var(--ink3);
-    font-family: var(--font-ui);
-  }
-
-  .feed {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding-bottom: 16px;
-  }
-
-  .load-more {
-    background: var(--surface);
-    border: 1.5px dashed var(--accent-mid);
-    color: var(--accent-dark);
-    font-family: var(--font-ui);
-    font-weight: 700;
-    font-size: 13px;
-    padding: 10px 20px;
-    border-radius: 999px;
-    cursor: pointer;
-    align-self: center;
-    margin: 8px auto 0;
-    transition: all 0.12s;
-  }
-
-  .load-more:hover:not(:disabled) {
-    border-color: var(--accent);
-    background: var(--accent-pale);
-  }
-
-  .load-more:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
 </style>
