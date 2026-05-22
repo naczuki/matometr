@@ -18,12 +18,34 @@ export function fetchMatomeList(limit = 30, until?: number): Observable<Matome> 
 
   return client.use(rxReq).pipe(
     uniq(),
-    tap(({ event, from }) => {
-      const title = event.tags.find(([k]) => k === 'title')?.[1] ?? '(no title)';
-      console.log(`[NostrClient] EVENT | relay: ${from} | id: ${event.id.slice(0, 8)}… | title: ${title}`);
-    }),
     map(({ event }) => Matome.fromEvent(event)),
     filter((m): m is Matome => m !== null)
+  );
+}
+
+export function fetchMatomeListWithRelay(
+  limit = 30,
+  until?: number,
+  relays?: string[]
+): Observable<{ matome: Matome; relay: string }> {
+  const client = getClient();
+  const f = {
+    kinds: [30023],
+    '#t': ['matometr'],
+    limit,
+    ...(until !== undefined ? { until } : {})
+  };
+  const rxReq = createRxOneshotReq({ filters: f });
+  const useOpts =
+    relays && relays.length > 0
+      ? { on: { relays, defaultReadRelays: false } }
+      : undefined;
+  return client.use(rxReq, useOpts).pipe(
+    map(({ event, from }) => {
+      const matome = Matome.fromEvent(event);
+      return matome ? { matome, relay: from } : null;
+    }),
+    filter((r): r is { matome: Matome; relay: string } => r !== null)
   );
 }
 
@@ -261,6 +283,32 @@ export function fetchNosliList(limit = 10, until?: number): Observable<Matome> {
     uniq(),
     map(({ event }) => Matome.fromEvent(event)),
     filter((m): m is Matome => m !== null)
+  );
+}
+
+export function fetchNosliListWithRelay(
+  limit = 30,
+  until?: number,
+  relays?: string[]
+): Observable<{ matome: Matome; relay: string }> {
+  const client = getClient();
+  const f = {
+    kinds: [30023],
+    '#t': ['nosli'],
+    limit,
+    ...(until !== undefined ? { until } : {})
+  };
+  const rxReq = createRxOneshotReq({ filters: f });
+  const useOpts =
+    relays && relays.length > 0
+      ? { on: { relays, defaultReadRelays: false } }
+      : undefined;
+  return client.use(rxReq, useOpts).pipe(
+    map(({ event, from }) => {
+      const matome = Matome.fromEvent(event);
+      return matome ? { matome, relay: from } : null;
+    }),
+    filter((r): r is { matome: Matome; relay: string } => r !== null)
   );
 }
 

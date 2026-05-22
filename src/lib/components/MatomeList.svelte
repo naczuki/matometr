@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import type { Subscription } from 'rxjs';
-  import { fetchMatomeList, fetchNosliList } from '$lib/services/NostrClient';
+  import { fetchMatomeListWithRelay, fetchNosliListWithRelay } from '$lib/services/NostrClient';
   import { Matome } from '$lib/entities/Matome';
   import MatomeCard from '$lib/components/MatomeCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import type { Tab } from '$lib/types';
+  import { DEFAULT_RELAYS } from '$lib/stores/relays';
 
   export let tab: Tab;
 
@@ -16,7 +17,12 @@
   let subs: Subscription[] = [];
 
   const rawMap = new Map<string, Matome>();
-  let pending = 2;
+
+  // Per-relay oldest-seen cursors; absent = relay returned no events yet
+  const nosliCursors = new Map<string, number>();
+  const matometrCursors = new Map<string, number>();
+  const exhaustedNosli = new Set<string>();
+  const exhaustedMatometr = new Set<string>();
 
   function addMatome(m: Matome): void {
     const key = `${m.pubkey}:${m.dTag}`;
@@ -27,44 +33,112 @@
     }
   }
 
-  function onComplete(): void {
-    pending--;
-    if (pending <= 0) loading = false;
+  function updateCursor(relay: string, createdAt: number, cursors: Map<string, number>): void {
+    const cur = cursors.get(relay);
+    if (cur === undefined || createdAt < cur) cursors.set(relay, createdAt);
   }
 
-  function loadMore(): void {
-    if (loadingMore || !hasMore || matomes.length === 0) return;
-    loadingMore = true;
-    const until = Math.min(...matomes.map((m) => m.createdAt)) - 1;
-    const sizeBefore = rawMap.size;
-    let morePending = 2;
-
-    function onMoreComplete(): void {
-      morePending--;
-      if (morePending <= 0) {
-        loadingMore = false;
-        if (rawMap.size === sizeBefore) hasMore = false;
-      }
-    }
-
-    const s1 = fetchMatomeList(30, until).subscribe({
-      next: addMatome,
-      complete: onMoreComplete,
-      error: onMoreComplete
-    });
-    const s2 = fetchNosliList(100, until).subscribe({
-      next: addMatome,
-      complete: onMoreComplete,
-      error: onMoreComplete
-    });
-    subs = [...subs, s1, s2];
+  function computeHasMore(): boolean {
+    return (
+      DEFAULT_RELAYS.some((r) => !exhaustedNosli.has(r)) ||
+      DEFAULT_RELAYS.some((r) => !exhaustedMatometr.has(r))
+    );
   }
 
   onMount(() => {
-    const s1 = fetchMatomeList(30).subscribe({ next: addMatome, complete: onComplete, error: onComplete });
-    const s2 = fetchNosliList(100).subscribe({ next: addMatome, complete: onComplete, error: onComplete });
+    let pending = 2;
+
+    function done(): void {
+      if (--pending > 0) return;
+      for (const r of DEFAULT_RELAYS) {
+        if (!nosliCursors.has(r)) exhaustedNosli.add(r);
+        if (!matometrCursors.has(r)) exhaustedMatometr.add(r);
+      }
+      loading = false;
+      hasMore = computeHasMore();
+    }
+
+    const s1 = fetchMatomeListWithRelay(30).subscribe({
+      next: ({ matome, relay }) => {
+        addMatome(matome);
+        updateCursor(relay, matome.createdAt, matometrCursors);
+      },
+      complete: done,
+      error: done
+    });
+
+    const s2 = fetchNosliListWithRelay(30).subscribe({
+      next: ({ matome, relay }) => {
+        addMatome(matome);
+        updateCursor(relay, matome.createdAt, nosliCursors);
+      },
+      complete: done,
+      error: done
+    });
+
     subs = [s1, s2];
   });
+
+  function loadMore(): void {
+    if (loadingMore || !hasMore) return;
+    loadingMore = true;
+
+    const activeNosli = DEFAULT_RELAYS.filter((r) => !exhaustedNosli.has(r));
+    const activeMatometr = DEFAULT_RELAYS.filter((r) => !exhaustedMatometr.has(r));
+    const total = activeNosli.length + activeMatometr.length;
+
+    if (total === 0) {
+      hasMore = false;
+      loadingMore = false;
+      return;
+    }
+
+    let completed = 0;
+    const batchNosli = new Map<string, number>(activeNosli.map((r) => [r, 0]));
+    const batchMatometr = new Map<string, number>(activeMatometr.map((r) => [r, 0]));
+
+    function checkDone(): void {
+      if (++completed < total) return;
+      for (const [r, count] of batchNosli) {
+        if (count === 0) exhaustedNosli.add(r);
+      }
+      for (const [r, count] of batchMatometr) {
+        if (count === 0) exhaustedMatometr.add(r);
+      }
+      loadingMore = false;
+      hasMore = computeHasMore();
+    }
+
+    for (const relay of activeNosli) {
+      const cursor = nosliCursors.get(relay);
+      const until = cursor !== undefined ? cursor - 1 : undefined;
+      const sub = fetchNosliListWithRelay(30, until, [relay]).subscribe({
+        next: ({ matome, relay: r }) => {
+          addMatome(matome);
+          updateCursor(r, matome.createdAt, nosliCursors);
+          batchNosli.set(r, (batchNosli.get(r) ?? 0) + 1);
+        },
+        complete: checkDone,
+        error: checkDone
+      });
+      subs = [...subs, sub];
+    }
+
+    for (const relay of activeMatometr) {
+      const cursor = matometrCursors.get(relay);
+      const until = cursor !== undefined ? cursor - 1 : undefined;
+      const sub = fetchMatomeListWithRelay(30, until, [relay]).subscribe({
+        next: ({ matome, relay: r }) => {
+          addMatome(matome);
+          updateCursor(r, matome.createdAt, matometrCursors);
+          batchMatometr.set(r, (batchMatometr.get(r) ?? 0) + 1);
+        },
+        complete: checkDone,
+        error: checkDone
+      });
+      subs = [...subs, sub];
+    }
+  }
 
   onDestroy(() => {
     subs.forEach((s) => s.unsubscribe());
