@@ -637,13 +637,13 @@
   }
 
   .cw-pill {
-    background: var(--ink);
-    color: var(--surface);
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
     font-size: 13px;
     font-family: var(--font-ui);
     font-weight: 600;
-    padding: 6px 16px;
-    border-radius: 20px;
+    padding: 6px 18px;
+    border-radius: 9999px;
     max-width: 90%;
     text-align: center;
     word-break: break-word;
@@ -656,8 +656,9 @@
 
   .cw-hint {
     font-size: 11px;
-    color: var(--ink3);
+    color: rgba(255, 255, 255, 0.9);
     font-family: var(--font-ui);
+    font-weight: 700;
   }
 
   .cw-hide-wrap {
