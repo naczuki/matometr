@@ -140,6 +140,13 @@
   {:else}
     <!-- プロフィールヘッダー -->
     <div class="profile-header">
+      {#if isSelf}
+        <div class="profile-header-top">
+          <a href="{base}/new" class="btn-create">＋ まとめを作る</a>
+        </div>
+      {/if}
+
+      <div class="profile-main">
       <div class="avatar" style="background:{style.bg};color:{style.fg};">
         {#if picture && !imgFailed}
           <img src={picture} alt="" on:error={() => (imgFailed = true)} />
@@ -217,10 +224,7 @@
           </div>
         {/if}
       </div>
-
-      {#if isSelf}
-        <a href="{base}/new" class="btn-create">＋ まとめを作る</a>
-      {/if}
+      </div>
     </div>
 
     <!-- まとめ一覧 -->
@@ -278,12 +282,22 @@
   /* プロフィールヘッダー */
   .profile-header {
     display: flex;
-    align-items: flex-start;
-    gap: 16px;
+    flex-direction: column;
     padding: 20px 0 24px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 24px;
-    flex-wrap: wrap;
+  }
+
+  .profile-header-top {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+  }
+
+  .profile-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
   }
 
   .avatar {
@@ -479,7 +493,6 @@
     text-decoration: none;
     flex-shrink: 0;
     transition: background 0.12s;
-    align-self: flex-start;
   }
 
   .btn-create:hover {
