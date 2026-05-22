@@ -3,8 +3,8 @@
   import { base } from '$app/paths';
   import { nip19 } from 'nostr-tools';
   import type { Matome } from '$lib/entities/Matome';
-  import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
+  import Avatar from '$lib/components/Avatar.svelte';
   import { profiles, requestProfile } from '$lib/stores/profiles';
 
   export let matome: Matome;
@@ -18,8 +18,6 @@
   $: displayName = profile?.displayName ?? profile?.name ?? fallbackNpub(matome.pubkey);
   $: picture = profile?.picture ?? null;
 
-  $: style = avatarStyle(matome.pubkey);
-
   $: preview = (() => {
     if (matome.summary) return matome.summary;
     const block = matome.blocks.find((b) => b.type === 'paragraph' || b.type === 'comment');
@@ -28,9 +26,6 @@
 
   $: firstTag = matome.tags[0] ?? '';
   $: elapsed = timeAgo(matome.createdAt);
-
-  let imgFailed = false;
-  $: picture, (imgFailed = false);
 
   function fallbackNpub(pubkey: string): string {
     try {
@@ -43,13 +38,7 @@
 
 <a href="{base}/matome/{matome.naddr}" class="card">
   <div class="author">
-    <div class="avatar" style="background:{style.bg};color:{style.fg};">
-      {#if picture && !imgFailed}
-        <img src={picture} alt="" on:error={() => (imgFailed = true)} />
-      {:else}
-        {style.initial}
-      {/if}
-    </div>
+    <Avatar pubkey={matome.pubkey} {picture} size={28} />
     <span class="author-name">{displayName}</span>
     <span class="time"><span class="time-label">更新</span>{elapsed}</span>
   </div>
@@ -95,27 +84,6 @@
     align-items: center;
     gap: 8px;
     margin-bottom: 12px;
-  }
-
-  .avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-ui);
-    font-size: 12px;
-    font-weight: 700;
-    overflow: hidden;
-  }
-
-  .avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
   }
 
   .author-name {

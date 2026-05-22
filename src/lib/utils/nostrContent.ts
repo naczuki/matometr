@@ -18,6 +18,15 @@ export function isSafeUrl(url: string): boolean {
   return /^https?:\/\//i.test(url);
 }
 
+export function buildEmojiMap(tags: string[][]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const tag of tags) {
+    const [k, shortcode, url] = tag;
+    if (k === 'emoji' && shortcode && url && isSafeUrl(url)) map.set(shortcode, url);
+  }
+  return map;
+}
+
 const IMAGE_RE = /https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:[?#][^\s]*)?/gi;
 const VIDEO_RE = /https?:\/\/[^\s]+\.(?:mp4|webm|mov|m4v)(?:[?#][^\s]*)?/gi;
 

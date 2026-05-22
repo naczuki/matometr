@@ -8,9 +8,9 @@
   import { fetchUserMatomes } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
-  import { avatarStyle } from '$lib/utils/avatar';
   import { shortNpub } from '$lib/utils/nostr';
   import MatomeCard from '$lib/components/MatomeCard.svelte';
+  import Avatar from '$lib/components/Avatar.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import { parseNostrRefs, extractImages } from '$lib/utils/nostrContent';
@@ -66,7 +66,6 @@
   $: profile = $profiles.get(pubkey);
   $: displayName = profile?.displayName ?? profile?.name ?? shortNpub(npubParam);
   $: picture = profile?.picture ?? null;
-  $: style = pubkey ? avatarStyle(pubkey) : { bg: '#e5e5e5', fg: '#737373', initial: '?' };
   $: isSelf = !!$currentUser && !!pubkey && pubkey === $currentUser.pubkey;
 
   $: profileEmojiMap = profile?.emojis
@@ -83,9 +82,6 @@
   function onEmojiError(shortcode: string): void {
     failedEmojis = new Set([...failedEmojis, shortcode]);
   }
-
-  let imgFailed = false;
-  $: picture, (imgFailed = false);
 
   let npubMenuOpen = false;
   let npubMenuX = 0;
@@ -147,13 +143,7 @@
     <!-- プロフィールヘッダー -->
     <div class="profile-header">
       <div class="profile-main">
-      <div class="avatar" style="background:{style.bg};color:{style.fg};">
-        {#if picture && !imgFailed}
-          <img src={picture} alt="" on:error={() => (imgFailed = true)} />
-        {:else}
-          {style.initial}
-        {/if}
-      </div>
+        <Avatar {pubkey} {picture} size={72} />
 
       <div class="profile-info">
         <div class="profile-name">
@@ -298,26 +288,6 @@
     display: flex;
     align-items: flex-start;
     gap: 16px;
-  }
-
-  .avatar {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    font-weight: 700;
-    font-family: var(--font-ui);
-    flex-shrink: 0;
-    overflow: hidden;
-  }
-
-  .avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
   }
 
   .profile-info {
@@ -537,10 +507,10 @@
       gap: 12px;
     }
 
-    .avatar {
-      width: 56px;
-      height: 56px;
-      font-size: 22px;
+    .profile-main :global(.avatar) {
+      width: 56px !important;
+      height: 56px !important;
+      font-size: 22px !important;
     }
 
     .profile-name {

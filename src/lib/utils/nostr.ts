@@ -1,5 +1,6 @@
 import { nip19 } from 'nostr-tools';
 import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
+import type { Note } from '$lib/types';
 
 export function parseNostrInput(raw: string): string | null {
   const m = raw.trim().match(/(nevent1[a-z0-9]+|note1[a-z0-9]+)/);
@@ -38,4 +39,16 @@ export function shortNpubFromPubkey(pubkey: string): string {
 export function shortNpub(npub: string | undefined): string {
   if (!npub) return '…';
   return npub.slice(0, 8) + '…' + npub.slice(-4);
+}
+
+export function neventFor(note: Note, relays: string[] = []): string {
+  try {
+    return `nostr:${nip19.neventEncode({
+      id: note.id,
+      author: note.pubkey,
+      relays: relays.length > 0 ? relays.slice(0, 1) : undefined
+    })}`;
+  } catch {
+    return `nostr:${nip19.noteEncode(note.id)}`;
+  }
 }
