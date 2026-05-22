@@ -640,11 +640,13 @@
     background: rgba(0, 0, 0, 0.45);
     color: #fff;
     font-size: 13px;
+    line-height: 1.5;
     font-family: var(--font-ui);
     font-weight: 600;
     padding: 6px 18px;
     border-radius: 9999px;
     max-width: 90%;
+    max-height: calc(1.5em * 3 + 12px);
     text-align: center;
     word-break: break-word;
     display: -webkit-box;
