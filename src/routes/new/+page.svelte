@@ -8,6 +8,7 @@
   import { currentUser } from '$lib/stores/auth';
   import { publishMatome, fetchMatomeByAddress } from '$lib/services/NostrClient';
   import BlockEditor from '$lib/components/BlockEditor.svelte';
+  import AnnounceModal from '$lib/components/AnnounceModal.svelte';
   import type { EditorBlock, MatomeBlock } from '$lib/types';
 
   let title = '';
@@ -20,6 +21,8 @@
 
   let publishing = false;
   let publishError = '';
+  let pendingNaddr = '';
+  let showAnnounceModal = false;
 
   onMount(() => {
     const from = $page.url.searchParams.get('from');
@@ -67,12 +70,17 @@
     publishError = '';
     try {
       const naddr = await publishMatome({ title: title.trim(), summary: summary.trim(), blocks });
-      await goto(`${base}/matome/${naddr}`);
+      pendingNaddr = naddr;
+      showAnnounceModal = true;
     } catch (e) {
       publishError = e instanceof Error ? e.message : '公開に失敗しました';
-    } finally {
       publishing = false;
     }
+  }
+
+  async function onAnnounceDone(): Promise<void> {
+    showAnnounceModal = false;
+    await goto(`${base}/matome/${pendingNaddr}`);
   }
 </script>
 
@@ -133,6 +141,10 @@
       </button>
     </div>
   </div>
+{/if}
+
+{#if showAnnounceModal}
+  <AnnounceModal naddr={pendingNaddr} {title} isUpdate={false} on:done={onAnnounceDone} />
 {/if}
 
 <style>
