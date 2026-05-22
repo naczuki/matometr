@@ -52,7 +52,7 @@
       complete: onMoreComplete,
       error: onMoreComplete
     });
-    const s2 = fetchNosliList(10, until).subscribe({
+    const s2 = fetchNosliList(30, until).subscribe({
       next: addMatome,
       complete: onMoreComplete,
       error: onMoreComplete
@@ -61,8 +61,8 @@
   }
 
   onMount(() => {
-    const s1 = fetchMatomeList().subscribe({ next: addMatome, complete: onComplete, error: onComplete });
-    const s2 = fetchNosliList().subscribe({ next: addMatome, complete: onComplete, error: onComplete });
+    const s1 = fetchMatomeList(30).subscribe({ next: addMatome, complete: onComplete, error: onComplete });
+    const s2 = fetchNosliList(30).subscribe({ next: addMatome, complete: onComplete, error: onComplete });
     subs = [s1, s2];
   });
 
