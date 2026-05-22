@@ -22,12 +22,46 @@
 
   const verb = isUpdate ? '更新' : '作成';
   const matomeUrl = `https://naczuki.github.io/matometr/matome/${naddr}`;
-  const defaultText = `まとめ「${title}」を${verb}しました！\n${matomeUrl}\nnostr:${naddrWithRelays}\n#まとめたー`;
+  const naddrLine = `nostr:${naddrWithRelays}`;
+  const defaultBody = `まとめ「${title}」を${verb}しました！\n#まとめたー`;
 
   let step: 1 | 2 = 1;
-  let text = defaultText;
+  let body = defaultBody;
+  let includeUrl = true;
+  let includeNaddr = true;
+  let text = buildText(body, includeUrl, includeNaddr);
   let posting = false;
   let postError = '';
+
+  function buildText(b: string, url: boolean, na: boolean): string {
+    const parts = [b];
+    if (url) parts.push(matomeUrl);
+    if (na) parts.push(naddrLine);
+    return parts.join('\n');
+  }
+
+  function extractBody(full: string): string {
+    let result = full;
+    if (includeNaddr && result.endsWith('\n' + naddrLine))
+      result = result.slice(0, -('\n' + naddrLine).length);
+    if (includeUrl && result.endsWith('\n' + matomeUrl))
+      result = result.slice(0, -('\n' + matomeUrl).length);
+    return result;
+  }
+
+  function onTextInput(e: Event): void {
+    const val = (e.target as HTMLTextAreaElement).value;
+    text = val;
+    body = extractBody(val);
+  }
+
+  function onUrlChange(): void {
+    text = buildText(body, includeUrl, includeNaddr);
+  }
+
+  function onNaddrChange(): void {
+    text = buildText(body, includeUrl, includeNaddr);
+  }
 
   async function handlePost(): Promise<void> {
     if (posting) return;
@@ -58,22 +92,33 @@
   <div class="modal">
     {#if step === 1}
       <p class="modal-msg">Nostrにお知らせを投稿しますか？</p>
-      <div class="modal-btns">
-        <button class="btn-cancel" on:click={handleNo}>いいえ</button>
+      <div class="modal-btns modal-btns--center">
         <button class="btn-publish" on:click={() => (step = 2)}>はい</button>
+        <button class="btn-cancel" on:click={handleNo}>いいえ</button>
       </div>
     {:else}
       <label class="field-label" for="announce-text">投稿テキスト</label>
       <textarea
         id="announce-text"
         class="announce-textarea"
-        bind:value={text}
-        rows={6}
+        value={text}
+        on:input={onTextInput}
+        rows={7}
       ></textarea>
+      <div class="checkbox-row">
+        <label class="checkbox-label">
+          <input type="checkbox" bind:checked={includeUrl} on:change={onUrlChange} />
+          URLを含める
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" bind:checked={includeNaddr} on:change={onNaddrChange} />
+          naddrを含める
+        </label>
+      </div>
       {#if postError}
         <p class="post-error">{postError}</p>
       {/if}
-      <div class="modal-btns">
+      <div class="modal-btns modal-btns--end">
         <button class="btn-cancel" on:click={handleCancel} disabled={posting}>キャンセル</button>
         <button class="btn-publish" on:click={handlePost} disabled={posting || !text.trim()}>
           {posting ? '投稿中…' : '投稿'}
@@ -130,20 +175,44 @@
     border: 1.5px solid var(--border2);
     border-radius: 10px;
     padding: 10px 12px;
-    font-size: 14px;
+    font-size: 13px;
     color: var(--ink);
     background: var(--bg);
     font-family: var(--font-body);
     box-sizing: border-box;
     resize: vertical;
     transition: border-color 0.12s;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     line-height: 1.7;
   }
 
   .announce-textarea:focus {
     outline: none;
     border-color: var(--accent);
+  }
+
+  .checkbox-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--ink2);
+    font-family: var(--font-ui);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .checkbox-label input[type='checkbox'] {
+    accent-color: var(--accent);
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
   }
 
   .post-error {
@@ -158,8 +227,15 @@
 
   .modal-btns {
     display: flex;
-    justify-content: flex-end;
     gap: 10px;
+  }
+
+  .modal-btns--center {
+    justify-content: center;
+  }
+
+  .modal-btns--end {
+    justify-content: flex-end;
   }
 
   .btn-cancel {
