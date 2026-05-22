@@ -276,7 +276,7 @@
   .page {
     max-width: 720px;
     margin: 0 auto;
-    padding: 24px 20px 64px;
+    padding: 20px 20px 64px;
   }
 
   .page-action-bar {
