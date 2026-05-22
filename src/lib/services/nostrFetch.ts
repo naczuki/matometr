@@ -259,6 +259,12 @@ export function fetchNosliList(limit = 10, until?: number): Observable<Matome> {
 
   return client.use(rxReq).pipe(
     uniq(),
+    tap(({ event, from }) => {
+      const dTag = event.tags.find(([k]) => k === 'd')?.[1] ?? '?';
+      const title = event.tags.find(([k]) => k === 'title')?.[1] ?? '(no title)';
+      const date = new Date(event.created_at * 1000).toISOString().slice(0, 10);
+      console.log(`[nosli] ${date} | relay: ${from} | d: ${dTag} | ${title}`);
+    }),
     map(({ event }) => Matome.fromEvent(event)),
     filter((m): m is Matome => m !== null)
   );
