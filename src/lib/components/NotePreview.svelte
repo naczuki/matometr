@@ -3,7 +3,7 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
-  import { extractImages, parseNostrRefs, isSafeUrl } from '$lib/utils/nostrContent';
+  import { extractImages, parseNostrRefs, buildEmojiMap } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey } from '$lib/utils/nostr';
 
   export let note: Note;
@@ -16,19 +16,11 @@
   $: picture = profile?.picture;
   $: author = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(note.pubkey);
   $: parsed = extractImages(note.content);
-  $: emojiMap = buildEmojiMap(note);
+  $: emojiMap = buildEmojiMap(note.tags);
   $: segments = parseNostrRefs(parsed.text, emojiMap);
 
   function truncateName(name: string, max = 30): string {
     return name.length > max ? name.slice(0, max) + '…' : name;
-  }
-
-  function buildEmojiMap(n: Note): Map<string, string> {
-    const m = new Map<string, string>();
-    for (const tag of n.tags) {
-      if (tag[0] === 'emoji' && tag[1] && tag[2] && isSafeUrl(tag[2])) m.set(tag[1], tag[2]);
-    }
-    return m;
   }
 
   function hideOnError(e: Event): void {

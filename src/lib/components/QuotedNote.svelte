@@ -6,7 +6,7 @@
   import { fetchNoteById } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
-  import { parseNostrRefs, resolveTagRefs, isSafeUrl } from '$lib/utils/nostrContent';
+  import { parseNostrRefs, extractImages, resolveTagRefs, buildEmojiMap } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey } from '$lib/utils/nostr';
   import { timeAgo } from '$lib/utils/time';
 
@@ -42,29 +42,15 @@
   let picFailed = false;
   $: picture, (picFailed = false);
 
-  // 画像URLは除去（引用カードでは画像表示しない）
-  function stripImages(content: string): string {
-    const IMAGE_RE = /https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:[?#][^\s]*)?/gi;
-    const VIDEO_RE = /https?:\/\/[^\s]+\.(?:mp4|webm|mov|m4v)(?:[?#][^\s]*)?/gi;
-    return content.replace(VIDEO_RE, '').replace(IMAGE_RE, '').replace(/\n{3,}/g, '\n\n').trim();
-  }
-
-  $: emojiMap = (() => {
-    const map = new Map<string, string>();
-    if (!note) return map;
-    for (const tag of note.tags) {
-      const [k, shortcode, url] = tag;
-      if (k === 'emoji' && shortcode && url && isSafeUrl(url)) map.set(shortcode, url);
-    }
-    return map;
-  })();
+  $: emojiMap = note ? buildEmojiMap(note.tags) : new Map<string, string>();
 
   let failedEmojis: Set<string> = new Set();
   function onEmojiError(shortcode: string): void {
     failedEmojis = new Set([...failedEmojis, shortcode]);
   }
 
-  $: segments = note ? parseNostrRefs(stripImages(resolveTagRefs(note.content, note.tags)), emojiMap) : [];
+  // 画像URLは除去（引用カードでは画像表示しない）
+  $: segments = note ? parseNostrRefs(extractImages(resolveTagRefs(note.content, note.tags)).text, emojiMap) : [];
 
   $: for (const seg of segments) {
     if (seg.type === 'mention') requestProfile(seg.pubkey);

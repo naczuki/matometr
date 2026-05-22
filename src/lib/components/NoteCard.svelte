@@ -7,7 +7,7 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { avatarStyle } from '$lib/utils/avatar';
   import { timeAgo } from '$lib/utils/time';
-  import { parseNostrRefs, extractImages, resolveTagRefs, isSafeUrl } from '$lib/utils/nostrContent';
+  import { parseNostrRefs, extractImages, resolveTagRefs, buildEmojiMap } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey } from '$lib/utils/nostr';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
 
@@ -68,15 +68,7 @@
     return name.length > max ? name.slice(0, max) + '…' : name;
   }
 
-  $: emojiMap = (() => {
-    const map = new Map<string, string>();
-    if (!note) return map;
-    for (const tag of note.tags) {
-      const [k, shortcode, url] = tag;
-      if (k === 'emoji' && shortcode && url && isSafeUrl(url)) map.set(shortcode, url);
-    }
-    return map;
-  })();
+  $: emojiMap = note ? buildEmojiMap(note.tags) : new Map<string, string>();
 
   $: parsedContent = note ? extractImages(resolveTagRefs(note.content, note.tags)) : { text: '', urls: [], videoUrls: [] };
   $: segments = parseNostrRefs(parsedContent.text, emojiMap);

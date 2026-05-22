@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { nip19 } from 'nostr-tools';
   import type { Subscription } from 'rxjs';
   import type { Note } from '$lib/types';
   import { fetchTagSearch } from '$lib/services/NostrClient';
   import Spinner from '$lib/components/Spinner.svelte';
   import NotePreview from '$lib/components/NotePreview.svelte';
+  import { neventFor } from '$lib/utils/nostr';
 
   export let selectedIds: Set<string>;
   export let onToggle: (eventId: string, nevent: string) => void;
@@ -93,10 +93,6 @@
   }
 
   onDestroy(() => activeSub?.unsubscribe());
-
-  function neventFor(note: Note): string {
-    return `nostr:${nip19.neventEncode({ id: note.id, author: note.pubkey })}`;
-  }
 
   function handleClick(note: Note): void {
     onToggle(note.id, neventFor(note));
