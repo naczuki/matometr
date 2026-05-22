@@ -8,6 +8,10 @@
   import type { Tab } from '$lib/types';
   import { DEFAULT_RELAYS } from '$lib/stores/relays';
 
+  // rx-nostr の EventPacket.from はスラッシュなしで返るため、
+  // Map/Set キーと per-relay fetch 引数を統一するために正規化する
+  const RELAYS: string[] = DEFAULT_RELAYS.map((r) => r.replace(/\/$/, ''));
+
   export let tab: Tab;
 
   let loading = true;
@@ -40,8 +44,8 @@
 
   function computeHasMore(): boolean {
     return (
-      DEFAULT_RELAYS.some((r) => !exhaustedNosli.has(r)) ||
-      DEFAULT_RELAYS.some((r) => !exhaustedMatometr.has(r))
+      RELAYS.some((r) => !exhaustedNosli.has(r)) ||
+      RELAYS.some((r) => !exhaustedMatometr.has(r))
     );
   }
 
@@ -50,7 +54,7 @@
 
     function done(): void {
       if (--pending > 0) return;
-      for (const r of DEFAULT_RELAYS) {
+      for (const r of RELAYS) {
         if (!nosliCursors.has(r)) exhaustedNosli.add(r);
         if (!matometrCursors.has(r)) exhaustedMatometr.add(r);
       }
@@ -83,8 +87,8 @@
     if (loadingMore || !hasMore) return;
     loadingMore = true;
 
-    const activeNosli = DEFAULT_RELAYS.filter((r) => !exhaustedNosli.has(r));
-    const activeMatometr = DEFAULT_RELAYS.filter((r) => !exhaustedMatometr.has(r));
+    const activeNosli = RELAYS.filter((r) => !exhaustedNosli.has(r));
+    const activeMatometr = RELAYS.filter((r) => !exhaustedMatometr.has(r));
     const total = activeNosli.length + activeMatometr.length;
 
     if (total === 0) {
