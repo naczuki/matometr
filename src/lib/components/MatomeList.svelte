@@ -60,7 +60,6 @@
   }
 
   onMount(() => {
-    console.log('[ML] RELAYS:', RELAYS);
     let pending = 2;
     const nosliBuffer = new Map<string, number[]>();
     const matometrBuffer = new Map<string, number[]>();
@@ -80,18 +79,10 @@
         const cursor = computeCursorFromBuffer(ts);
         if (cursor !== undefined) matometrCursors.set(relay, cursor);
       }
-      console.log('[ML] nosliCursors:', Object.fromEntries(
-        [...nosliCursors].map(([r, t]) => [r, new Date(t * 1000).toISOString()])
-      ));
-      console.log('[ML] matometrCursors:', Object.fromEntries(
-        [...matometrCursors].map(([r, t]) => [r, new Date(t * 1000).toISOString()])
-      ));
       for (const r of RELAYS) {
         if (!nosliCursors.has(r)) exhaustedNosli.add(r);
         if (!matometrCursors.has(r)) exhaustedMatometr.add(r);
       }
-      console.log('[ML] exhaustedNosli:', [...exhaustedNosli]);
-      console.log('[ML] exhaustedMatometr:', [...exhaustedMatometr]);
       loading = false;
       hasMore = computeHasMore();
     }
@@ -125,8 +116,6 @@
     const activeMatometr = RELAYS.filter((r) => !exhaustedMatometr.has(r));
     const total = activeNosli.length + activeMatometr.length;
 
-    console.log('[ML] loadMore | activeNosli:', activeNosli, '| activeMatometr:', activeMatometr);
-
     if (total === 0) {
       hasMore = false;
       loadingMore = false;
@@ -139,14 +128,12 @@
 
     function checkDone(): void {
       if (++completed < total) return;
-      console.log('[ML] loadMore done | batchNosli:', Object.fromEntries(batchNosli));
       for (const [r, count] of batchNosli) {
         if (count === 0) exhaustedNosli.add(r);
       }
       for (const [r, count] of batchMatometr) {
         if (count === 0) exhaustedMatometr.add(r);
       }
-      console.log('[ML] exhaustedNosli:', [...exhaustedNosli]);
       loadingMore = false;
       hasMore = computeHasMore();
     }
@@ -154,7 +141,6 @@
     for (const relay of activeNosli) {
       const cursor = nosliCursors.get(relay);
       const until = cursor !== undefined ? cursor - 1 : undefined;
-      console.log(`[ML] nosli REQ → ${relay} | until=${until ? new Date(until * 1000).toISOString() : 'none'}`);
       const buf: number[] = [];
       const sub = fetchNosliListWithRelay(30, until, [relay]).subscribe({
         next: ({ matome, relay: r }) => {
@@ -175,7 +161,6 @@
     for (const relay of activeMatometr) {
       const cursor = matometrCursors.get(relay);
       const until = cursor !== undefined ? cursor - 1 : undefined;
-      console.log(`[ML] matometr REQ → ${relay} | until=${until ? new Date(until * 1000).toISOString() : 'none'}`);
       const buf: number[] = [];
       const sub = fetchMatomeListWithRelay(30, until, [relay]).subscribe({
         next: ({ matome, relay: r }) => {
