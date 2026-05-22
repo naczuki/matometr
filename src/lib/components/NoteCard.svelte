@@ -106,6 +106,15 @@
     if (seg.type === 'mention') requestProfile(seg.pubkey);
   }
 
+  $: cwReason = (() => {
+    if (!note) return null;
+    const tag = note.tags.find(t => t[0] === 'content-warning');
+    if (!tag) return null;
+    return tag[1] ?? '';
+  })();
+  $: hasCw = cwReason !== null;
+  let cwRevealed = false;
+
   let failedImages: Set<string> = new Set();
   let failedVideos: Set<string> = new Set();
   let failedEmojis: Set<string> = new Set();
@@ -190,94 +199,113 @@
         {timeAgo(note.createdAt)}<svg class="note-time-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
       </span>
     </div>
-    <div class="note-content">
-      {#each segments as segment}
-        {#if segment.type === 'text'}
-          <span class="text-seg">{segment.content}</span>
-        {:else if segment.type === 'mention'}
-          {@const mp = $profiles.get(segment.pubkey)}
-          <a
-            class="mention-link"
-            href="{base}/user/{nip19.npubEncode(segment.pubkey)}"
-          >@{truncateName(mp?.displayName ?? mp?.name ?? shortNpubFromPubkey(segment.pubkey))}</a>
-        {:else if segment.type === 'quote'}
-          <QuotedNote eventId={segment.eventId} />
-        {:else if segment.type === 'naddr'}
-          <a
-            class="naddr-link"
-            href="https://njump.me/{segment.naddr}"
-            target="_blank"
-            rel="noopener noreferrer"
-          >nostr:{shortenNaddr(segment.naddr)}</a>
-        {:else if segment.type === 'url'}
-          <a
-            class="url-link"
-            href={segment.url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >{segment.url}</a>
-        {:else if segment.type === 'emoji'}
-          {#if failedEmojis.has(segment.shortcode)}
-            :{segment.shortcode}:
-          {:else}
-            <img
-              src={segment.url}
-              alt=":{segment.shortcode}:"
-              class="emoji-img"
-              loading="lazy"
-              on:error={() => onEmojiError(segment.shortcode)}
-            />
-          {/if}
-        {/if}
-      {/each}
-    </div>
-    {#if parsedContent.videoUrls.length > 0}
-      <div class="note-videos">
-        {#each parsedContent.videoUrls as url}
-          {#if failedVideos.has(url)}
-            <div class="img-error">
-              <span>🎬 動画を読み込めませんでした</span>
-              <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
-            </div>
-          {:else}
-            <div class="media-wrap video-wrap">
-              <!-- svelte-ignore a11y-media-has-caption -->
-              <video
-                src={`${url}#t=0.1`}
-                controls
-                preload="metadata"
-                playsinline
-                poster={imetaMap.get(url)}
-                class="note-video"
-                on:error={() => onVideoError(url)}
-              ></video>
-            </div>
-          {/if}
-        {/each}
-      </div>
-    {/if}
-    {#if parsedContent.urls.length > 0}
-      <div class="note-images" class:multi={parsedContent.urls.length > 1}>
-        {#each parsedContent.urls as url}
-          {#if failedImages.has(url)}
-            <div class="img-error">
-              <span>🖼 画像を読み込めませんでした</span>
-              <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
-            </div>
-          {:else}
-            <div class="media-wrap">
-              <a href={url} target="_blank" rel="noopener noreferrer" class="img-link">
+    <div class="cw-wrap">
+      <div class="note-body" class:cw-blurred={hasCw && !cwRevealed}>
+        <div class="note-content">
+          {#each segments as segment}
+            {#if segment.type === 'text'}
+              <span class="text-seg">{segment.content}</span>
+            {:else if segment.type === 'mention'}
+              {@const mp = $profiles.get(segment.pubkey)}
+              <a
+                class="mention-link"
+                href="{base}/user/{nip19.npubEncode(segment.pubkey)}"
+              >@{truncateName(mp?.displayName ?? mp?.name ?? shortNpubFromPubkey(segment.pubkey))}</a>
+            {:else if segment.type === 'quote'}
+              <QuotedNote eventId={segment.eventId} />
+            {:else if segment.type === 'naddr'}
+              <a
+                class="naddr-link"
+                href="https://njump.me/{segment.naddr}"
+                target="_blank"
+                rel="noopener noreferrer"
+              >nostr:{shortenNaddr(segment.naddr)}</a>
+            {:else if segment.type === 'url'}
+              <a
+                class="url-link"
+                href={segment.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >{segment.url}</a>
+            {:else if segment.type === 'emoji'}
+              {#if failedEmojis.has(segment.shortcode)}
+                :{segment.shortcode}:
+              {:else}
                 <img
-                  src={url}
-                  alt=""
-                  class="note-img"
+                  src={segment.url}
+                  alt=":{segment.shortcode}:"
+                  class="emoji-img"
                   loading="lazy"
-                  on:error={() => onImgError(url)}
+                  on:error={() => onEmojiError(segment.shortcode)}
                 />
-              </a>
-            </div>
-          {/if}
-        {/each}
+              {/if}
+            {/if}
+          {/each}
+        </div>
+        {#if parsedContent.videoUrls.length > 0}
+          <div class="note-videos">
+            {#each parsedContent.videoUrls as url}
+              {#if failedVideos.has(url)}
+                <div class="img-error">
+                  <span>🎬 動画を読み込めませんでした</span>
+                  <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+                </div>
+              {:else}
+                <div class="media-wrap video-wrap">
+                  <!-- svelte-ignore a11y-media-has-caption -->
+                  <video
+                    src={`${url}#t=0.1`}
+                    controls
+                    preload="metadata"
+                    playsinline
+                    poster={imetaMap.get(url)}
+                    class="note-video"
+                    on:error={() => onVideoError(url)}
+                  ></video>
+                </div>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+        {#if parsedContent.urls.length > 0}
+          <div class="note-images" class:multi={parsedContent.urls.length > 1}>
+            {#each parsedContent.urls as url}
+              {#if failedImages.has(url)}
+                <div class="img-error">
+                  <span>🖼 画像を読み込めませんでした</span>
+                  <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+                </div>
+              {:else}
+                <div class="media-wrap">
+                  <a href={url} target="_blank" rel="noopener noreferrer" class="img-link">
+                    <img
+                      src={url}
+                      alt=""
+                      class="note-img"
+                      loading="lazy"
+                      on:error={() => onImgError(url)}
+                    />
+                  </a>
+                </div>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+      </div>
+
+      {#if hasCw && !cwRevealed}
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div class="cw-overlay" on:click={() => (cwRevealed = true)}>
+          <div class="cw-pill">⚠️{cwReason ? ' ' + cwReason : ''}</div>
+          <div class="cw-hint">タップして表示</div>
+        </div>
+      {/if}
+    </div>
+
+    {#if hasCw && cwRevealed}
+      <div class="cw-hide-wrap">
+        <button class="cw-hide-btn" on:click={() => (cwRevealed = false)}>隠す</button>
       </div>
     {/if}
   {/if}
@@ -529,10 +557,12 @@
   }
 
   .note-img {
-    width: 100%;
+    max-height: 400px;
+    width: auto;
     height: auto;
-    object-fit: contain;
+    max-width: 100%;
     display: block;
+    margin: 0 auto;
   }
 
   .note-video {
@@ -562,6 +592,90 @@
     width: auto;
     vertical-align: middle;
     display: inline;
+  }
+
+  /* NIP-36 content-warning */
+  .cw-wrap {
+    position: relative;
+  }
+
+  .note-body .note-content,
+  .note-body .note-images,
+  .note-body .note-videos {
+    transition: filter 0.2s;
+  }
+
+  .note-body.cw-blurred {
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .note-body.cw-blurred .note-content {
+    filter: blur(4px);
+  }
+
+  .note-body.cw-blurred .note-images,
+  .note-body.cw-blurred .note-videos {
+    filter: blur(30px);
+  }
+
+  .note-body.cw-blurred .note-img,
+  .note-body.cw-blurred .note-video {
+    transform: scale(1.08);
+  }
+
+  .cw-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    z-index: 1;
+  }
+
+  .cw-pill {
+    background: var(--ink);
+    color: var(--surface);
+    font-size: 13px;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 20px;
+    max-width: 90%;
+    text-align: center;
+    word-break: break-word;
+  }
+
+  .cw-hint {
+    font-size: 11px;
+    color: var(--ink3);
+    font-family: var(--font-ui);
+  }
+
+  .cw-hide-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+  }
+
+  .cw-hide-btn {
+    background: var(--bg);
+    border: 1.5px solid var(--border2);
+    border-radius: 20px;
+    padding: 9px 28px;
+    font-size: 14px;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    color: var(--ink2);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+
+  .cw-hide-btn:hover {
+    background: var(--accent-pale);
   }
 
   .img-error {
