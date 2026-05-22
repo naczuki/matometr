@@ -297,7 +297,7 @@
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div class="cw-overlay" on:click={() => (cwRevealed = true)}>
-          <div class="cw-pill">⚠️{cwReason ? ' ' + cwReason : ''}</div>
+          <div class="cw-pill"><span class="cw-pill-text">⚠️{cwReason ? ' ' + cwReason : ''}</span></div>
           <div class="cw-hint">タップして表示</div>
         </div>
       {/if}
@@ -638,22 +638,26 @@
 
   .cw-pill {
     background: rgba(0, 0, 0, 0.45);
-    color: #fff;
-    font-size: 13px;
-    line-height: 1.5;
-    font-family: var(--font-ui);
-    font-weight: 600;
     padding: 6px 18px;
     border-radius: 9999px;
     max-width: 90%;
-    max-height: calc(1.5em * 3 + 12px);
-    text-align: center;
-    word-break: break-word;
+    overflow: hidden;
+  }
+
+  .cw-pill-text {
     display: -webkit-box;
     -webkit-line-clamp: 3;
     line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    max-height: calc(1.5em * 3);
+    color: #fff;
+    font-size: 13px;
+    line-height: 1.5;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    text-align: center;
+    word-break: break-word;
   }
 
   .cw-hint {
