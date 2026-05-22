@@ -57,7 +57,11 @@
     return () => sub?.unsubscribe();
   });
 
-  onDestroy(() => sub?.unsubscribe());
+  onDestroy(() => {
+    sub?.unsubscribe();
+    removeNpubDocListener?.();
+    if (toastTimer) clearTimeout(toastTimer);
+  });
 
   $: profile = $profiles.get(pubkey);
   $: displayName = profile?.displayName ?? profile?.name ?? shortNpub(npubParam);
@@ -82,6 +86,38 @@
 
   let imgFailed = false;
   $: picture, (imgFailed = false);
+
+  let npubMenuOpen = false;
+  let npubMenuX = 0;
+  let npubMenuY = 0;
+  let copyToast = false;
+  let toastTimer: ReturnType<typeof setTimeout> | null = null;
+  let removeNpubDocListener: (() => void) | null = null;
+
+  function openNpubMenu(e: MouseEvent): void {
+    e.stopPropagation();
+    const MENU_W = 175;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    let x = rect.right - MENU_W;
+    if (x < 8) x = 8;
+    npubMenuX = x;
+    npubMenuY = rect.bottom + 6;
+    npubMenuOpen = true;
+    const handler = (): void => { npubMenuOpen = false; removeNpubDocListener = null; };
+    document.addEventListener('click', handler, { once: true });
+    removeNpubDocListener = () => document.removeEventListener('click', handler);
+  }
+
+  async function copyNpub(): Promise<void> {
+    if (!pubkey) return;
+    npubMenuOpen = false;
+    try {
+      await navigator.clipboard.writeText(nip19.npubEncode(pubkey));
+      copyToast = true;
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { copyToast = false; }, 2000);
+    } catch { /* clipboard API 利用不可 */ }
+  }
 
   function hideBioImg(e: Event): void {
     (e.currentTarget as HTMLImageElement).style.display = 'none';
@@ -114,19 +150,43 @@
 
       <div class="profile-info">
         <div class="profile-name">
-          {#each displayNameSegments as seg}
-            {#if seg.type === 'text'}{seg.content}
-            {:else if seg.type === 'emoji'}
-              {#if failedEmojis.has(seg.shortcode)}:{seg.shortcode}:
-              {:else}<img src={seg.url} alt=":{seg.shortcode}:" class="emoji-img" loading="lazy" on:error={() => onEmojiError(seg.shortcode)} />
+          <span class="name-wrapper">
+            {#each displayNameSegments as seg}
+              {#if seg.type === 'text'}{seg.content}
+              {:else if seg.type === 'emoji'}
+                {#if failedEmojis.has(seg.shortcode)}:{seg.shortcode}:
+                {:else}<img src={seg.url} alt=":{seg.shortcode}:" class="emoji-img" loading="lazy" on:error={() => onEmojiError(seg.shortcode)} />
+                {/if}
               {/if}
+            {/each}
+            {#if pubkey}
+              <a
+                class="name-ext-link"
+                href="https://nostter.app/{npubParam}"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="nostterで開く"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                  <polyline points="15 3 21 3 21 9"/>
+                  <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+              </a>
             {/if}
-          {/each}
+          </span>
         </div>
         {#if profile?.nip05}
           <div class="profile-nip05">{profile.nip05}</div>
         {/if}
-        <div class="profile-npub">{shortNpub(npubParam)}</div>
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div class="profile-npub" on:click={openNpubMenu}>
+          {shortNpub(npubParam)}
+          <svg class="npub-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
         {#if profile?.about}
           <div class="profile-bio">
             {#each aboutSegments as seg}
@@ -183,6 +243,30 @@
     {/if}
   {/if}
 </div>
+
+{#if npubMenuOpen && pubkey}
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div
+    class="npub-menu"
+    style="left:{npubMenuX}px;top:{npubMenuY}px;"
+    on:click|stopPropagation
+  >
+    <a
+      class="npub-menu-item"
+      href="https://nostter.app/{npubParam}"
+      target="_blank"
+      rel="noopener noreferrer"
+    >nostterで開く</a>
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div class="npub-menu-item" on:click={copyNpub}>npubをコピー</div>
+  </div>
+{/if}
+
+{#if copyToast}
+  <div class="copy-toast">コピーしました</div>
+{/if}
 
 <style>
   .page {
@@ -243,11 +327,96 @@
     word-break: break-all;
   }
 
+  .name-wrapper {
+    position: relative;
+    display: inline-block;
+    padding-right: 14px;
+  }
+
+  .name-ext-link {
+    position: absolute;
+    top: -2px;
+    right: -14px;
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink3);
+    border-radius: 4px;
+    text-decoration: none;
+    transition: background 0.1s, color 0.1s;
+  }
+
+  .name-ext-link:hover {
+    background: var(--accent-mid);
+    color: var(--accent-dark);
+  }
+
   .profile-npub {
     font-size: 12px;
     color: var(--ink3);
     font-family: monospace;
     margin-bottom: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 1px 4px;
+    margin-left: -4px;
+    transition: background 0.1s;
+  }
+
+  .profile-npub:hover {
+    background: var(--accent-pale);
+  }
+
+  .npub-chevron {
+    color: var(--note-chevron);
+    flex-shrink: 0;
+  }
+
+  .npub-menu {
+    position: fixed;
+    z-index: 200;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    min-width: 175px;
+    overflow: hidden;
+  }
+
+  .npub-menu-item {
+    display: block;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--ink2);
+    font-family: var(--font-ui);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.1s;
+  }
+
+  .npub-menu-item:hover {
+    background: var(--accent-pale);
+    color: var(--ink);
+  }
+
+  .copy-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 13px;
+    font-family: var(--font-ui);
+    padding: 8px 16px;
+    border-radius: 20px;
+    z-index: 300;
+    pointer-events: none;
   }
 
   .profile-bio {
