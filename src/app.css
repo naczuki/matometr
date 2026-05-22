@@ -59,4 +59,5 @@ body {
   line-height: 1.7;
   min-height: 100vh;
   overflow-x: hidden;
+  max-width: 100%;
 }
