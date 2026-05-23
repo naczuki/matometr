@@ -21,7 +21,7 @@
   })();
 
   const verb = isUpdate ? '更新' : '作成';
-  const matomeUrl = `https://naczuki.github.io/matometr/matome/${naddr}`;
+  const matomeUrl = `https://naczuki.github.io/matometr/matome/?id=${naddr}`;
   const naddrLine = `nostr:${naddrWithRelays}`;
   const defaultBody = `まとめ「${title}」を${verb}しました！\n#まとめたー`;
 

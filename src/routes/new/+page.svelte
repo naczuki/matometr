@@ -80,7 +80,7 @@
 
   async function onAnnounceDone(): Promise<void> {
     showAnnounceModal = false;
-    await goto(`${base}/matome/${pendingNaddr}`);
+    await goto(`${base}/matome/?id=${pendingNaddr}`);
   }
 </script>
 
