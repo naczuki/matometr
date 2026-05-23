@@ -74,7 +74,10 @@
 
   $: initForNaddr(naddr);
 
-  $: currentUrl = browser ? $page.url.href : '';
+  // シェア用URLは常に新URL形式（?id=）で組み立てる。
+  // 旧URL /matome/<naddr>/ で開いた人がコピー/Xシェアしたとき、
+  // 旧URLをばら撒くとクローラで404・カード出ずになるため。
+  $: shareUrl = matome && browser ? `${$page.url.origin}${base}/matome/?id=${matome.naddr}` : '';
 
   $: isMine = !!$currentUser && matome?.pubkey === $currentUser.pubkey;
 
@@ -122,15 +125,15 @@
   // share actions
   let copiedUrl = false;
   async function copyUrl(): Promise<void> {
-    const text = matome ? `${matome.title}\n${currentUrl}` : currentUrl;
-    await navigator.clipboard.writeText(text);
+    if (!matome) return;
+    await navigator.clipboard.writeText(`${matome.title}\n${shareUrl}`);
     copiedUrl = true;
     setTimeout(() => { copiedUrl = false; }, 1500);
   }
 
   function shareX(): void {
     if (!matome) return;
-    const text = encodeURIComponent(`${matome.title}\n${currentUrl}`);
+    const text = encodeURIComponent(`${matome.title}\n${shareUrl}`);
     window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank', 'noopener');
   }
 
