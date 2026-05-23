@@ -94,7 +94,7 @@
 
   async function onAnnounceDone(): Promise<void> {
     showAnnounceModal = false;
-    await goto(`${base}/matome/${pendingNaddr}`);
+    await goto(`${base}/matome/?id=${pendingNaddr}`);
   }
 </script>
 
@@ -150,7 +150,7 @@
       <p class="publish-error">{publishError}</p>
     {/if}
     <div class="action-bar">
-      <a href="{base}/matome/{naddr}" class="btn-cancel">キャンセル</a>
+      <a href="{base}/matome/?id={naddr}" class="btn-cancel">キャンセル</a>
       <button
         class="btn-publish"
         disabled={!canPublish || publishing}

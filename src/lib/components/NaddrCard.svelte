@@ -40,12 +40,12 @@
 {#if loading}
   <div class="naddr-card loading">読み込み中…</div>
 {:else if failed || !matome}
-  <a class="naddr-card error" href="{base}/matome/{naddrStr}">
+  <a class="naddr-card error" href="{base}/matome/?id={naddrStr}">
     <span class="naddr-icon">📄</span>
     <span class="naddr-fallback">{ref}</span>
   </a>
 {:else}
-  <a class="naddr-card" href="{base}/matome/{naddrStr}">
+  <a class="naddr-card" href="{base}/matome/?id={naddrStr}">
     <span class="naddr-icon">📋</span>
     <div class="naddr-body">
       <div class="naddr-title">{matome.title}</div>
