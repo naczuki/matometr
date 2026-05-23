@@ -23,14 +23,6 @@ export interface Note {
   tags: string[][];
 }
 
-export interface Draft {
-  dTag: string;
-  title: string;
-  summary: string;
-  blocks: MatomeBlock[];
-  updatedAt: number;
-}
-
 export type NoteEditorBlock = { id: string; type: 'nevent'; nevent: string };
 export type CommentEditorBlock = { id: string; type: 'comment'; text: string };
 export type HeadingEditorBlock = { id: string; type: 'heading'; text: string };

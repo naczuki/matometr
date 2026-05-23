@@ -1,27 +1,12 @@
-import { createRxOneshotReq, createRxForwardReq, uniq } from 'rx-nostr';
+import { createRxOneshotReq, uniq } from 'rx-nostr';
 import { EMPTY, merge, type Observable } from 'rxjs';
-import { map, filter, tap, take } from 'rxjs';
+import { map, filter, take } from 'rxjs';
 import { nip19 } from 'nostr-tools';
 import type { AddressPointer } from 'nostr-tools/nip19';
 import { DEFAULT_RELAYS, SEARCH_RELAYS } from '$lib/stores/relays';
 import { Matome } from '$lib/entities/Matome';
 import type { UserProfile, Note } from '$lib/types';
 import { toNote, withRelays, HEX_64, getClient } from './nostrCore';
-
-export function fetchMatomeList(limit = 30, until?: number): Observable<Matome> {
-  const client = getClient();
-  const rxReq = createRxOneshotReq({
-    filters: until
-      ? { kinds: [30023], '#t': ['matometr'], limit, until }
-      : { kinds: [30023], '#t': ['matometr'], limit }
-  });
-
-  return client.use(rxReq).pipe(
-    uniq(),
-    map(({ event }) => Matome.fromEvent(event)),
-    filter((m): m is Matome => m !== null)
-  );
-}
 
 export function fetchMatomeListWithRelay(
   limit = 30,
@@ -47,22 +32,6 @@ export function fetchMatomeListWithRelay(
     }),
     filter((r): r is { matome: Matome; relay: string } => r !== null)
   );
-}
-
-export function watchNewMatome(): Observable<Matome> {
-  const client = getClient();
-  const rxReq = createRxForwardReq();
-
-  const obs = client.use(rxReq).pipe(
-    uniq(),
-    tap(({ event }) => console.log(`[NostrClient] NEW EVENT | id: ${event.id.slice(0, 8)}…`)),
-    map(({ event }) => Matome.fromEvent(event)),
-    filter((m): m is Matome => m !== null)
-  );
-
-  rxReq.emit({ kinds: [30023], '#t': ['matometr'] });
-
-  return obs;
 }
 
 export function fetchMatomeByAddress(pointer: AddressPointer): Observable<Matome> {
@@ -268,21 +237,6 @@ export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
       }
     }),
     filter((p): p is UserProfile => p !== null)
-  );
-}
-
-export function fetchNosliList(limit = 10, until?: number): Observable<Matome> {
-  const client = getClient();
-  const rxReq = createRxOneshotReq({
-    filters: until
-      ? { kinds: [30023], '#t': ['nosli'], limit, until }
-      : { kinds: [30023], '#t': ['nosli'], limit }
-  });
-
-  return client.use(rxReq).pipe(
-    uniq(),
-    map(({ event }) => Matome.fromEvent(event)),
-    filter((m): m is Matome => m !== null)
   );
 }
 
