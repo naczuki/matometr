@@ -3,9 +3,6 @@ import { nip19 } from 'nostr-tools';
 import type { UserProfile } from '$lib/types';
 import { fetchProfiles } from '$lib/services/NostrClient';
 
-// window.nostr の有無（nostr-login または拡張機能）
-export const nostrAvailable = writable<boolean>(false);
-
 // ログイン中の pubkey（null = 未ログイン）
 const _pubkey = writable<string | null>(null);
 
@@ -30,7 +27,6 @@ function handleLogin(npub: string): void {
     const pk = decoded.data;
     _pubkey.set(pk);
     _profile.set(null);
-    nostrAvailable.set(true);
     fetchProfiles([pk]).subscribe((profile) => {
       _profile.set(profile);
     });
@@ -69,6 +65,4 @@ export async function initAuth(): Promise<void> {
       }
     },
   });
-
-  if (window.nostr) nostrAvailable.set(true);
 }
