@@ -14,9 +14,13 @@
     <span class="label-text">新着順</span>
     <span class="label-line" aria-hidden="true"></span>
   </div>
-  {#if $currentUser}
-    <a href="{base}/new" class="btn-create">＋ まとめを作る</a>
-  {/if}
+  <a
+    href="{base}/new"
+    class="btn-create"
+    class:hidden={!$currentUser}
+    aria-hidden={!$currentUser || undefined}
+    tabindex={$currentUser ? 0 : -1}
+  >＋ まとめを作る</a>
 </div>
 
 <MatomeList tab="recent" />
@@ -72,5 +76,10 @@
 
   .btn-create:hover {
     background: var(--accent-dark);
+  }
+
+  .btn-create.hidden {
+    visibility: hidden;
+    pointer-events: none;
   }
 </style>
