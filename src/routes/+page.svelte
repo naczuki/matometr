@@ -1,16 +1,7 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import MatomeList from '$lib/components/MatomeList.svelte';
-
-  let listRef: MatomeList | undefined;
-  let refreshing = false;
-
-  async function handleRefresh(): Promise<void> {
-    if (refreshing || !listRef) return;
-    refreshing = true;
-    await listRef.refresh();
-    refreshing = false;
-  }
+  import { currentUser } from '$lib/stores/auth';
 </script>
 
 <svelte:head>
@@ -19,91 +10,49 @@
 </svelte:head>
 
 <div class="tab-bar">
-  <div class="tabs">
-    <button
-      class="tab active"
-      class:loading={refreshing}
-      on:click={handleRefresh}
-      disabled={refreshing}
-      aria-busy={refreshing}
-    >
-      {#if refreshing}
-        <span class="btn-spinner" aria-hidden="true"></span>
-      {/if}
-      更新
-    </button>
+  <div class="tab-label">
+    <span class="label-text">新着順</span>
+    <span class="label-line" aria-hidden="true"></span>
   </div>
-  <a href="{base}/new" class="btn-create">＋ まとめを作る</a>
+  {#if $currentUser}
+    <a href="{base}/new" class="btn-create">＋ まとめを作る</a>
+  {/if}
 </div>
 
-<MatomeList tab="recent" bind:this={listRef} />
+<MatomeList tab="recent" />
 
 <style>
   .tab-bar {
     max-width: 720px;
     margin: 0 auto;
-    padding: 20px 20px 0;
+    padding: 0 20px;
+    height: 48px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .tab-label {
+    display: flex;
+    align-items: flex-end;
     gap: 8px;
+    flex: 1;
   }
 
-  .tabs {
-    display: flex;
-    gap: 4px;
-  }
-
-  .tab {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 20px;
-    border-radius: var(--radius-btn);
+  .label-text {
     font-size: 13px;
     font-weight: 500;
-    color: var(--ink3);
-    cursor: pointer;
+    color: #bbb;
+    white-space: nowrap;
+    line-height: 1;
     font-family: var(--font-ui);
-    transition: all 0.12s;
-    border: none;
-    background: transparent;
   }
 
-  .tab:hover:not(:disabled) {
-    color: var(--ink2);
-    background: var(--surface);
-  }
-
-  .tab.active {
-    background: var(--surface);
-    color: var(--accent);
-    font-weight: 700;
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
-  }
-
-  .tab.active.loading {
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.12);
-    opacity: 0.75;
-    cursor: not-allowed;
-  }
-
-  .btn-spinner {
-    display: inline-block;
-    width: 11px;
-    height: 11px;
-    border: 2px solid var(--accent);
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
-    flex-shrink: 0;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
+  .label-line {
+    flex: 1;
+    height: 0.5px;
+    background: #ddd;
+    margin-bottom: 1px;
   }
 
   .btn-create {
