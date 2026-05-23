@@ -471,14 +471,14 @@
   .wrap {
     max-width: 720px;
     margin: 0 auto;
-    padding: 24px 20px 64px;
+    padding: 20px 20px 64px;
   }
 
   .nav-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     flex-wrap: wrap;
   }
 
@@ -492,7 +492,7 @@
     background: var(--surface);
     border: 1.5px solid var(--accent-mid);
     border-radius: 9999px;
-    padding: 7px 16px;
+    padding: 8px 16px;
     cursor: pointer;
     font-family: var(--font-ui);
     text-decoration: none;
@@ -517,7 +517,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 7px 14px;
+    padding: 8px 14px;
     border-radius: 9999px;
     font-size: 13px;
     font-weight: 700;
