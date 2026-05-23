@@ -29,6 +29,10 @@
   // ギャップ直前のイベントを cursor にする。
   const GAP_THRESHOLD_S = 30 * 24 * 3600;
   const BATCH_SIZE = 30;
+  // もっと見るの内部ループ上限（暴走防止）
+  const MAX_INNER_ITERATIONS = 10;
+
+  type FeedType = 'nosli' | 'matometr';
 
   function computeCursorFromBuffer(timestamps: number[]): number | undefined {
     if (timestamps.length === 0) return undefined;
@@ -140,93 +144,142 @@
     subs = [s1, s2];
   });
 
-  function loadMore(): void {
+  function getCursor(type: FeedType, relay: string): number | undefined {
+    return type === 'nosli' ? nosliCursors.get(relay) : matometrCursors.get(relay);
+  }
+
+  function setCursor(type: FeedType, relay: string, c: number): void {
+    if (type === 'nosli') nosliCursors.set(relay, c);
+    else matometrCursors.set(relay, c);
+  }
+
+  function isExhausted(type: FeedType, relay: string): boolean {
+    return type === 'nosli' ? exhaustedNosli.has(relay) : exhaustedMatometr.has(relay);
+  }
+
+  function markExhausted(type: FeedType, relay: string): void {
+    if (type === 'nosli') exhaustedNosli.add(relay);
+    else exhaustedMatometr.add(relay);
+  }
+
+  function activeKeys(): { type: FeedType; relay: string }[] {
+    const keys: { type: FeedType; relay: string }[] = [];
+    for (const r of RELAYS) {
+      if (!isExhausted('nosli', r)) keys.push({ type: 'nosli', relay: r });
+      if (!isExhausted('matometr', r)) keys.push({ type: 'matometr', relay: r });
+    }
+    return keys;
+  }
+
+  // 1リレー×1タイプ分を取得し、cursor を更新 or 枯渇マークする
+  function fetchOne(type: FeedType, relay: string): Promise<void> {
+    const cursor = getCursor(type, relay);
+    const until = cursor !== undefined ? cursor - 1 : undefined;
+    const fetcher = type === 'nosli' ? fetchNosliListWithRelay : fetchMatomeListWithRelay;
+    return new Promise((resolve) => {
+      const events: Matome[] = [];
+      const sub = fetcher(BATCH_SIZE, until, [relay]).subscribe({
+        next: ({ matome }) => {
+          addToRawMap(matome);
+          events.push(matome);
+        },
+        complete: () => {
+          if (events.length === 0) {
+            markExhausted(type, relay);
+          } else {
+            const newCursor = computeCursorFromBuffer(events.map((e) => e.createdAt));
+            if (newCursor !== undefined) setCursor(type, relay, newCursor);
+          }
+          resolve();
+        },
+        error: () => {
+          if (events.length === 0) {
+            markExhausted(type, relay);
+          } else {
+            const newCursor = computeCursorFromBuffer(events.map((e) => e.createdAt));
+            if (newCursor !== undefined) setCursor(type, relay, newCursor);
+          }
+          resolve();
+        }
+      });
+      subs.push(sub);
+    });
+  }
+
+  // T = 生きてるリレーの cursor のうち最も新しい値（=全リレーが少なくともTまで取得済み）
+  function computeT(): number | null {
+    let max: number | null = null;
+    for (const { type, relay } of activeKeys()) {
+      const c = getCursor(type, relay);
+      if (c === undefined) continue;
+      if (max === null || c > max) max = c;
+    }
+    return max;
+  }
+
+  function collectCandidatesAtOrAbove(T: number, displayedKeys: Set<string>): Matome[] {
+    const out: Matome[] = [];
+    for (const m of rawMap.values()) {
+      const k = `${m.pubkey}:${m.dTag}`;
+      if (displayedKeys.has(k)) continue;
+      if (m.createdAt >= T) out.push(m);
+    }
+    return out;
+  }
+
+  function collectAllCarryOver(displayedKeys: Set<string>): Matome[] {
+    const out: Matome[] = [];
+    for (const m of rawMap.values()) {
+      const k = `${m.pubkey}:${m.dTag}`;
+      if (!displayedKeys.has(k)) out.push(m);
+    }
+    return out;
+  }
+
+  async function loadMore(): Promise<void> {
     if (loadingMore || !hasMore) return;
     loadingMore = true;
 
-    const activeNosli = RELAYS.filter((r) => !exhaustedNosli.has(r));
-    const activeMatometr = RELAYS.filter((r) => !exhaustedMatometr.has(r));
-    const total = activeNosli.length + activeMatometr.length;
+    const displayedKeys = new Set(matomes.map((m) => `${m.pubkey}:${m.dTag}`));
 
-    if (total === 0) {
+    // Step 1: 生きてる全リレーを until=cursor-1 で 1 回ずつ潜らせる
+    const initial = activeKeys();
+    if (initial.length === 0) {
       loadingMore = false;
       hasMore = false;
       return;
     }
+    await Promise.all(initial.map(({ type, relay }) => fetchOne(type, relay)));
 
-    const nosliBuckets = new Map<string, Matome[]>();
-    const matometrBuckets = new Map<string, Matome[]>();
-    for (const r of activeNosli) nosliBuckets.set(r, []);
-    for (const r of activeMatometr) matometrBuckets.set(r, []);
+    // 内部ループ: 採用候補が30件たまるまで、Tに張り付くリレー（足並みの遅い側）を潜らせる
+    for (let iter = 0; iter < MAX_INNER_ITERATIONS; iter++) {
+      const T = computeT();
+      if (T === null) break; // 全リレー枯渇
+      const candidates = collectCandidatesAtOrAbove(T, displayedKeys);
+      if (candidates.length >= BATCH_SIZE) break;
 
-    let completed = 0;
-
-    function finish(): void {
-      const displayedKeys = new Set(matomes.map((m) => `${m.pubkey}:${m.dTag}`));
-      const candidateKeys = new Set<string>();
-      for (const ms of nosliBuckets.values()) {
-        for (const m of ms) {
-          const k = `${m.pubkey}:${m.dTag}`;
-          if (!displayedKeys.has(k)) candidateKeys.add(k);
-        }
-      }
-      for (const ms of matometrBuckets.values()) {
-        for (const m of ms) {
-          const k = `${m.pubkey}:${m.dTag}`;
-          if (!displayedKeys.has(k)) candidateKeys.add(k);
-        }
-      }
-
-      const candidates: Matome[] = [];
-      for (const k of candidateKeys) {
-        const m = rawMap.get(k);
-        if (m) candidates.push(m);
-      }
-      const sorted = candidates.sort((a, b) => b.createdAt - a.createdAt);
-      const adopted = sorted.slice(0, BATCH_SIZE);
-      const adoptedKeys = new Set(adopted.map((m) => `${m.pubkey}:${m.dTag}`));
-
-      updateCursorsAndExhaustion(nosliBuckets, nosliCursors, exhaustedNosli, adoptedKeys);
-      updateCursorsAndExhaustion(matometrBuckets, matometrCursors, exhaustedMatometr, adoptedKeys);
-
-      matomes = [...matomes, ...adopted];
-      loadingMore = false;
-      hasMore = computeHasMore();
+      // cursor === T のリレー（=遅れている側）を潜らせて T を古い方へ進める
+      const atT = activeKeys().filter(({ type, relay }) => getCursor(type, relay) === T);
+      if (atT.length === 0) break;
+      await Promise.all(atT.map(({ type, relay }) => fetchOne(type, relay)));
     }
 
-    function checkDone(): void {
-      if (++completed >= total) finish();
+    // 採用フェーズ
+    const finalT = computeT();
+    let adopted: Matome[];
+    if (finalT === null) {
+      // 全リレー枯渇 → 持ち越し全部を降順で吐き出す（穴防止）
+      adopted = collectAllCarryOver(displayedKeys).sort((a, b) => b.createdAt - a.createdAt);
+    } else {
+      // T以降の未表示候補を降順で先頭30件
+      adopted = collectCandidatesAtOrAbove(finalT, displayedKeys)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, BATCH_SIZE);
     }
 
-    for (const relay of activeNosli) {
-      const cursor = nosliCursors.get(relay);
-      const until = cursor !== undefined ? cursor - 1 : undefined;
-      const sub = fetchNosliListWithRelay(BATCH_SIZE, until, [relay]).subscribe({
-        next: ({ matome, relay: r }) => {
-          addToRawMap(matome);
-          if (!nosliBuckets.has(r)) nosliBuckets.set(r, []);
-          nosliBuckets.get(r)!.push(matome);
-        },
-        complete: checkDone,
-        error: checkDone
-      });
-      subs = [...subs, sub];
-    }
-
-    for (const relay of activeMatometr) {
-      const cursor = matometrCursors.get(relay);
-      const until = cursor !== undefined ? cursor - 1 : undefined;
-      const sub = fetchMatomeListWithRelay(BATCH_SIZE, until, [relay]).subscribe({
-        next: ({ matome, relay: r }) => {
-          addToRawMap(matome);
-          if (!matometrBuckets.has(r)) matometrBuckets.set(r, []);
-          matometrBuckets.get(r)!.push(matome);
-        },
-        complete: checkDone,
-        error: checkDone
-      });
-      subs = [...subs, sub];
-    }
+    matomes = [...matomes, ...adopted];
+    loadingMore = false;
+    hasMore = computeHasMore();
   }
 
   onDestroy(() => {
