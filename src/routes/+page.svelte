@@ -25,8 +25,7 @@
   .tab-bar {
     max-width: 720px;
     margin: 0 auto;
-    padding: 0 20px;
-    height: 48px;
+    padding: 20px 20px 0;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -38,7 +37,6 @@
     gap: 8px;
     flex: 1;
     align-self: flex-end;
-    margin-bottom: 8px;
   }
 
   .label-text {
