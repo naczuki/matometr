@@ -23,7 +23,10 @@
   }
 
   function hideOnError(e: Event): void {
-    (e.currentTarget as HTMLElement).style.display = 'none';
+    const el = e.currentTarget as HTMLElement;
+    const item = el.closest<HTMLElement>('.media-item');
+    if (item) item.style.display = 'none';
+    else el.style.display = 'none';
   }
 </script>
 
@@ -53,8 +56,27 @@
     </div>
     {#if parsed.urls.length > 0}
       <div class="images" class:multi={parsed.urls.length > 1}>
-        {#each parsed.urls.slice(0, 4) as url}
-          <img src={url} alt="" loading="lazy" on:error={hideOnError} />
+        {#each parsed.urls.slice(0, 4) as url, i}
+          <div class="media-item">
+            <img src={url} alt="" loading="lazy" on:error={hideOnError} />
+            {#if i === 3 && parsed.urls.length > 4}
+              <span class="more-badge">+{parsed.urls.length - 3}</span>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
+    {#if parsed.videoUrls.length > 0}
+      <div class="images" class:multi={parsed.videoUrls.length > 1}>
+        {#each parsed.videoUrls.slice(0, 4) as url, i}
+          <div class="media-item">
+            <video src={url} controls playsinline on:error={hideOnError}>
+              <track kind="captions" />
+            </video>
+            {#if i === 3 && parsed.videoUrls.length > 4}
+              <span class="more-badge">+{parsed.videoUrls.length - 3}</span>
+            {/if}
+          </div>
         {/each}
       </div>
     {/if}
@@ -175,11 +197,30 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .images img {
+  .media-item {
+    position: relative;
+  }
+
+  .media-item img,
+  .media-item video {
     width: 100%;
     max-height: 180px;
     object-fit: cover;
     border-radius: 8px;
     display: block;
+  }
+
+  .more-badge {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 12px;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: var(--font-ui);
+    line-height: 1.4;
+    pointer-events: none;
   }
 </style>
