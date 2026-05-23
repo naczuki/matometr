@@ -45,8 +45,17 @@
     failedEmojis = new Set([...failedEmojis, shortcode]);
   }
 
-  // 画像URLは除去（引用カードでは画像表示しない）
-  $: segments = note ? parseNostrRefs(extractImages(resolveTagRefs(note.content, note.tags)).text, emojiMap) : [];
+  $: ({ text: parsedText, urls: imageUrls, videoUrls } = note
+    ? extractImages(resolveTagRefs(note.content, note.tags))
+    : { text: '', urls: [], videoUrls: [] });
+  $: segments = parseNostrRefs(parsedText, emojiMap);
+
+  function hideMediaOnError(e: Event): void {
+    const el = e.currentTarget as HTMLElement;
+    const item = el.closest<HTMLElement>('.media-item');
+    if (item) item.style.display = 'none';
+    else el.style.display = 'none';
+  }
 
   $: for (const seg of segments) {
     if (seg.type === 'mention') requestProfile(seg.pubkey);
@@ -116,6 +125,32 @@
         {/if}
       {/each}
     </div>
+    {#if imageUrls.length > 0}
+      <div class="media-grid" class:multi={imageUrls.length > 1}>
+        {#each imageUrls.slice(0, 4) as url, i}
+          <div class="media-item">
+            <img src={url} alt="" loading="lazy" on:error={hideMediaOnError} />
+            {#if i === 3 && imageUrls.length > 4}
+              <span class="more-badge">+{imageUrls.length - 3}</span>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
+    {#if videoUrls.length > 0}
+      <div class="media-grid" class:multi={videoUrls.length > 1}>
+        {#each videoUrls.slice(0, 4) as url, i}
+          <div class="media-item">
+            <video src={url} controls playsinline on:error={hideMediaOnError}>
+              <track kind="captions" />
+            </video>
+            {#if i === 3 && videoUrls.length > 4}
+              <span class="more-badge">+{videoUrls.length - 3}</span>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -187,6 +222,44 @@
   .quote-ref-link:hover,
   .naddr-link:hover {
     text-decoration: underline;
+  }
+
+  .media-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .media-grid.multi {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .media-item {
+    position: relative;
+  }
+
+  .media-item img,
+  .media-item video {
+    width: 100%;
+    max-height: 180px;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
+  }
+
+  .more-badge {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 12px;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: var(--font-ui);
+    line-height: 1.4;
+    pointer-events: none;
   }
 
   .quoted-error {

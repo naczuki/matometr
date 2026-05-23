@@ -84,64 +84,87 @@
     }
   }
 
+  function initialLoad(): Promise<void> {
+    subs.forEach((s) => s.unsubscribe());
+    subs = [];
+    rawMap.clear();
+    nosliCursors.clear();
+    matometrCursors.clear();
+    exhaustedNosli.clear();
+    exhaustedMatometr.clear();
+    matomes = [];
+    loadingMore = false;
+    loading = true;
+    hasMore = true;
+
+    return new Promise<void>((resolve) => {
+      let pending = 2;
+      const nosliBuckets = new Map<string, Matome[]>();
+      const matometrBuckets = new Map<string, Matome[]>();
+      for (const r of RELAYS) {
+        nosliBuckets.set(r, []);
+        matometrBuckets.set(r, []);
+      }
+
+      function done(): void {
+        if (--pending > 0) return;
+
+        const candidateKeys = new Set<string>();
+        for (const ms of nosliBuckets.values()) {
+          for (const m of ms) candidateKeys.add(`${m.pubkey}:${m.dTag}`);
+        }
+        for (const ms of matometrBuckets.values()) {
+          for (const m of ms) candidateKeys.add(`${m.pubkey}:${m.dTag}`);
+        }
+
+        const candidates: Matome[] = [];
+        for (const k of candidateKeys) {
+          const m = rawMap.get(k);
+          if (m) candidates.push(m);
+        }
+        const sorted = candidates.sort((a, b) => b.createdAt - a.createdAt);
+        const adopted = sorted.slice(0, BATCH_SIZE);
+        const adoptedKeys = new Set(adopted.map((m) => `${m.pubkey}:${m.dTag}`));
+
+        updateCursorsAndExhaustion(nosliBuckets, nosliCursors, exhaustedNosli, adoptedKeys);
+        updateCursorsAndExhaustion(matometrBuckets, matometrCursors, exhaustedMatometr, adoptedKeys);
+
+        matomes = adopted;
+        loading = false;
+        hasMore = computeHasMore();
+        resolve();
+      }
+
+      const s1 = fetchMatomeListWithRelay(BATCH_SIZE).subscribe({
+        next: ({ matome, relay }) => {
+          addToRawMap(matome);
+          if (!matometrBuckets.has(relay)) matometrBuckets.set(relay, []);
+          matometrBuckets.get(relay)!.push(matome);
+        },
+        complete: done,
+        error: done
+      });
+
+      const s2 = fetchNosliListWithRelay(BATCH_SIZE).subscribe({
+        next: ({ matome, relay }) => {
+          addToRawMap(matome);
+          if (!nosliBuckets.has(relay)) nosliBuckets.set(relay, []);
+          nosliBuckets.get(relay)!.push(matome);
+        },
+        complete: done,
+        error: done
+      });
+
+      subs = [s1, s2];
+    });
+  }
+
+  export async function refresh(): Promise<void> {
+    return initialLoad();
+  }
+
   onMount(() => {
-    let pending = 2;
-    const nosliBuckets = new Map<string, Matome[]>();
-    const matometrBuckets = new Map<string, Matome[]>();
-    for (const r of RELAYS) {
-      nosliBuckets.set(r, []);
-      matometrBuckets.set(r, []);
-    }
-
-    function done(): void {
-      if (--pending > 0) return;
-
-      const candidateKeys = new Set<string>();
-      for (const ms of nosliBuckets.values()) {
-        for (const m of ms) candidateKeys.add(`${m.pubkey}:${m.dTag}`);
-      }
-      for (const ms of matometrBuckets.values()) {
-        for (const m of ms) candidateKeys.add(`${m.pubkey}:${m.dTag}`);
-      }
-
-      const candidates: Matome[] = [];
-      for (const k of candidateKeys) {
-        const m = rawMap.get(k);
-        if (m) candidates.push(m);
-      }
-      const sorted = candidates.sort((a, b) => b.createdAt - a.createdAt);
-      const adopted = sorted.slice(0, BATCH_SIZE);
-      const adoptedKeys = new Set(adopted.map((m) => `${m.pubkey}:${m.dTag}`));
-
-      updateCursorsAndExhaustion(nosliBuckets, nosliCursors, exhaustedNosli, adoptedKeys);
-      updateCursorsAndExhaustion(matometrBuckets, matometrCursors, exhaustedMatometr, adoptedKeys);
-
-      matomes = adopted;
-      loading = false;
-      hasMore = computeHasMore();
-    }
-
-    const s1 = fetchMatomeListWithRelay(BATCH_SIZE).subscribe({
-      next: ({ matome, relay }) => {
-        addToRawMap(matome);
-        if (!matometrBuckets.has(relay)) matometrBuckets.set(relay, []);
-        matometrBuckets.get(relay)!.push(matome);
-      },
-      complete: done,
-      error: done
-    });
-
-    const s2 = fetchNosliListWithRelay(BATCH_SIZE).subscribe({
-      next: ({ matome, relay }) => {
-        addToRawMap(matome);
-        if (!nosliBuckets.has(relay)) nosliBuckets.set(relay, []);
-        nosliBuckets.get(relay)!.push(matome);
-      },
-      complete: done,
-      error: done
-    });
-
-    subs = [s1, s2];
+    initialLoad();
   });
 
   function getCursor(type: FeedType, relay: string): number | undefined {
