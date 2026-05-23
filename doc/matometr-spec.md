@@ -218,6 +218,11 @@ document.dispatchEvent(new CustomEvent('nlLaunch', {
 
 全部 **オレンジ背景＋白アイコン** で統一。Xロゴは白塗りで規約クリア。
 
+### 共有テキストのハッシュタグ
+
+- **Nos**（Nostr向け）：タイトル末尾に `#まとめたー` を付与（`#nostr` は付けない）
+- **X / コピー**（Nostr外向け）：タイトル末尾に `#まとめたー #nostr` を付与
+
 ### 縦3点メニューの中身
 
 - nevent1をコピー
@@ -228,7 +233,8 @@ document.dispatchEvent(new CustomEvent('nlLaunch', {
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/@konemono/nostr-share-component@latest/dist/nostr-share-component.min.js"></script>
-<nostr-share data-text="まとめタイトル https://matometr/matome/...">
+<nostr-share data-text="まとめタイトル #まとめたー
+nostr:naddr1...">
   <span style="font-family:'Mochiy Pop One';color:white;">Nos</span>
 </nostr-share>
 ```

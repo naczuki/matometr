@@ -126,18 +126,18 @@
   let copiedUrl = false;
   async function copyUrl(): Promise<void> {
     if (!matome) return;
-    await navigator.clipboard.writeText(`${matome.title}\n${shareUrl}`);
+    await navigator.clipboard.writeText(`${matome.title} #まとめたー #nostr\n${shareUrl}`);
     copiedUrl = true;
     setTimeout(() => { copiedUrl = false; }, 1500);
   }
 
   function shareX(): void {
     if (!matome) return;
-    const text = encodeURIComponent(`${matome.title}\n${shareUrl}`);
+    const text = encodeURIComponent(`${matome.title} #まとめたー #nostr\n${shareUrl}`);
     window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank', 'noopener');
   }
 
-  $: shareText = matome ? `${matome.title}\nnostr:${matome.naddr}` : '';
+  $: shareText = matome ? `${matome.title} #まとめたー\nnostr:${matome.naddr}` : '';
 
   // ⋮ menu
   let menuOpen = false;
