@@ -17,7 +17,7 @@
   <a
     href="{base}/new"
     class="btn-create"
-    class:hidden={!$currentUser}
+    class:invisible={!$currentUser}
     aria-hidden={!$currentUser || undefined}
     tabindex={$currentUser ? 0 : -1}
   >＋ まとめを作る</a>
@@ -78,7 +78,7 @@
     background: var(--accent-dark);
   }
 
-  .btn-create.hidden {
+  .btn-create.invisible {
     visibility: hidden;
     pointer-events: none;
   }
