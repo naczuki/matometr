@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { page } from '$app/stores';
   import { base } from '$app/paths';
   import { nip19 } from 'nostr-tools';
@@ -34,10 +34,26 @@
     }
   }
 
-  onMount(() => {
+  // npub が変わるたびに状態をリセットして再取得
+  // onMount は SvelteKit が同一コンポーネントを再利用する場合に再実行されないため
+  // $: で $page.params.npub を監視する
+  let _initedNpub = '';
+  function initForNpub(npub: string): void {
+    if (npub === _initedNpub) return;
+    _initedNpub = npub;
+
+    sub?.unsubscribe();
+    sub = null;
+    rawMap.clear();
+    matomes = [];
+    pubkey = '';
+    error = '';
+    loading = true;
+    npubMenuOpen = false;
+
+    if (!npub) { error = '無効なユーザーIDです'; loading = false; return; }
     try {
-      if (!npubParam) { error = '無効なユーザーIDです'; loading = false; return; }
-      const decoded = nip19.decode(npubParam) as { type: string; data: unknown };
+      const decoded = nip19.decode(npub) as { type: string; data: unknown };
       if (decoded.type !== 'npub') {
         error = '無効なユーザーIDです';
         loading = false;
@@ -54,8 +70,9 @@
       error = '無効なユーザーIDです';
       loading = false;
     }
-    return () => sub?.unsubscribe();
-  });
+  }
+
+  $: initForNpub($page.params.npub ?? '');
 
   onDestroy(() => {
     sub?.unsubscribe();
@@ -125,8 +142,6 @@
 <svelte:head>
   <title>{displayName} のまとめ | まとめたー</title>
 </svelte:head>
-
-{#key $page.params.npub}
 
 <div class="page">
   {#if error}
@@ -263,7 +278,6 @@
 {#if copyToast}
   <div class="copy-toast">コピーしました</div>
 {/if}
-{/key}
 
 <style>
   .page {
