@@ -25,10 +25,10 @@
   .tab-bar {
     max-width: 720px;
     margin: 0 auto;
-    padding: 0 20px;
+    padding: 0 20px 8px;
     height: 48px;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 12px;
   }
 
