@@ -1,6 +1,7 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import MatomeList from '$lib/components/MatomeList.svelte';
+  import { currentUser } from '$lib/stores/auth';
 </script>
 
 <svelte:head>
@@ -9,10 +10,17 @@
 </svelte:head>
 
 <div class="tab-bar">
-  <div class="tabs">
-    <button class="tab active">新着</button>
+  <div class="tab-label">
+    <span class="label-text">新着順</span>
+    <span class="label-line" aria-hidden="true"></span>
   </div>
-  <a href="{base}/new" class="btn-create">＋ まとめを作る</a>
+  <a
+    href="{base}/new"
+    class="btn-create"
+    class:invisible={!$currentUser}
+    aria-hidden={!$currentUser || undefined}
+    tabindex={$currentUser ? 0 : -1}
+  >＋ まとめを作る</a>
 </div>
 
 <MatomeList tab="recent" />
@@ -24,39 +32,31 @@
     padding: 20px 20px 0;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 8px;
+    gap: 12px;
   }
 
-  .tabs {
+  .tab-label {
     display: flex;
-    gap: 4px;
+    align-items: flex-end;
+    gap: 8px;
+    flex: 1;
+    align-self: flex-end;
   }
 
-  .tab {
-    padding: 8px 20px;
-    border-radius: var(--radius-btn);
+  .label-text {
     font-size: 13px;
     font-weight: 500;
-    color: var(--ink3);
-    cursor: pointer;
+    color: #bbb;
+    white-space: nowrap;
+    line-height: 1;
     font-family: var(--font-ui);
-    transition: all 0.12s;
-    border: none;
-    background: transparent;
   }
 
-  .tab:hover {
-    color: var(--ink2);
-    background: var(--surface);
-  }
-
-  .tab.active {
-    background: var(--surface);
-    color: var(--accent);
-    font-weight: 700;
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+  .label-line {
+    flex: 1;
+    height: 0.5px;
+    background: #ddd;
+    margin-bottom: 1px;
   }
 
   .btn-create {
@@ -76,5 +76,10 @@
 
   .btn-create:hover {
     background: var(--accent-dark);
+  }
+
+  .btn-create.invisible {
+    visibility: hidden;
+    pointer-events: none;
   }
 </style>
