@@ -27,9 +27,8 @@
 
   // 30日以上のギャップがあれば ascending-relay の末尾と判断し、
   // ギャップ直前のイベントを cursor にする。
-  // 例）nos.lol が 2023-12-17 → 2023-04-08（8ヶ月飛び）を返した場合、
-  //     cursor = 2023-12-17 となり、次の until=2023-12-16 で正しく潜れる。
   const GAP_THRESHOLD_S = 30 * 24 * 3600;
+  const BATCH_SIZE = 30;
 
   function computeCursorFromBuffer(timestamps: number[]): number | undefined {
     if (timestamps.length === 0) return undefined;
@@ -43,12 +42,11 @@
     return maxGap > GAP_THRESHOLD_S ? desc[splitIdx] : desc[desc.length - 1];
   }
 
-  function addMatome(m: Matome): void {
+  function addToRawMap(m: Matome): void {
     const key = `${m.pubkey}:${m.dTag}`;
     const existing = rawMap.get(key);
     if (!existing || m.createdAt > existing.createdAt) {
       rawMap.set(key, m);
-      matomes = [...rawMap.values()].sort((a, b) => b.createdAt - a.createdAt);
     }
   }
 
@@ -59,47 +57,81 @@
     );
   }
 
+  // 0件受信 → exhausted
+  // 採用ありリレー → 採用分の最古でcursor
+  // 採用なしリレー → 取得全体でcursor（穴防止）
+  function updateCursorsAndExhaustion(
+    buckets: Map<string, Matome[]>,
+    cursors: Map<string, number>,
+    exhausted: Set<string>,
+    adoptedKeys: Set<string>
+  ): void {
+    for (const [relay, ms] of buckets) {
+      if (ms.length === 0) {
+        exhausted.add(relay);
+        continue;
+      }
+      const adoptedTs = ms
+        .filter((m) => adoptedKeys.has(`${m.pubkey}:${m.dTag}`))
+        .map((m) => m.createdAt);
+      const cursorTs = adoptedTs.length > 0 ? adoptedTs : ms.map((m) => m.createdAt);
+      const cursor = computeCursorFromBuffer(cursorTs);
+      if (cursor !== undefined) cursors.set(relay, cursor);
+    }
+  }
+
   onMount(() => {
     let pending = 2;
-    const nosliBuffer = new Map<string, number[]>();
-    const matometrBuffer = new Map<string, number[]>();
-
-    function pushBuffer(relay: string, createdAt: number, buf: Map<string, number[]>): void {
-      if (!buf.has(relay)) buf.set(relay, []);
-      buf.get(relay)!.push(createdAt);
+    const nosliBuckets = new Map<string, Matome[]>();
+    const matometrBuckets = new Map<string, Matome[]>();
+    for (const r of RELAYS) {
+      nosliBuckets.set(r, []);
+      matometrBuckets.set(r, []);
     }
 
     function done(): void {
       if (--pending > 0) return;
-      for (const [relay, ts] of nosliBuffer) {
-        const cursor = computeCursorFromBuffer(ts);
-        if (cursor !== undefined) nosliCursors.set(relay, cursor);
+
+      const candidateKeys = new Set<string>();
+      for (const ms of nosliBuckets.values()) {
+        for (const m of ms) candidateKeys.add(`${m.pubkey}:${m.dTag}`);
       }
-      for (const [relay, ts] of matometrBuffer) {
-        const cursor = computeCursorFromBuffer(ts);
-        if (cursor !== undefined) matometrCursors.set(relay, cursor);
+      for (const ms of matometrBuckets.values()) {
+        for (const m of ms) candidateKeys.add(`${m.pubkey}:${m.dTag}`);
       }
-      for (const r of RELAYS) {
-        if (!nosliCursors.has(r)) exhaustedNosli.add(r);
-        if (!matometrCursors.has(r)) exhaustedMatometr.add(r);
+
+      const candidates: Matome[] = [];
+      for (const k of candidateKeys) {
+        const m = rawMap.get(k);
+        if (m) candidates.push(m);
       }
+      const sorted = candidates.sort((a, b) => b.createdAt - a.createdAt);
+      const adopted = sorted.slice(0, BATCH_SIZE);
+      const adoptedKeys = new Set(adopted.map((m) => `${m.pubkey}:${m.dTag}`));
+
+      updateCursorsAndExhaustion(nosliBuckets, nosliCursors, exhaustedNosli, adoptedKeys);
+      updateCursorsAndExhaustion(matometrBuckets, matometrCursors, exhaustedMatometr, adoptedKeys);
+
+      matomes = adopted;
       loading = false;
       hasMore = computeHasMore();
     }
 
-    const s1 = fetchMatomeListWithRelay(10).subscribe({
+    const s1 = fetchMatomeListWithRelay(BATCH_SIZE).subscribe({
       next: ({ matome, relay }) => {
-        addMatome(matome);
-        pushBuffer(relay, matome.createdAt, matometrBuffer);
+        addToRawMap(matome);
+        if (!matometrBuckets.has(relay)) matometrBuckets.set(relay, []);
+        matometrBuckets.get(relay)!.push(matome);
       },
       complete: done,
       error: done
     });
 
-    const s2 = fetchNosliListWithRelay(10).subscribe({
+    const s2 = fetchNosliListWithRelay(BATCH_SIZE).subscribe({
       next: ({ matome, relay }) => {
-        addMatome(matome);
-        pushBuffer(relay, matome.createdAt, nosliBuffer);
+        addToRawMap(matome);
+        if (!nosliBuckets.has(relay)) nosliBuckets.set(relay, []);
+        nosliBuckets.get(relay)!.push(matome);
       },
       complete: done,
       error: done
@@ -108,96 +140,93 @@
     subs = [s1, s2];
   });
 
-  const LOAD_MORE_TARGET = 20;
-
   function loadMore(): void {
     if (loadingMore || !hasMore) return;
     loadingMore = true;
 
-    const newBatch: Matome[] = [];
-    let loopCount = 0;
+    const activeNosli = RELAYS.filter((r) => !exhaustedNosli.has(r));
+    const activeMatometr = RELAYS.filter((r) => !exhaustedMatometr.has(r));
+    const total = activeNosli.length + activeMatometr.length;
 
-    function runBatch(): void {
-      const activeNosli = RELAYS.filter((r) => !exhaustedNosli.has(r));
-      const activeMatometr = RELAYS.filter((r) => !exhaustedMatometr.has(r));
-      const total = activeNosli.length + activeMatometr.length;
-
-      if (total === 0 || newBatch.length >= LOAD_MORE_TARGET || loopCount >= 10) {
-        const sorted = [...newBatch].sort((a, b) => b.createdAt - a.createdAt);
-        matomes = [...matomes, ...sorted];
-        loadingMore = false;
-        hasMore = computeHasMore();
-        return;
-      }
-
-      loopCount++;
-      let completed = 0;
-      const batchNosli = new Map<string, number>(activeNosli.map((r) => [r, 0]));
-      const batchMatometr = new Map<string, number>(activeMatometr.map((r) => [r, 0]));
-
-      function checkDone(): void {
-        if (++completed < total) return;
-        for (const [r, count] of batchNosli) {
-          if (count === 0) exhaustedNosli.add(r);
-        }
-        for (const [r, count] of batchMatometr) {
-          if (count === 0) exhaustedMatometr.add(r);
-        }
-        runBatch();
-      }
-
-      for (const relay of activeNosli) {
-        const cursor = nosliCursors.get(relay);
-        const until = cursor !== undefined ? cursor - 1 : undefined;
-        const buf: number[] = [];
-        const sub = fetchNosliListWithRelay(10, until, [relay]).subscribe({
-          next: ({ matome, relay: r }) => {
-            const key = `${matome.pubkey}:${matome.dTag}`;
-            const existing = rawMap.get(key);
-            if (!existing || matome.createdAt > existing.createdAt) {
-              if (!existing) newBatch.push(matome);
-              rawMap.set(key, matome);
-            }
-            buf.push(matome.createdAt);
-            batchNosli.set(r, (batchNosli.get(r) ?? 0) + 1);
-          },
-          complete: () => {
-            const cursor = computeCursorFromBuffer(buf);
-            if (cursor !== undefined) nosliCursors.set(relay, cursor);
-            checkDone();
-          },
-          error: checkDone
-        });
-        subs = [...subs, sub];
-      }
-
-      for (const relay of activeMatometr) {
-        const cursor = matometrCursors.get(relay);
-        const until = cursor !== undefined ? cursor - 1 : undefined;
-        const buf: number[] = [];
-        const sub = fetchMatomeListWithRelay(10, until, [relay]).subscribe({
-          next: ({ matome, relay: r }) => {
-            const key = `${matome.pubkey}:${matome.dTag}`;
-            const existing = rawMap.get(key);
-            if (!existing || matome.createdAt > existing.createdAt) {
-              if (!existing) newBatch.push(matome);
-              rawMap.set(key, matome);
-            }
-            buf.push(matome.createdAt);
-            batchMatometr.set(r, (batchMatometr.get(r) ?? 0) + 1);
-          },
-          complete: () => {
-            const cursor = computeCursorFromBuffer(buf);
-            if (cursor !== undefined) matometrCursors.set(relay, cursor);
-            checkDone();
-          },
-          error: checkDone
-        });
-        subs = [...subs, sub];
-      }
+    if (total === 0) {
+      loadingMore = false;
+      hasMore = false;
+      return;
     }
 
-    runBatch();
+    const nosliBuckets = new Map<string, Matome[]>();
+    const matometrBuckets = new Map<string, Matome[]>();
+    for (const r of activeNosli) nosliBuckets.set(r, []);
+    for (const r of activeMatometr) matometrBuckets.set(r, []);
+
+    let completed = 0;
+
+    function finish(): void {
+      const displayedKeys = new Set(matomes.map((m) => `${m.pubkey}:${m.dTag}`));
+      const candidateKeys = new Set<string>();
+      for (const ms of nosliBuckets.values()) {
+        for (const m of ms) {
+          const k = `${m.pubkey}:${m.dTag}`;
+          if (!displayedKeys.has(k)) candidateKeys.add(k);
+        }
+      }
+      for (const ms of matometrBuckets.values()) {
+        for (const m of ms) {
+          const k = `${m.pubkey}:${m.dTag}`;
+          if (!displayedKeys.has(k)) candidateKeys.add(k);
+        }
+      }
+
+      const candidates: Matome[] = [];
+      for (const k of candidateKeys) {
+        const m = rawMap.get(k);
+        if (m) candidates.push(m);
+      }
+      const sorted = candidates.sort((a, b) => b.createdAt - a.createdAt);
+      const adopted = sorted.slice(0, BATCH_SIZE);
+      const adoptedKeys = new Set(adopted.map((m) => `${m.pubkey}:${m.dTag}`));
+
+      updateCursorsAndExhaustion(nosliBuckets, nosliCursors, exhaustedNosli, adoptedKeys);
+      updateCursorsAndExhaustion(matometrBuckets, matometrCursors, exhaustedMatometr, adoptedKeys);
+
+      matomes = [...matomes, ...adopted];
+      loadingMore = false;
+      hasMore = computeHasMore();
+    }
+
+    function checkDone(): void {
+      if (++completed >= total) finish();
+    }
+
+    for (const relay of activeNosli) {
+      const cursor = nosliCursors.get(relay);
+      const until = cursor !== undefined ? cursor - 1 : undefined;
+      const sub = fetchNosliListWithRelay(BATCH_SIZE, until, [relay]).subscribe({
+        next: ({ matome, relay: r }) => {
+          addToRawMap(matome);
+          if (!nosliBuckets.has(r)) nosliBuckets.set(r, []);
+          nosliBuckets.get(r)!.push(matome);
+        },
+        complete: checkDone,
+        error: checkDone
+      });
+      subs = [...subs, sub];
+    }
+
+    for (const relay of activeMatometr) {
+      const cursor = matometrCursors.get(relay);
+      const until = cursor !== undefined ? cursor - 1 : undefined;
+      const sub = fetchMatomeListWithRelay(BATCH_SIZE, until, [relay]).subscribe({
+        next: ({ matome, relay: r }) => {
+          addToRawMap(matome);
+          if (!matometrBuckets.has(r)) matometrBuckets.set(r, []);
+          matometrBuckets.get(r)!.push(matome);
+        },
+        complete: checkDone,
+        error: checkDone
+      });
+      subs = [...subs, sub];
+    }
   }
 
   onDestroy(() => {
