@@ -126,6 +126,8 @@
   <title>{displayName} のまとめ | まとめたー</title>
 </svelte:head>
 
+{#key $page.params.npub}
+
 <div class="page">
   {#if error}
     <div class="state-wrap">
@@ -261,6 +263,7 @@
 {#if copyToast}
   <div class="copy-toast">コピーしました</div>
 {/if}
+{/key}
 
 <style>
   .page {
