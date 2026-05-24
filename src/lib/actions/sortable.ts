@@ -4,13 +4,16 @@ export interface SortableActionOptions {
   onSort: (oldIndex: number, newIndex: number) => void;
 }
 
-export function sortableAction(node: HTMLElement, options: SortableActionOptions): { destroy(): void } {
+export function sortableAction(
+  node: HTMLElement,
+  options: SortableActionOptions
+): { destroy(): void } {
   const instance = Sortable.create(node, {
     animation: 200,
     delay: 400,
     delayOnTouchOnly: true,
     touchStartThreshold: 8,
-    filter: 'input, textarea, button, a, select',
+    filter: '.gap, input, textarea, button, a, select',
     preventOnFilter: false,
     ghostClass: 'sortable-ghost',
     chosenClass: 'sortable-chosen',
