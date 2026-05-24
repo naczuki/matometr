@@ -22,30 +22,38 @@
 >
   <div class="modal" role="dialog" aria-modal="true" aria-label="ログイン">
     <button class="modal-close" on:click={() => dispatch('close')} aria-label="閉じる">×</button>
-    <div class="modal-icon">📋</div>
     <h2 class="modal-title">まとめたーへようこそ</h2>
     <p class="modal-lead">
-      まとめを作ったり、いいねしたりするには<br />
+      まとめを作るには<br />
       <b>Nostrアカウント</b>でログインしてください
     </p>
-    <button class="choice-card primary" on:click={() => dispatch('launch', { screen: 'welcome-login' })} disabled={launching}>
-      <div class="choice-icon">{launching ? '…' : '✓'}</div>
-      <div class="choice-body">
-        <div class="choice-title">{launching ? '読み込み中…' : 'すでにアカウントを持っている'}</div>
-        <div class="choice-desc">すでにNostrアカウントをお持ちの方はこちら</div>
+    <button class="login-btn" on:click={() => dispatch('launch', { screen: 'welcome-login' })} disabled={launching}>
+      <div class="login-btn-icon">
+        {#if launching}
+          <span class="login-btn-loading">…</span>
+        {:else}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+            <polyline points="10 17 15 12 10 7" />
+            <line x1="15" y1="12" x2="3" y2="12" />
+          </svg>
+        {/if}
       </div>
-      <span class="choice-arrow">›</span>
+      <div class="login-btn-body">
+        <div class="login-btn-title">{launching ? '読み込み中…' : 'Nostrでつづける'}</div>
+        <div class="login-btn-desc">次の画面で認証</div>
+      </div>
     </button>
     <div class="modal-note">
       <b>Nostrってなに？</b><br />
       メールや電話番号を使わない、新しい仕組みのSNSの基盤です。アカウントひとつで色々なアプリで使えます。
     </div>
     <div class="modal-nostr-info">
-      <p>まとめたーはNostrというSNSの投稿をまとめるサービスです。<br />ご利用にはNostrのアカウントが必要です。</p>
+      <p>まとめたーはNostrというSNSの投稿をまとめるサービスです。<br />まとめの作成にはNostrのアカウントが必要です。（見るだけならログイン不要です）</p>
       <p>作者がふだん使っているNostrアプリ：<br />
         ・<a href="https://nostter.app" target="_blank" rel="noopener noreferrer">nostter（ブラウザですぐ使えます）↗</a>
       </p>
-      <p>アカウントを作成後、『すでにアカウントをお持ちの方』からログインできます。</p>
+      <p>アカウントを作成後、上のボタンからログインできます。</p>
     </div>
   </div>
 </div>
@@ -95,26 +103,13 @@
     color: var(--accent-dark);
   }
 
-  .modal-icon {
-    width: 52px;
-    height: 52px;
-    background: var(--accent);
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 26px;
-    margin: 0 auto 14px;
-    box-shadow: 0 6px 16px rgba(249, 115, 22, 0.3);
-  }
-
   .modal-title {
     font-family: var(--font-ui);
     font-size: 19px;
     font-weight: 800;
     color: var(--ink);
     text-align: center;
-    margin: 0 0 8px;
+    margin: 28px 0 14px;
     line-height: 1.4;
   }
 
@@ -131,105 +126,97 @@
     font-weight: 700;
   }
 
+  .login-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 11px;
+    padding: 13px 16px;
+    border-radius: 9999px;
+    border: none;
+    background: var(--accent);
+    cursor: pointer;
+    margin: 0 0 16px;
+    width: 100%;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
+    transition: all 0.15s;
+  }
+
+  .login-btn:hover {
+    background: var(--accent-dark);
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45);
+    transform: translateY(-1px);
+  }
+
+  .login-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+    transform: none;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.25);
+  }
+
+  .login-btn-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .login-btn-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .login-btn-loading {
+    font-family: var(--font-ui);
+    font-weight: 800;
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .login-btn-body {
+    text-align: left;
+  }
+
+  .login-btn-title {
+    font-family: var(--font-ui);
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    margin: 0 0 1px;
+  }
+
+  .login-btn-desc {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
   .modal-note {
     background: var(--bg);
     border-radius: 10px;
     padding: 11px 14px;
-    margin: 0 0 16px;
+    margin: 0 0 10px;
     font-size: 12px;
     color: var(--ink2);
     line-height: 1.65;
-    border-left: 3px solid var(--accent);
   }
 
   .modal-note b {
-    color: var(--accent-dark);
+    color: var(--ink);
     display: block;
     margin-bottom: 3px;
-  }
-
-  .choice-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px;
-    border-radius: 14px;
-    border: 2px solid var(--border);
-    background: var(--surface);
-    cursor: pointer;
-    transition: all 0.15s;
-    margin: 0 0 10px;
-    text-align: left;
-    width: 100%;
-  }
-
-  .choice-card:hover {
-    border-color: var(--accent);
-    background: var(--accent-pale);
-  }
-
-  .choice-card.primary {
-    border-color: var(--accent-mid);
-    background: var(--accent-pale);
-  }
-
-  .choice-card.primary:hover {
-    border-color: var(--accent);
-    background: var(--accent-mid);
-  }
-
-  .choice-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: var(--accent-mid);
-    color: var(--accent-dark);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    flex-shrink: 0;
-    font-family: var(--font-ui);
-    font-weight: 800;
-  }
-
-  .choice-card.primary .choice-icon {
-    background: var(--accent);
-    color: #fff;
-  }
-
-  .choice-body {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .choice-title {
-    font-family: var(--font-ui);
-    font-size: 14px;
     font-weight: 700;
-    color: var(--ink);
-    margin: 0 0 2px;
-  }
-
-  .choice-desc {
-    font-size: 12px;
-    color: var(--ink2);
-    line-height: 1.5;
-    margin: 0;
-  }
-
-  .choice-arrow {
-    color: var(--ink3);
-    font-size: 20px;
-    flex-shrink: 0;
   }
 
   .modal-nostr-info {
-    margin-top: 4px;
     padding: 12px 14px;
     background: var(--bg);
     border-radius: 10px;
-    border-left: 3px solid var(--accent);
     font-size: 12px;
     color: var(--ink2);
     line-height: 1.7;

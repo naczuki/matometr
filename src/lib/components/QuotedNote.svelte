@@ -199,9 +199,9 @@
   }
 
   .emoji-img {
-    height: 1.2em;
-    width: auto;
-    vertical-align: middle;
+    max-height: 1.5em;
+    max-width: 100%;
+    vertical-align: top;
     display: inline;
   }
 
