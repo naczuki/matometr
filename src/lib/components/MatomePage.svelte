@@ -11,6 +11,7 @@
   import { fetchMatomeByAddress, deleteMatome } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
+  import { markDeleted } from '$lib/stores/deletedMatomes';
   import { avatarStyle } from '$lib/utils/avatar';
   import { shortNpubFromPubkey } from '$lib/utils/nostr';
   import { NOSLI_BASE_URL } from '$lib/utils/constants';
@@ -177,6 +178,7 @@
     deleteError = '';
     try {
       await deleteMatome(matome.id);
+      markDeleted(matome.id);
       await goto(`${base}/`);
     } catch (e) {
       deleteError = e instanceof Error ? e.message : '削除に失敗しました';

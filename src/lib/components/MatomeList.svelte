@@ -7,6 +7,7 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import type { Tab } from '$lib/types';
   import { DEFAULT_RELAYS } from '$lib/stores/relays';
+  import { deletedMatomeIds } from '$lib/stores/deletedMatomes';
 
   // rx-nostr の EventPacket.from はスラッシュなしで返るため正規化
   const RELAYS: string[] = DEFAULT_RELAYS.map((r) => r.replace(/\/$/, ''));
@@ -309,7 +310,7 @@
     subs.forEach((s) => s.unsubscribe());
   });
 
-  $: items = tab === 'following' ? [] : matomes;
+  $: items = tab === 'following' ? [] : matomes.filter((m) => !$deletedMatomeIds.has(m.id));
   $: showFollowingMsg = tab === 'following';
 </script>
 
