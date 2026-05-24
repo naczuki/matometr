@@ -550,7 +550,7 @@
   }
 
   .emoji-img {
-    max-height: 1.5em;
+    max-height: 1.85em;
     max-width: 100%;
     vertical-align: top;
     display: inline;
