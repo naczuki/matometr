@@ -199,7 +199,7 @@
   }
 
   .emoji-img {
-    max-height: 1.5em;
+    max-height: 1.7em;
     max-width: 100%;
     vertical-align: top;
     display: inline;

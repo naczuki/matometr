@@ -180,7 +180,7 @@
   }
 
   .emoji {
-    max-height: 1.5em;
+    max-height: 1.55em;
     max-width: 100%;
     vertical-align: top;
     display: inline;
