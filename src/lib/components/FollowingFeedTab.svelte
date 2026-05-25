@@ -5,7 +5,7 @@
   import {
     fetchFollowList,
     fetchUserReadRelays,
-    fetchNotesFromAuthors
+    fetchNotesFromAuthorsWithRelay
   } from '$lib/services/NostrClient';
   import { currentUser } from '$lib/stores/auth';
   import NotePreview from '$lib/components/NotePreview.svelte';
@@ -22,9 +22,10 @@
   let notes: Note[] = [];
   let authors: string[] = [];
   let readRelays: string[] = [];
-  let oldestAt: number | null = null;
   let reachedEnd = false;
-  let activeSub: Subscription | null = null;
+  let activeSubs: Subscription[] = [];
+  const relayCursors = new Map<string, number>();
+  const exhaustedRelays = new Set<string>();
 
   const noteById = new Map<string, Note>();
 
@@ -38,27 +39,45 @@
     }
     if (added) {
       notes = [...noteById.values()].sort((a, b) => b.createdAt - a.createdAt);
-      oldestAt = notes[notes.length - 1]?.createdAt ?? oldestAt;
     }
   }
 
-  function startFetch(until?: number): Promise<void> {
-    return new Promise((resolve) => {
-      const batch: Note[] = [];
-      activeSub?.unsubscribe();
-      activeSub = fetchNotesFromAuthors(authors, {
-        until,
-        limit: 30,
-        relays: readRelays
-      }).subscribe({
-        next: (n) => batch.push(n),
-        complete: () => {
-          addNotes(batch);
-          if (batch.length === 0) reachedEnd = true;
-          resolve();
-        },
-        error: () => resolve()
-      });
+  function startFetch(): Promise<void> {
+    const targetRelays = readRelays.filter((r) => !exhaustedRelays.has(r));
+    if (targetRelays.length === 0) {
+      reachedEnd = true;
+      return Promise.resolve();
+    }
+
+    activeSubs.forEach((s) => s.unsubscribe());
+    activeSubs = [];
+
+    return Promise.all(
+      targetRelays.map(
+        (relay) =>
+          new Promise<void>((resolve) => {
+            const batch: Note[] = [];
+            const cursor = relayCursors.get(relay);
+            const until = cursor !== undefined ? cursor - 1 : undefined;
+            const sub = fetchNotesFromAuthorsWithRelay(authors, {
+              until,
+              limit: 30,
+              relays: [relay]
+            }).subscribe({
+              next: ({ note }) => batch.push(note),
+              complete: () => {
+                addNotes(batch);
+                if (batch.length === 0) exhaustedRelays.add(relay);
+                else relayCursors.set(relay, Math.min(...batch.map((n) => n.createdAt)));
+                resolve();
+              },
+              error: () => resolve()
+            });
+            activeSubs.push(sub);
+          })
+      )
+    ).then(() => {
+      reachedEnd = targetRelays.every((r) => exhaustedRelays.has(r));
     });
   }
 
@@ -87,12 +106,12 @@
     initLoading = false;
   });
 
-  onDestroy(() => activeSub?.unsubscribe());
+  onDestroy(() => activeSubs.forEach((s) => s.unsubscribe()));
 
   async function loadMore(): Promise<void> {
-    if (loadMoreLoading || reachedEnd || oldestAt == null) return;
+    if (loadMoreLoading || reachedEnd) return;
     loadMoreLoading = true;
-    await startFetch(oldestAt - 1);
+    await startFetch();
     loadMoreLoading = false;
   }
 
