@@ -200,7 +200,7 @@
     <div class="note-header">
       <Avatar pubkey={note.pubkey} {picture} size={36} />
       <div class="note-meta">
-        <div class="note-name">{truncateName(authorName)}</div>
+        <div class="note-name">{authorName}</div>
         <div class="note-pub">{shortNpubFromPubkey(note.pubkey)}</div>
       </div>
       <!-- svelte-ignore a11y-interactive-supports-focus -->
@@ -387,8 +387,10 @@
     font-size: 13px;
     color: var(--ink);
     font-family: var(--font-ui);
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
   }
 
   .note-pub {

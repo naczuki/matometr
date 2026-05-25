@@ -18,10 +18,6 @@
   $: emojiMap = buildEmojiMap(note.tags);
   $: segments = parseNostrRefs(parsed.text, emojiMap);
 
-  function truncateName(name: string, max = 30): string {
-    return name.length > max ? name.slice(0, max) + '…' : name;
-  }
-
   function hideOnError(e: Event): void {
     const el = e.currentTarget as HTMLElement;
     const item = el.closest<HTMLElement>('.media-item');
@@ -40,7 +36,7 @@
   <div class="post-body">
     <div class="post-header">
       <Avatar pubkey={note.pubkey} {picture} size={26} />
-      <span class="author">{truncateName(author)}</span>
+      <span class="author">{author}</span>
       <span class="time">{timeAgo(note.createdAt)}</span>
     </div>
     <div class="content">
@@ -143,13 +139,15 @@
   }
 
   .author {
+    flex: 1;
     font-size: 12px;
     font-weight: 700;
     color: var(--ink);
     font-family: var(--font-ui);
-    overflow-wrap: anywhere;
-    word-break: break-word;
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .time {

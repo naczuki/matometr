@@ -313,6 +313,14 @@
     <div class="detail-header">
       <div class="detail-title">{matome.title}</div>
 
+      <div class="detail-count" title="ノート{matome.postCount}件">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+        <b>{matome.postCount}</b>件
+      </div>
+
       {#if matome.summary}
         <div class="detail-desc">{matome.summary}</div>
       {/if}
@@ -330,19 +338,19 @@
               {authorStyle.initial}
             {/if}
           </div>
-          <div>
+          <div class="detail-author-text">
             <div class="detail-author-name">{authorName}</div>
             <div class="detail-author-pub">{shortNpubFromPubkey(matome.pubkey)}</div>
           </div>
         </a>
         <div class="detail-dates">
           <div class="detail-date-row">
-            <span class="detail-date-label">作成日</span>
+            <span class="detail-date-label">作成</span>
             <span>{formatDate(matome.publishedAt)}</span>
           </div>
           {#if matome.createdAt !== matome.publishedAt}
             <div class="detail-date-row">
-              <span class="detail-date-label">更新日</span>
+              <span class="detail-date-label">更新</span>
               <span>{formatDate(matome.createdAt)}</span>
             </div>
           {/if}
@@ -350,8 +358,6 @@
       </div>
 
       <div class="detail-stats">
-        <div class="stat-item"><b>{matome.postCount}</b>件の投稿</div>
-
         <div class="stat-share-row">
           <!-- Nos: nostr-share-component（スロットでテキスト上書き） -->
           <nostr-share data-text={shareText}><span class="nos-label">Nos</span></nostr-share>
@@ -682,7 +688,27 @@
     font-weight: 800;
     color: var(--ink);
     line-height: 1.4;
-    margin-bottom: 14px;
+    margin-bottom: 7px;
+  }
+
+  .detail-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink3);
+    font-family: var(--font-ui);
+    margin-bottom: 16px;
+  }
+
+  .detail-count svg {
+    flex-shrink: 0;
+  }
+
+  .detail-count b {
+    font-size: 14px;
+    margin-right: 1px;
   }
 
   .detail-desc {
@@ -709,6 +735,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
+    overflow: hidden;
     text-decoration: none;
     border-radius: 8px;
     padding: 2px 4px;
@@ -741,10 +769,18 @@
     border-radius: 50%;
   }
 
+  .detail-author-text {
+    min-width: 0;
+    overflow: hidden;
+  }
+
   .detail-author-name {
     font-size: 13px;
     font-weight: 700;
     color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .detail-author-pub {
@@ -785,17 +821,6 @@
     flex-wrap: wrap;
   }
 
-  .stat-item {
-    font-size: 12px;
-    color: var(--ink3);
-    font-family: var(--font-ui);
-  }
-
-  .stat-item b {
-    color: var(--ink);
-    font-size: 14px;
-    margin-right: 3px;
-  }
 
   .stat-share-row {
     display: flex;
