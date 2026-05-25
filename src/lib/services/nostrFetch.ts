@@ -122,6 +122,27 @@ export function fetchNotesFromAuthors(
   );
 }
 
+export function fetchNotesFromAuthorsWithRelay(
+  authors: string[],
+  options: { until?: number; limit?: number; relays?: string[] } = {}
+): Observable<{ note: Note; relay: string }> {
+  if (authors.length === 0) return EMPTY;
+  const client = getClient();
+  const { until, limit = 30, relays } = options;
+  const f = until
+    ? { kinds: [1], authors, limit, until }
+    : { kinds: [1], authors, limit };
+  const rxReq = createRxOneshotReq({ filters: f });
+  const useOpts =
+    relays && relays.length > 0
+      ? { on: { relays, defaultReadRelays: false } }
+      : undefined;
+  return client.use(rxReq, useOpts).pipe(
+    uniq(),
+    map(({ event, from }) => ({ note: toNote(event), relay: from }))
+  );
+}
+
 export function fetchFavoriteReactions(
   pubkey: string,
   options: { until?: number; limit?: number; relays?: string[] } = {}

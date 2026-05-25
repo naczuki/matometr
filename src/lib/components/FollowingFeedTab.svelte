@@ -5,9 +5,10 @@
   import {
     fetchFollowList,
     fetchUserReadRelays,
-    fetchNotesFromAuthors
+    fetchNotesFromAuthorsWithRelay
   } from '$lib/services/NostrClient';
   import { currentUser } from '$lib/stores/auth';
+  import { DEFAULT_RELAYS } from '$lib/stores/relays';
   import NotePreview from '$lib/components/NotePreview.svelte';
   import FeedList from '$lib/components/FeedList.svelte';
   import { collectObservable } from '$lib/utils/rxCollect';
@@ -22,44 +23,134 @@
   let notes: Note[] = [];
   let authors: string[] = [];
   let readRelays: string[] = [];
-  let oldestAt: number | null = null;
   let reachedEnd = false;
-  let activeSub: Subscription | null = null;
+  let subs: Subscription[] = [];
 
   const noteById = new Map<string, Note>();
+  const cursors = new Map<string, number>();
+  const exhaustedRelays = new Set<string>();
+
+  const BATCH_SIZE = 30;
+  const MAX_INNER_ITERATIONS = 10;
+
+  function normalizeRelay(r: string): string {
+    return r.replace(/\/$/, '');
+  }
 
   function addNotes(incoming: Note[]): void {
-    let added = false;
     for (const n of incoming) {
-      if (!noteById.has(n.id)) {
-        noteById.set(n.id, n);
-        added = true;
-      }
-    }
-    if (added) {
-      notes = [...noteById.values()].sort((a, b) => b.createdAt - a.createdAt);
-      oldestAt = notes[notes.length - 1]?.createdAt ?? oldestAt;
+      noteById.set(n.id, n);
     }
   }
 
-  function startFetch(until?: number): Promise<void> {
+  function rebuildNotes(): void {
+    notes = [...noteById.values()].sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  function activeRelays(): string[] {
+    return readRelays.filter((r) => !exhaustedRelays.has(r));
+  }
+
+  function computeT(): number | null {
+    let max: number | null = null;
+    for (const r of activeRelays()) {
+      const c = cursors.get(r);
+      if (c === undefined) continue;
+      if (max === null || c > max) max = c;
+    }
+    return max;
+  }
+
+  function collectCandidatesAtOrAbove(T: number, displayedIds: Set<string>): Note[] {
+    const out: Note[] = [];
+    for (const n of noteById.values()) {
+      if (displayedIds.has(n.id)) continue;
+      if (n.createdAt >= T) out.push(n);
+    }
+    return out;
+  }
+
+  function fetchOne(relay: string): Promise<void> {
+    const cursor = cursors.get(relay);
+    const until = cursor !== undefined ? cursor - 1 : undefined;
     return new Promise((resolve) => {
-      const batch: Note[] = [];
-      activeSub?.unsubscribe();
-      activeSub = fetchNotesFromAuthors(authors, {
+      const events: Note[] = [];
+      const sub = fetchNotesFromAuthorsWithRelay(authors, {
         until,
-        limit: 30,
-        relays: readRelays
+        limit: BATCH_SIZE,
+        relays: [relay]
       }).subscribe({
-        next: (n) => batch.push(n),
+        next: ({ note }) => {
+          noteById.set(note.id, note);
+          events.push(note);
+        },
         complete: () => {
-          addNotes(batch);
-          if (batch.length === 0) reachedEnd = true;
+          if (events.length === 0) {
+            exhaustedRelays.add(relay);
+          } else {
+            const oldest = Math.min(...events.map((n) => n.createdAt));
+            cursors.set(relay, oldest);
+          }
           resolve();
         },
-        error: () => resolve()
+        error: () => {
+          if (events.length === 0) {
+            exhaustedRelays.add(relay);
+          } else {
+            const oldest = Math.min(...events.map((n) => n.createdAt));
+            cursors.set(relay, oldest);
+          }
+          resolve();
+        }
       });
+      subs.push(sub);
     });
+  }
+
+  async function initialLoad(): Promise<void> {
+    const byRelay = new Map<string, Note[]>();
+    for (const relay of readRelays) byRelay.set(relay, []);
+
+    await new Promise<void>((resolve) => {
+      let pending = readRelays.length;
+      if (pending === 0) {
+        resolve();
+        return;
+      }
+
+      for (const relay of readRelays) {
+        const sub = fetchNotesFromAuthorsWithRelay(authors, {
+          limit: BATCH_SIZE,
+          relays: [relay]
+        }).subscribe({
+          next: ({ note, relay: from }) => {
+            noteById.set(note.id, note);
+            const normalized = normalizeRelay(from);
+            if (!byRelay.has(normalized)) byRelay.set(normalized, []);
+            byRelay.get(normalized)!.push(note);
+          },
+          complete: () => {
+            if (--pending === 0) resolve();
+          },
+          error: () => {
+            if (--pending === 0) resolve();
+          }
+        });
+        subs.push(sub);
+      }
+    });
+
+    for (const [relay, relayNotes] of byRelay) {
+      if (relayNotes.length === 0) {
+        exhaustedRelays.add(relay);
+      } else {
+        const oldest = Math.min(...relayNotes.map((n) => n.createdAt));
+        cursors.set(relay, oldest);
+      }
+    }
+
+    rebuildNotes();
+    reachedEnd = activeRelays().length === 0;
   }
 
   onMount(async () => {
@@ -82,17 +173,66 @@
     }
 
     authors = follows;
-    readRelays = relays;
-    await startFetch();
+    readRelays = relays.map(normalizeRelay);
+    if (readRelays.length === 0) {
+      readRelays = DEFAULT_RELAYS.map(normalizeRelay);
+    }
+
+    await initialLoad();
     initLoading = false;
   });
 
-  onDestroy(() => activeSub?.unsubscribe());
+  onDestroy(() => {
+    subs.forEach((s) => s.unsubscribe());
+  });
 
   async function loadMore(): Promise<void> {
-    if (loadMoreLoading || reachedEnd || oldestAt == null) return;
+    if (loadMoreLoading || reachedEnd) return;
     loadMoreLoading = true;
-    await startFetch(oldestAt - 1);
+
+    const displayedIds = new Set(notes.map((n) => n.id));
+    const active = activeRelays();
+
+    if (active.length === 0) {
+      reachedEnd = true;
+      loadMoreLoading = false;
+      return;
+    }
+
+    await Promise.all(active.map((r) => fetchOne(r)));
+
+    for (let iter = 0; iter < MAX_INNER_ITERATIONS; iter++) {
+      const T = computeT();
+      if (T === null) break;
+
+      const candidates = collectCandidatesAtOrAbove(T, displayedIds);
+      if (candidates.length >= BATCH_SIZE) break;
+
+      const slowRelays = activeRelays().filter((r) => cursors.get(r) === T);
+      if (slowRelays.length === 0) break;
+      await Promise.all(slowRelays.map((r) => fetchOne(r)));
+    }
+
+    const finalT = computeT();
+    let adopted: Note[];
+    if (finalT === null) {
+      adopted = [...noteById.values()]
+        .filter((n) => !displayedIds.has(n.id))
+        .sort((a, b) => b.createdAt - a.createdAt);
+    } else {
+      adopted = collectCandidatesAtOrAbove(finalT, displayedIds)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, BATCH_SIZE);
+    }
+
+    if (adopted.length > 0) {
+      notes = [...notes, ...adopted];
+    }
+
+    const remainingUndisplayed = [...noteById.values()].filter(
+      (n) => !new Set(notes.map((x) => x.id)).has(n.id)
+    );
+    reachedEnd = activeRelays().length === 0 && remainingUndisplayed.length === 0;
     loadMoreLoading = false;
   }
 
