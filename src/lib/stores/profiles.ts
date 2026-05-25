@@ -30,6 +30,7 @@ function flush(): void {
       });
       pending.delete(profile.pubkey);
     },
-    error: () => pubkeys.forEach((pk) => pending.delete(pk))
+    error: () => pubkeys.forEach((pk) => pending.delete(pk)),
+    complete: () => pubkeys.forEach((pk) => pending.delete(pk))
   });
 }
