@@ -1,5 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import { nip19 } from 'nostr-tools';
+import type { Subscription } from 'rxjs';
 import type { UserProfile } from '$lib/types';
 import { fetchProfiles } from '$lib/services/NostrClient';
 
@@ -20,14 +21,17 @@ export const currentUser = derived([_pubkey, _profile], ([$pubkey, $profile]) =>
   }
 });
 
+let _profileSub: Subscription | null = null;
+
 function handleLogin(npub: string): void {
   try {
     const decoded = nip19.decode(npub);
     if (decoded.type !== 'npub') return;
     const pk = decoded.data;
+    _profileSub?.unsubscribe();
     _pubkey.set(pk);
     _profile.set(null);
-    fetchProfiles([pk]).subscribe((profile) => {
+    _profileSub = fetchProfiles([pk]).subscribe((profile) => {
       _profile.set(profile);
     });
   } catch {
@@ -38,6 +42,8 @@ function handleLogin(npub: string): void {
 let _nlLogout: (() => Promise<void>) | null = null;
 
 export function logout(): void {
+  _profileSub?.unsubscribe();
+  _profileSub = null;
   _pubkey.set(null);
   _profile.set(null);
   _nlLogout?.();
