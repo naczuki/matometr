@@ -6,7 +6,7 @@
   import { fetchNoteById } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { parseNostrRefs, extractImages, resolveTagRefs, buildEmojiMap } from '$lib/utils/nostrContent';
-  import { shortNpubFromPubkey, resolveRepostTarget } from '$lib/utils/nostr';
+  import { shortNpubFromPubkey, resolveRepostTarget, externalNoteUrl } from '$lib/utils/nostr';
   import { timeAgo } from '$lib/utils/time';
   import Avatar from '$lib/components/Avatar.svelte';
 
@@ -117,15 +117,14 @@
             @{truncateName(mp?.displayName ?? mp?.name ?? shortNpubFromPubkey(segment.pubkey))}
           </a>
         {:else if segment.type === 'quote'}
-          <!-- ネスト1段まで：引用はリンクのみ、カード展開しない -->
           {@const ne = safeNeventEncode(segment.eventId)}
           {#if ne}
-            <a class="quote-ref-link" href="https://njump.me/{ne}" target="_blank" rel="noopener noreferrer">
+            <a class="quote-ref-link" href={externalNoteUrl(ne)} target="_blank" rel="noopener noreferrer">
               nostr:{shortRef(ne)}
             </a>
           {/if}
         {:else if segment.type === 'naddr'}
-          <a class="naddr-link" href="https://njump.me/{segment.naddr}" target="_blank" rel="noopener noreferrer">
+          <a class="naddr-link" href="{base}/matome/?id={segment.naddr}" rel="noopener noreferrer">
             nostr:{shortRef(segment.naddr)}
           </a>
         {:else if segment.type === 'emoji'}
