@@ -34,6 +34,7 @@ export async function sendToRelays(eventParams: {
   content: string;
 }): Promise<void> {
   return new Promise<void>((resolve, reject) => {
+    console.log('[sendToRelays] event:', JSON.stringify(eventParams, null, 2));
     let published = false;
     const sub = getClient()
       .send(eventParams, { signer: nip07Signer() })
