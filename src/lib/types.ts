@@ -21,6 +21,7 @@ export interface Note {
   content: string;
   createdAt: number;
   tags: string[][];
+  kind: number;
 }
 
 export type NoteEditorBlock = { id: string; type: 'nevent'; nevent: string };

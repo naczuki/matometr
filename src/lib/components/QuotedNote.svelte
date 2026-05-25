@@ -6,7 +6,7 @@
   import { fetchNoteById } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { parseNostrRefs, extractImages, resolveTagRefs, buildEmojiMap } from '$lib/utils/nostrContent';
-  import { shortNpubFromPubkey } from '$lib/utils/nostr';
+  import { shortNpubFromPubkey, resolveRepostTarget, externalNoteUrl } from '$lib/utils/nostr';
   import { timeAgo } from '$lib/utils/time';
   import Avatar from '$lib/components/Avatar.svelte';
 
@@ -16,21 +16,48 @@
   let note: Note | null = null;
   let failed = false;
 
+  let repostSub: { unsubscribe(): void } | null = null;
+  let resolvingRepost = false;
+  let repostTimer: ReturnType<typeof setTimeout> | null = null;
+
   onMount(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const sub = fetchNoteById(eventId).subscribe({
       next: (n) => {
+        const repost = resolveRepostTarget(n);
+        if (repost) {
+          resolvingRepost = true;
+          if (timer) { clearTimeout(timer); timer = null; }
+          repostSub = fetchNoteById(repost.eventId).subscribe({
+            next: (original) => {
+              note = original;
+              requestProfile(original.pubkey);
+              if (repostTimer) { clearTimeout(repostTimer); repostTimer = null; }
+            },
+            error: () => { failed = true; },
+            complete: () => { if (!note) failed = true; }
+          });
+          repostTimer = setTimeout(() => { if (!note) failed = true; }, 10_000);
+          return;
+        }
+        if (n.kind === 1111) {
+          failed = true;
+          if (timer) clearTimeout(timer);
+          return;
+        }
         note = n;
         requestProfile(n.pubkey);
         if (timer) clearTimeout(timer);
       },
       error: () => { failed = true; },
-      complete: () => { if (!note) failed = true; }
+      complete: () => { if (!note && !resolvingRepost) failed = true; }
     });
-    timer = setTimeout(() => { if (!note) failed = true; }, 10_000);
+    timer = setTimeout(() => { if (!note && !resolvingRepost) failed = true; }, 10_000);
     return () => {
       sub.unsubscribe();
+      repostSub?.unsubscribe();
       if (timer) clearTimeout(timer);
+      if (repostTimer) clearTimeout(repostTimer);
     };
   });
 
@@ -82,7 +109,7 @@
   {:else}
     <div class="quoted-header">
       <Avatar pubkey={note.pubkey} {picture} size={20} />
-      <span class="quoted-name">{truncateName(authorName)}</span>
+      <span class="quoted-name">{authorName}</span>
       {#if showDate && note}
         <span class="quoted-date">{timeAgo(note.createdAt)}</span>
       {/if}
@@ -97,15 +124,14 @@
             @{truncateName(mp?.displayName ?? mp?.name ?? shortNpubFromPubkey(segment.pubkey))}
           </a>
         {:else if segment.type === 'quote'}
-          <!-- ネスト1段まで：引用はリンクのみ、カード展開しない -->
           {@const ne = safeNeventEncode(segment.eventId)}
           {#if ne}
-            <a class="quote-ref-link" href="https://njump.me/{ne}" target="_blank" rel="noopener noreferrer">
+            <a class="quote-ref-link" href={externalNoteUrl(ne)} target="_blank" rel="noopener noreferrer">
               nostr:{shortRef(ne)}
             </a>
           {/if}
         {:else if segment.type === 'naddr'}
-          <a class="naddr-link" href="https://njump.me/{segment.naddr}" target="_blank" rel="noopener noreferrer">
+          <a class="naddr-link" href="{base}/matome/?id={segment.naddr}" rel="noopener noreferrer">
             nostr:{shortRef(segment.naddr)}
           </a>
         {:else if segment.type === 'emoji'}
@@ -169,13 +195,20 @@
     align-items: center;
     gap: 6px;
     margin-bottom: 5px;
+    min-width: 0;
   }
 
   .quoted-name {
+    flex: 1;
     font-size: 12px;
     font-weight: 700;
     color: var(--ink);
     font-family: var(--font-ui);
+    display: inline-block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .quoted-date {

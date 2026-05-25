@@ -13,12 +13,12 @@
   import { currentUser } from '$lib/stores/auth';
   import { markDeleted } from '$lib/stores/deletedMatomes';
   import { avatarStyle } from '$lib/utils/avatar';
-  import { shortNpubFromPubkey } from '$lib/utils/nostr';
+  import { shortNpubFromPubkey, shortNpub as shortNpubStr } from '$lib/utils/nostr';
   import { NOSLI_BASE_URL } from '$lib/utils/constants';
   import NoteCard from '$lib/components/NoteCard.svelte';
   import NaddrCard from '$lib/components/NaddrCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
-  import { parseMarkdownContent } from '$lib/utils/markdown';
+  import { parseMarkdownContent, renderInlineMarkdown } from '$lib/utils/markdown';
   import type { ContentSegment } from '$lib/utils/markdown';
 
   export let naddr: string;
@@ -93,17 +93,30 @@
 
   type RenderBlock =
     | { type: 'note'; nevent: string; num: number }
+    | { type: 'naddr'; naddr: string }
+    | { type: 'mention'; pubkey: string; npub: string }
     | { type: 'heading'; content: string }
     | { type: 'paragraph'; content: string }
-    | { type: 'comment'; content: string };
+    | { type: 'comment'; content: string; html: string };
 
-  function buildRenderPlan(blocks: MatomeBlock[]): RenderBlock[] {
+  function buildRenderPlan(blocks: MatomeBlock[], hasLayout: boolean): RenderBlock[] {
     const plan: RenderBlock[] = [];
     let noteNum = 0;
     for (const b of blocks) {
       if (b.type === 'nevent') {
         noteNum++;
         plan.push({ type: 'note', nevent: b.content, num: noteNum });
+      } else if (b.type === 'naddr') {
+        const encoded = b.content.replace(/^nostr:/, '');
+        plan.push({ type: 'naddr', naddr: encoded });
+      } else if (b.type === 'mention') {
+        try {
+          const npub = nip19.npubEncode(b.pubkey);
+          plan.push({ type: 'mention', pubkey: b.pubkey, npub });
+        } catch { /* skip invalid */ }
+      } else if (b.type === 'comment') {
+        const html = hasLayout ? renderInlineMarkdown(b.content) : '';
+        plan.push({ type: 'comment', content: b.content, html });
       } else {
         plan.push({ type: b.type, content: b.content } as RenderBlock);
       }
@@ -111,7 +124,11 @@
     return plan;
   }
 
-  $: renderPlan = matome ? buildRenderPlan(matome.blocks) : [];
+  $: hasLayoutTag = matome ? matome.rawEvent.tags.some(([k]) => k === 'matome_layout') : false;
+  $: renderPlan = matome ? buildRenderPlan(matome.blocks, hasLayoutTag) : [];
+  $: for (const block of renderPlan) {
+    if (block.type === 'mention') requestProfile(block.pubkey);
+  }
 
   let mdSegments: ContentSegment[] = [];
   $: if (matome && !matome.isMatometr && !matome.isNosli) {
@@ -296,6 +313,14 @@
     <div class="detail-header">
       <div class="detail-title">{matome.title}</div>
 
+      <div class="detail-count" title="ノート{matome.postCount}件">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+        <b>{matome.postCount}</b>件
+      </div>
+
       {#if matome.summary}
         <div class="detail-desc">{matome.summary}</div>
       {/if}
@@ -313,19 +338,19 @@
               {authorStyle.initial}
             {/if}
           </div>
-          <div>
+          <div class="detail-author-text">
             <div class="detail-author-name">{authorName}</div>
             <div class="detail-author-pub">{shortNpubFromPubkey(matome.pubkey)}</div>
           </div>
         </a>
         <div class="detail-dates">
           <div class="detail-date-row">
-            <span class="detail-date-label">作成日</span>
+            <span class="detail-date-label">作成</span>
             <span>{formatDate(matome.publishedAt)}</span>
           </div>
           {#if matome.createdAt !== matome.publishedAt}
             <div class="detail-date-row">
-              <span class="detail-date-label">更新日</span>
+              <span class="detail-date-label">更新</span>
               <span>{formatDate(matome.createdAt)}</span>
             </div>
           {/if}
@@ -333,8 +358,6 @@
       </div>
 
       <div class="detail-stats">
-        <div class="stat-item"><b>{matome.postCount}</b>件の投稿</div>
-
         <div class="stat-share-row">
           <!-- Nos: nostr-share-component（スロットでテキスト上書き） -->
           <nostr-share data-text={shareText}><span class="nos-label">Nos</span></nostr-share>
@@ -400,8 +423,19 @@
           <div class="block-heading">{block.content}</div>
         {:else if block.type === 'note'}
           <NoteCard nevent={block.nevent} num={block.num} total={matome.postCount} />
+        {:else if block.type === 'naddr'}
+          <NaddrCard ref={'nostr:' + block.naddr} />
+        {:else if block.type === 'mention'}
+          {@const mp = $profiles.get(block.pubkey)}
+          <a class="block-mention" href="{base}/user/{block.npub}">
+            @{mp?.displayName ?? mp?.name ?? shortNpubStr(block.npub)}
+          </a>
         {:else if block.type === 'comment'}
-          <div class="block-comment">{block.content}</div>
+          {#if block.html}
+            <div class="block-comment block-comment-md">{@html block.html}</div>
+          {:else}
+            <div class="block-comment">{block.content}</div>
+          {/if}
         {:else if block.type === 'paragraph'}
           <p class="block-paragraph">{block.content}</p>
         {/if}
@@ -654,7 +688,27 @@
     font-weight: 800;
     color: var(--ink);
     line-height: 1.4;
-    margin-bottom: 14px;
+    margin-bottom: 7px;
+  }
+
+  .detail-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink3);
+    font-family: var(--font-ui);
+    margin-bottom: 16px;
+  }
+
+  .detail-count svg {
+    flex-shrink: 0;
+  }
+
+  .detail-count b {
+    font-size: 14px;
+    margin-right: 1px;
   }
 
   .detail-desc {
@@ -681,6 +735,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
+    overflow: hidden;
     text-decoration: none;
     border-radius: 8px;
     padding: 2px 4px;
@@ -713,10 +769,18 @@
     border-radius: 50%;
   }
 
+  .detail-author-text {
+    min-width: 0;
+    overflow: hidden;
+  }
+
   .detail-author-name {
     font-size: 13px;
     font-weight: 700;
     color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .detail-author-pub {
@@ -757,17 +821,6 @@
     flex-wrap: wrap;
   }
 
-  .stat-item {
-    font-size: 12px;
-    color: var(--ink3);
-    font-family: var(--font-ui);
-  }
-
-  .stat-item b {
-    color: var(--ink);
-    font-size: 14px;
-    margin-right: 3px;
-  }
 
   .stat-share-row {
     display: flex;
@@ -1088,6 +1141,71 @@
     margin-bottom: 12px;
     white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  .block-comment-md {
+    white-space: normal;
+  }
+
+  :global(.block-comment-md p) {
+    margin: 0.4em 0;
+  }
+
+  :global(.block-comment-md p:first-child) {
+    margin-top: 0;
+  }
+
+  :global(.block-comment-md p:last-child) {
+    margin-bottom: 0;
+  }
+
+  :global(.block-comment-md strong) {
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  :global(.block-comment-md em) {
+    font-style: italic;
+  }
+
+  :global(.block-comment-md a) {
+    color: var(--accent);
+    text-decoration: underline;
+    word-break: break-all;
+  }
+
+  :global(.block-comment-md code) {
+    font-family: monospace;
+    font-size: 0.9em;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  :global(.block-comment-md ul),
+  :global(.block-comment-md ol) {
+    padding-left: 1.5em;
+    margin: 0.4em 0;
+  }
+
+  .block-mention {
+    display: block;
+    padding: 10px 16px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+    margin-bottom: 12px;
+    transition: background 0.12s;
+  }
+
+  .block-mention:hover {
+    background: var(--accent-pale);
+    text-decoration: underline;
   }
 
   .block-paragraph {

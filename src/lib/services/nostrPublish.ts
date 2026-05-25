@@ -3,18 +3,58 @@ import { ulid } from 'ulid';
 import type { EditorBlock } from '$lib/types';
 import { sendToRelays } from './nostrCore';
 
+const NOSTR_REF_SOLO = /^nostr:(nevent1|note1|naddr1|npub1|nprofile1)[a-z0-9]+$/;
+
+function splitTextToChunks(text: string): string[] {
+  return text.split(/\n\s*\n/).map((c) => c.trim()).filter((c) => c.length > 0);
+}
+
 function blocksToContent(blocks: EditorBlock[]): string {
   const parts: string[] = [];
   for (const block of blocks) {
     if (block.type === 'nevent' && block.nevent) {
       parts.push(block.nevent);
     } else if (block.type === 'comment' && block.text.trim()) {
-      parts.push(block.text.split('\n').map((l) => `> ${l}`).join('\n'));
+      parts.push(block.text.trim());
     } else if (block.type === 'heading' && block.text.trim()) {
       parts.push(`## ${block.text}`);
     }
   }
   return parts.join('\n\n');
+}
+
+function buildLayoutTag(blocks: EditorBlock[]): string[][] {
+  const effectiveBlocks = blocks.filter((b) => {
+    if (b.type === 'nevent') return !!b.nevent;
+    return b.text.trim().length > 0;
+  });
+
+  const runs: number[][] = [];
+  let currentRun: number[] = [];
+
+  for (const block of effectiveBlocks) {
+    if (block.type === 'nevent') {
+      if (currentRun.length > 0) {
+        runs.push(currentRun);
+        currentRun = [];
+      }
+    } else {
+      let chunkCount: number;
+      if (block.type === 'heading') {
+        chunkCount = 1;
+      } else {
+        chunkCount = splitTextToChunks(block.text).length;
+        if (chunkCount === 0) chunkCount = 1;
+      }
+      currentRun.push(chunkCount);
+    }
+  }
+  if (currentRun.length > 0) {
+    runs.push(currentRun);
+  }
+
+  if (runs.length === 0) return [];
+  return [['matome_layout', '1', JSON.stringify(runs)]];
 }
 
 function buildMentionTags(blocks: EditorBlock[]): string[][] {
@@ -82,6 +122,7 @@ export async function publishMatome(params: {
       ['t', 'matometr'],
       CLIENT_TAG,
       ...buildMentionTags(params.blocks),
+      ...buildLayoutTag(params.blocks),
     ],
     content: blocksToContent(params.blocks),
   });
@@ -112,6 +153,7 @@ export async function updateMatome(params: {
       ['t', 'matometr'],
       CLIENT_TAG,
       ...buildMentionTags(params.blocks),
+      ...buildLayoutTag(params.blocks),
     ],
     content: blocksToContent(params.blocks),
   });

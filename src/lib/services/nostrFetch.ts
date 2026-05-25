@@ -49,7 +49,7 @@ export function fetchMatomeByAddress(pointer: AddressPointer): Observable<Matome
 export function fetchNoteById(eventId: string): Observable<Note> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
-    filters: { kinds: [1, 42], ids: [eventId], limit: 1 }
+    filters: { ids: [eventId], limit: 1 }
   });
   return client.use(rxReq).pipe(
     map(({ event }) => toNote(event)),
@@ -60,7 +60,7 @@ export function fetchNoteById(eventId: string): Observable<Note> {
 export function fetchNoteByIdWithRelay(eventId: string): Observable<{ note: Note; relay: string }> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
-    filters: { kinds: [1, 42], ids: [eventId], limit: 1 }
+    filters: { ids: [eventId], limit: 1 }
   });
   return client.use(rxReq).pipe(
     map(({ event, from }) => ({ note: toNote(event), relay: from })),
@@ -154,7 +154,7 @@ export function fetchNotesByIds(
   const client = getClient();
   const { relays } = options;
   const rxReq = createRxOneshotReq({
-    filters: { kinds: [1, 42], ids, limit: ids.length }
+    filters: { ids, limit: ids.length }
   });
 
   return client.use(rxReq, withRelays(relays)).pipe(

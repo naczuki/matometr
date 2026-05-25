@@ -7,7 +7,7 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { timeAgo } from '$lib/utils/time';
   import { parseNostrRefs, extractImages, resolveTagRefs, buildEmojiMap } from '$lib/utils/nostrContent';
-  import { shortNpubFromPubkey } from '$lib/utils/nostr';
+  import { shortNpubFromPubkey, resolveRepostTarget } from '$lib/utils/nostr';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import Avatar from '$lib/components/Avatar.svelte';
 
@@ -26,6 +26,34 @@
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let removeDocListener: (() => void) | null = null;
 
+  let repostSub: { unsubscribe(): void } | null = null;
+  let repostTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function handleFetchedNote(n: Note, relay: string): void {
+    const repost = resolveRepostTarget(n);
+    if (repost) {
+      repostSub = fetchNoteByIdWithRelay(repost.eventId).subscribe({
+        next: ({ note: original, relay: r }) => {
+          note = original;
+          fetchedFrom = r;
+          requestProfile(original.pubkey);
+          if (repostTimer) { clearTimeout(repostTimer); repostTimer = null; }
+        },
+        error: () => { loadError = true; },
+        complete: () => { if (!note) loadError = true; }
+      });
+      repostTimer = setTimeout(() => { if (!note) loadError = true; }, 10_000);
+      return;
+    }
+    if (n.kind === 1111) {
+      loadError = true;
+      return;
+    }
+    note = n;
+    fetchedFrom = relay;
+    requestProfile(n.pubkey);
+  }
+
   onMount(() => {
     const str = nevent.replace('nostr:', '');
     let eventId: string;
@@ -42,17 +70,17 @@
     let timer: ReturnType<typeof setTimeout> | null = null;
     const sub = fetchNoteByIdWithRelay(eventId).subscribe({
       next: ({ note: n, relay }) => {
-        note = n;
-        fetchedFrom = relay;
-        requestProfile(n.pubkey);
-        if (timer) clearTimeout(timer);
+        handleFetchedNote(n, relay);
+        if (timer) { clearTimeout(timer); timer = null; }
       },
       error: () => { loadError = true; }
     });
     timer = setTimeout(() => { if (!note) loadError = true; }, 10_000);
     return () => {
       sub.unsubscribe();
+      repostSub?.unsubscribe();
       if (timer) clearTimeout(timer);
+      if (repostTimer) clearTimeout(repostTimer);
     };
   });
 
@@ -172,7 +200,7 @@
     <div class="note-header">
       <Avatar pubkey={note.pubkey} {picture} size={36} />
       <div class="note-meta">
-        <div class="note-name">{truncateName(authorName)}</div>
+        <div class="note-name">{authorName}</div>
         <div class="note-pub">{shortNpubFromPubkey(note.pubkey)}</div>
       </div>
       <!-- svelte-ignore a11y-interactive-supports-focus -->
@@ -198,9 +226,7 @@
             {:else if segment.type === 'naddr'}
               <a
                 class="naddr-link"
-                href="https://njump.me/{segment.naddr}"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="{base}/matome/?id={segment.naddr}"
               >nostr:{shortenNaddr(segment.naddr)}</a>
             {:else if segment.type === 'url'}
               <a
@@ -361,8 +387,10 @@
     font-size: 13px;
     color: var(--ink);
     font-family: var(--font-ui);
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
   }
 
   .note-pub {
