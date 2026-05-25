@@ -221,9 +221,7 @@
             {:else if segment.type === 'naddr'}
               <a
                 class="naddr-link"
-                href="https://njump.me/{segment.naddr}"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="{base}/matome/?id={segment.naddr}"
               >nostr:{shortenNaddr(segment.naddr)}</a>
             {:else if segment.type === 'url'}
               <a

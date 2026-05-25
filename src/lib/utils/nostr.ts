@@ -57,6 +57,14 @@ export function shortNpub(npub: string | undefined): string {
   return npub.slice(0, 8) + '…' + npub.slice(-4);
 }
 
+export function externalNoteUrl(nevent: string): string {
+  return `https://nostter.app/${nevent}`;
+}
+
+export function externalNpubUrl(npub: string): string {
+  return `https://nostter.app/${npub}`;
+}
+
 export function neventFor(note: Note, relays: string[] = []): string {
   try {
     return `nostr:${nip19.neventEncode({
