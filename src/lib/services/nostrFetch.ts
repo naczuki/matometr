@@ -167,6 +167,36 @@ export function fetchFavoriteReactions(
   );
 }
 
+export function fetchFavoriteReactionsWithRelay(
+  pubkey: string,
+  options: { until?: number; limit?: number; relays?: string[] } = {}
+): Observable<{ eventId: string; reactedAt: number; relay: string }> {
+  const client = getClient();
+  const { until, limit = 30, relays } = options;
+  const reactionFilter = until
+    ? { kinds: [7], authors: [pubkey], limit, until }
+    : { kinds: [7], authors: [pubkey], limit };
+  const rxReq = createRxOneshotReq({ filters: reactionFilter });
+  const useOpts =
+    relays && relays.length > 0
+      ? { on: { relays, defaultReadRelays: false } }
+      : undefined;
+
+  return client.use(rxReq, useOpts).pipe(
+    uniq(),
+    map(({ event, from }) => {
+      let eventId = '';
+      for (const tag of event.tags) {
+        if (tag[0] === 'e' && tag[1] && HEX_64.test(tag[1])) eventId = tag[1];
+      }
+      return eventId ? { eventId, reactedAt: event.created_at, relay: from } : null;
+    }),
+    filter(
+      (r): r is { eventId: string; reactedAt: number; relay: string } => r !== null
+    )
+  );
+}
+
 export function fetchNotesByIds(
   ids: string[],
   options: { relays?: string[] } = {}
