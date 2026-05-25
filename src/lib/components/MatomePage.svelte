@@ -18,7 +18,7 @@
   import NoteCard from '$lib/components/NoteCard.svelte';
   import NaddrCard from '$lib/components/NaddrCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
-  import { parseMarkdownContent } from '$lib/utils/markdown';
+  import { parseMarkdownContent, renderInlineMarkdown } from '$lib/utils/markdown';
   import type { ContentSegment } from '$lib/utils/markdown';
 
   export let naddr: string;
@@ -95,15 +95,18 @@
     | { type: 'note'; nevent: string; num: number }
     | { type: 'heading'; content: string }
     | { type: 'paragraph'; content: string }
-    | { type: 'comment'; content: string };
+    | { type: 'comment'; content: string; html: string };
 
-  function buildRenderPlan(blocks: MatomeBlock[]): RenderBlock[] {
+  function buildRenderPlan(blocks: MatomeBlock[], hasLayout: boolean): RenderBlock[] {
     const plan: RenderBlock[] = [];
     let noteNum = 0;
     for (const b of blocks) {
       if (b.type === 'nevent') {
         noteNum++;
         plan.push({ type: 'note', nevent: b.content, num: noteNum });
+      } else if (b.type === 'comment') {
+        const html = hasLayout ? renderInlineMarkdown(b.content) : '';
+        plan.push({ type: 'comment', content: b.content, html });
       } else {
         plan.push({ type: b.type, content: b.content } as RenderBlock);
       }
@@ -111,7 +114,8 @@
     return plan;
   }
 
-  $: renderPlan = matome ? buildRenderPlan(matome.blocks) : [];
+  $: hasLayoutTag = matome ? matome.rawEvent.tags.some(([k]) => k === 'matome_layout') : false;
+  $: renderPlan = matome ? buildRenderPlan(matome.blocks, hasLayoutTag) : [];
 
   let mdSegments: ContentSegment[] = [];
   $: if (matome && !matome.isMatometr && !matome.isNosli) {
@@ -401,7 +405,11 @@
         {:else if block.type === 'note'}
           <NoteCard nevent={block.nevent} num={block.num} total={matome.postCount} />
         {:else if block.type === 'comment'}
-          <div class="block-comment">{block.content}</div>
+          {#if block.html}
+            <div class="block-comment block-comment-md">{@html block.html}</div>
+          {:else}
+            <div class="block-comment">{block.content}</div>
+          {/if}
         {:else if block.type === 'paragraph'}
           <p class="block-paragraph">{block.content}</p>
         {/if}
@@ -1088,6 +1096,52 @@
     margin-bottom: 12px;
     white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  .block-comment-md {
+    white-space: normal;
+  }
+
+  :global(.block-comment-md p) {
+    margin: 0.4em 0;
+  }
+
+  :global(.block-comment-md p:first-child) {
+    margin-top: 0;
+  }
+
+  :global(.block-comment-md p:last-child) {
+    margin-bottom: 0;
+  }
+
+  :global(.block-comment-md strong) {
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  :global(.block-comment-md em) {
+    font-style: italic;
+  }
+
+  :global(.block-comment-md a) {
+    color: var(--accent);
+    text-decoration: underline;
+    word-break: break-all;
+  }
+
+  :global(.block-comment-md code) {
+    font-family: monospace;
+    font-size: 0.9em;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  :global(.block-comment-md ul),
+  :global(.block-comment-md ol) {
+    padding-left: 1.5em;
+    margin: 0.4em 0;
   }
 
   .block-paragraph {

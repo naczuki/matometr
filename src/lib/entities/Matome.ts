@@ -9,6 +9,7 @@ export type ParagraphBlock = { type: 'paragraph'; content: string };
 export type MatomeBlock = NeventBlock | CommentBlock | HeadingBlock | ParagraphBlock;
 
 const NEVENT_LINE = /^nostr:nevent1[a-z0-9]+$/;
+const NOSTR_REF_SOLO = /^nostr:(nevent1|note1|naddr1|npub1|nprofile1)[a-z0-9]+$/;
 const HEADING_LINE = /^## .+/;
 const BLOCKQUOTE_LINE = /^> /;
 const TAG_REF_LINE = /^#\[(\d+)\]$/;
@@ -105,6 +106,97 @@ export class Matome {
   }
 
   private static parseContent(content: string, eventTags: string[][]): MatomeBlock[] {
+    const layoutTag = eventTags.find(([k]) => k === 'matome_layout');
+    if (layoutTag && layoutTag[1] === '1') {
+      return Matome.parseContentWithLayout(content, eventTags, layoutTag[2]);
+    }
+    return Matome.parseContentLegacy(content, eventTags);
+  }
+
+  private static parseContentWithLayout(content: string, eventTags: string[][], layoutJson: string): MatomeBlock[] {
+    let runs: number[][];
+    try {
+      runs = JSON.parse(layoutJson) as number[][];
+      if (!Array.isArray(runs)) throw new Error();
+    } catch {
+      return Matome.parseContentLegacy(content, eventTags);
+    }
+
+    const chunks = content.split(/\n\s*\n/).map((c) => c.trim()).filter((c) => c.length > 0);
+    const blocks: MatomeBlock[] = [];
+    let runIndex = 0;
+    let textRunChunks: string[] = [];
+
+    function flushTextRun(): void {
+      if (textRunChunks.length === 0) return;
+      const grouping = runIndex < runs.length ? runs[runIndex] : null;
+      runIndex++;
+
+      if (!grouping || !Array.isArray(grouping)) {
+        for (const chunk of textRunChunks) {
+          if (HEADING_LINE.test(chunk) && !chunk.includes('\n')) {
+            blocks.push({ type: 'heading', content: chunk.slice(3) });
+          } else {
+            blocks.push({ type: 'comment', content: chunk });
+          }
+        }
+        textRunChunks = [];
+        return;
+      }
+
+      const totalFromGrouping = grouping.reduce((a, b) => a + b, 0);
+      if (totalFromGrouping !== textRunChunks.length) {
+        for (const chunk of textRunChunks) {
+          if (HEADING_LINE.test(chunk) && !chunk.includes('\n')) {
+            blocks.push({ type: 'heading', content: chunk.slice(3) });
+          } else {
+            blocks.push({ type: 'comment', content: chunk });
+          }
+        }
+        textRunChunks = [];
+        return;
+      }
+
+      let offset = 0;
+      for (const size of grouping) {
+        const slice = textRunChunks.slice(offset, offset + size);
+        const joined = slice.join('\n\n');
+        if (size === 1 && HEADING_LINE.test(joined) && !joined.includes('\n')) {
+          blocks.push({ type: 'heading', content: joined.slice(3) });
+        } else {
+          blocks.push({ type: 'comment', content: joined });
+        }
+        offset += size;
+      }
+      textRunChunks = [];
+    }
+
+    for (const chunk of chunks) {
+      if (NOSTR_REF_SOLO.test(chunk)) {
+        flushTextRun();
+        if (NEVENT_LINE.test(chunk)) {
+          blocks.push({ type: 'nevent', content: chunk });
+        } else {
+          blocks.push({ type: 'nevent', content: chunk });
+        }
+      } else {
+        textRunChunks.push(chunk);
+      }
+    }
+    flushTextRun();
+
+    if (blocks.filter((b) => b.type === 'nevent').length === 0) {
+      for (const tag of eventTags) {
+        if (tag[0] === 'e' && tag[1]) {
+          blocks.push({ type: 'nevent', content: `nostr:${nip19.neventEncode({ id: tag[1] })}` });
+        }
+      }
+    }
+
+    return blocks;
+  }
+
+  private static parseContentLegacy(content: string, eventTags: string[][]): MatomeBlock[] {
     const lines = content.split('\n');
     const blocks: MatomeBlock[] = [];
     let hasPostBlocks = false;
@@ -118,7 +210,6 @@ export class Matome {
         hasPostBlocks = true;
         i++;
       } else if (TAG_REF_LINE.test(line.trim())) {
-        // 旧nosli形式: #[N] → eventTags[N] が e タグならその投稿IDをneventに変換
         const match = line.trim().match(TAG_REF_LINE);
         if (match) {
           const idx = parseInt(match[1], 10);
@@ -148,7 +239,6 @@ export class Matome {
       }
     }
 
-    // フォールバック: contentに投稿参照が無く e タグがある場合は e タグ順に並べる
     if (!hasPostBlocks) {
       for (const tag of eventTags) {
         if (tag[0] === 'e' && tag[1]) {
