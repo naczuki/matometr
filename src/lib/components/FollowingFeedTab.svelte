@@ -37,16 +37,6 @@
     return r.replace(/\/$/, '');
   }
 
-  function addNotes(incoming: Note[]): void {
-    for (const n of incoming) {
-      noteById.set(n.id, n);
-    }
-  }
-
-  function rebuildNotes(): void {
-    notes = [...noteById.values()].sort((a, b) => b.createdAt - a.createdAt);
-  }
-
   function activeRelays(): string[] {
     return readRelays.filter((r) => !exhaustedRelays.has(r));
   }
@@ -149,7 +139,16 @@
       }
     }
 
-    rebuildNotes();
+    const T = computeT();
+    if (T !== null) {
+      notes = [...noteById.values()]
+        .filter((n) => n.createdAt >= T)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, BATCH_SIZE);
+    } else {
+      notes = [...noteById.values()].sort((a, b) => b.createdAt - a.createdAt);
+    }
+
     reachedEnd = activeRelays().length === 0;
   }
 
@@ -226,13 +225,12 @@
     }
 
     if (adopted.length > 0) {
-      notes = [...notes, ...adopted];
+      notes = [...notes, ...adopted].sort((a, b) => b.createdAt - a.createdAt);
     }
 
-    const remainingUndisplayed = [...noteById.values()].filter(
-      (n) => !new Set(notes.map((x) => x.id)).has(n.id)
-    );
-    reachedEnd = activeRelays().length === 0 && remainingUndisplayed.length === 0;
+    const displayedSet = new Set(notes.map((x) => x.id));
+    const hasUndisplayed = [...noteById.values()].some((n) => !displayedSet.has(n.id));
+    reachedEnd = activeRelays().length === 0 && !hasUndisplayed;
     loadMoreLoading = false;
   }
 
