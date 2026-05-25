@@ -2,6 +2,22 @@ import { nip19 } from 'nostr-tools';
 import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
 import type { Note } from '$lib/types';
 
+const HEX_64 = /^[0-9a-f]{64}$/;
+
+export function resolveRepostTarget(note: Note): { eventId: string; relay: string } | null {
+  if (note.kind !== 6 && note.kind !== 16) return null;
+  let targetId = '';
+  let relay = '';
+  for (const tag of note.tags) {
+    if (tag[0] === 'e' && tag[1] && HEX_64.test(tag[1])) {
+      targetId = tag[1];
+      relay = tag[2] ?? '';
+    }
+  }
+  if (!targetId) return null;
+  return { eventId: targetId, relay };
+}
+
 export function parseNostrInput(raw: string): string | null {
   const m = raw.trim().match(/(nevent1[a-z0-9]+|note1[a-z0-9]+)/);
   if (!m) return null;

@@ -7,7 +7,7 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { timeAgo } from '$lib/utils/time';
   import { parseNostrRefs, extractImages, resolveTagRefs, buildEmojiMap } from '$lib/utils/nostrContent';
-  import { shortNpubFromPubkey } from '$lib/utils/nostr';
+  import { shortNpubFromPubkey, resolveRepostTarget } from '$lib/utils/nostr';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import Avatar from '$lib/components/Avatar.svelte';
 
@@ -26,6 +26,30 @@
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let removeDocListener: (() => void) | null = null;
 
+  let repostSub: { unsubscribe(): void } | null = null;
+
+  function handleFetchedNote(n: Note, relay: string): void {
+    const repost = resolveRepostTarget(n);
+    if (repost) {
+      repostSub = fetchNoteByIdWithRelay(repost.eventId).subscribe({
+        next: ({ note: original, relay: r }) => {
+          note = original;
+          fetchedFrom = r;
+          requestProfile(original.pubkey);
+        },
+        error: () => { loadError = true; }
+      });
+      return;
+    }
+    if (n.kind === 1111) {
+      loadError = true;
+      return;
+    }
+    note = n;
+    fetchedFrom = relay;
+    requestProfile(n.pubkey);
+  }
+
   onMount(() => {
     const str = nevent.replace('nostr:', '');
     let eventId: string;
@@ -42,9 +66,7 @@
     let timer: ReturnType<typeof setTimeout> | null = null;
     const sub = fetchNoteByIdWithRelay(eventId).subscribe({
       next: ({ note: n, relay }) => {
-        note = n;
-        fetchedFrom = relay;
-        requestProfile(n.pubkey);
+        handleFetchedNote(n, relay);
         if (timer) clearTimeout(timer);
       },
       error: () => { loadError = true; }
@@ -52,6 +74,7 @@
     timer = setTimeout(() => { if (!note) loadError = true; }, 10_000);
     return () => {
       sub.unsubscribe();
+      repostSub?.unsubscribe();
       if (timer) clearTimeout(timer);
     };
   });

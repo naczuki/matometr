@@ -1,6 +1,9 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { parseNostrInput, eventIdFromNevent } from '$lib/utils/nostr';
+  import { nip19 } from 'nostr-tools';
+  import { parseNostrInput, eventIdFromNevent, resolveRepostTarget } from '$lib/utils/nostr';
+  import { fetchNoteById } from '$lib/services/NostrClient';
+  import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
   import FollowingFeedTab from '$lib/components/FollowingFeedTab.svelte';
   import FavoritesFeedTab from '$lib/components/FavoritesFeedTab.svelte';
   import SearchFeedTab from '$lib/components/SearchFeedTab.svelte';
@@ -13,6 +16,7 @@
 
   type Pending = { eventId: string; nevent: string };
   let pending: Pending[] = [];
+  let pasteLoading = false;
 
   $: selectedIds = new Set(pending.map((p) => p.eventId));
 
@@ -51,7 +55,7 @@
     return { eventId, nevent };
   }
 
-  function addPaste(): void {
+  async function addPaste(): Promise<void> {
     pasteError = '';
     const parsed = parsePasteInput(pasteInput);
     if (!parsed) {
@@ -62,8 +66,46 @@
       pasteError = '同じ投稿は既に追加されています';
       return;
     }
+
+    pasteLoading = true;
+    try {
+      const note = await new Promise<import('$lib/types').Note | null>((resolve) => {
+        let done = false;
+        const sub = fetchNoteById(parsed.eventId).subscribe({
+          next: (n) => { if (!done) { done = true; sub.unsubscribe(); resolve(n); } },
+          error: () => { if (!done) { done = true; resolve(null); } },
+          complete: () => { if (!done) { done = true; resolve(null); } }
+        });
+        setTimeout(() => { if (!done) { done = true; sub.unsubscribe(); resolve(null); } }, 8_000);
+      });
+
+      if (note) {
+        const repost = resolveRepostTarget(note);
+        if (repost) {
+          if (selectedIds.has(repost.eventId)) {
+            pasteError = '同じ投稿は既に追加されています';
+            pasteLoading = false;
+            return;
+          }
+          const nevent = `nostr:${nip19.neventEncode({ id: repost.eventId, relays: repost.relay ? [repost.relay] : [DEFAULT_RELAYS_JP[0]] })}`;
+          pending = [...pending, { eventId: repost.eventId, nevent }];
+          pasteInput = '';
+          pasteLoading = false;
+          return;
+        }
+        if (note.kind === 1111) {
+          pasteError = 'この種類のイベント（コメント）はまとめに追加できません';
+          pasteLoading = false;
+          return;
+        }
+      }
+    } catch {
+      // fetch failed - add as-is
+    }
+
     pending = [...pending, parsed];
     pasteInput = '';
+    pasteLoading = false;
   }
 
   function removePending(eventId: string): void {
@@ -141,7 +183,7 @@
                 on:keydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPaste(); } }}
                 placeholder="nostr:nevent1… または note1…"
               />
-              <button class="add-paste-btn" type="button" on:click={addPaste}>追加</button>
+              <button class="add-paste-btn" type="button" disabled={pasteLoading} on:click={addPaste}>{pasteLoading ? '確認中…' : '追加'}</button>
             </div>
             {#if pasteError}
               <p class="paste-error">{pasteError}</p>

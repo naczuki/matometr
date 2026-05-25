@@ -3,10 +3,12 @@ import type { NostrEvent } from 'nostr-tools';
 import type { AddressPointer } from 'nostr-tools/nip19';
 
 export type NeventBlock = { type: 'nevent'; content: string };
+export type NaddrBlock = { type: 'naddr'; content: string };
+export type MentionBlock = { type: 'mention'; content: string; pubkey: string };
 export type CommentBlock = { type: 'comment'; content: string };
 export type HeadingBlock = { type: 'heading'; content: string };
 export type ParagraphBlock = { type: 'paragraph'; content: string };
-export type MatomeBlock = NeventBlock | CommentBlock | HeadingBlock | ParagraphBlock;
+export type MatomeBlock = NeventBlock | NaddrBlock | MentionBlock | CommentBlock | HeadingBlock | ParagraphBlock;
 
 const NEVENT_LINE = /^nostr:nevent1[a-z0-9]+$/;
 const NOSTR_REF_SOLO = /^nostr:(nevent1|note1|naddr1|npub1|nprofile1)[a-z0-9]+$/;
@@ -113,6 +115,23 @@ export class Matome {
     return Matome.parseContentLegacy(content, eventTags);
   }
 
+  private static classifyRefChunk(chunk: string): MatomeBlock {
+    const encoded = chunk.replace(/^nostr:/, '');
+    try {
+      const decoded = nip19.decode(encoded);
+      if (decoded.type === 'naddr') {
+        return { type: 'naddr', content: chunk };
+      }
+      if (decoded.type === 'npub') {
+        return { type: 'mention', content: chunk, pubkey: decoded.data };
+      }
+      if (decoded.type === 'nprofile') {
+        return { type: 'mention', content: chunk, pubkey: decoded.data.pubkey };
+      }
+    } catch { /* treat as nevent */ }
+    return { type: 'nevent', content: chunk };
+  }
+
   private static parseContentWithLayout(content: string, eventTags: string[][], layoutJson: string): MatomeBlock[] {
     let runs: number[][];
     try {
@@ -174,11 +193,7 @@ export class Matome {
     for (const chunk of chunks) {
       if (NOSTR_REF_SOLO.test(chunk)) {
         flushTextRun();
-        if (NEVENT_LINE.test(chunk)) {
-          blocks.push({ type: 'nevent', content: chunk });
-        } else {
-          blocks.push({ type: 'nevent', content: chunk });
-        }
+        blocks.push(Matome.classifyRefChunk(chunk));
       } else {
         textRunChunks.push(chunk);
       }
