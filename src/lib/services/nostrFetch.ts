@@ -122,6 +122,27 @@ export function fetchNotesFromAuthors(
   );
 }
 
+export function fetchNotesFromAuthorsWithRelay(
+  authors: string[],
+  options: { until?: number; limit?: number; relays?: string[] } = {}
+): Observable<{ note: Note; relay: string }> {
+  if (authors.length === 0) return EMPTY;
+  const client = getClient();
+  const { until, limit = 30, relays } = options;
+  const f = until
+    ? { kinds: [1], authors, limit, until }
+    : { kinds: [1], authors, limit };
+  const rxReq = createRxOneshotReq({ filters: f });
+  const useOpts =
+    relays && relays.length > 0
+      ? { on: { relays, defaultReadRelays: false } }
+      : undefined;
+  return client.use(rxReq, useOpts).pipe(
+    uniq(),
+    map(({ event, from }) => ({ note: toNote(event), relay: from }))
+  );
+}
+
 export function fetchFavoriteReactions(
   pubkey: string,
   options: { until?: number; limit?: number; relays?: string[] } = {}
@@ -143,6 +164,36 @@ export function fetchFavoriteReactions(
       return eventId ? { eventId, reactedAt: event.created_at } : null;
     }),
     filter((r): r is { eventId: string; reactedAt: number } => r !== null)
+  );
+}
+
+export function fetchFavoriteReactionsWithRelay(
+  pubkey: string,
+  options: { until?: number; limit?: number; relays?: string[] } = {}
+): Observable<{ eventId: string; reactedAt: number; relay: string }> {
+  const client = getClient();
+  const { until, limit = 30, relays } = options;
+  const reactionFilter = until
+    ? { kinds: [7], authors: [pubkey], limit, until }
+    : { kinds: [7], authors: [pubkey], limit };
+  const rxReq = createRxOneshotReq({ filters: reactionFilter });
+  const useOpts =
+    relays && relays.length > 0
+      ? { on: { relays, defaultReadRelays: false } }
+      : undefined;
+
+  return client.use(rxReq, useOpts).pipe(
+    uniq(),
+    map(({ event, from }) => {
+      let eventId = '';
+      for (const tag of event.tags) {
+        if (tag[0] === 'e' && tag[1] && HEX_64.test(tag[1])) eventId = tag[1];
+      }
+      return eventId ? { eventId, reactedAt: event.created_at, relay: from } : null;
+    }),
+    filter(
+      (r): r is { eventId: string; reactedAt: number; relay: string } => r !== null
+    )
   );
 }
 

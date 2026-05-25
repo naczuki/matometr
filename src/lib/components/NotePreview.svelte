@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Note } from '$lib/types';
   import { profiles, requestProfile } from '$lib/stores/profiles';
-  import { timeAgo } from '$lib/utils/time';
+  import { formatAbsoluteTime } from '$lib/utils/time';
   import { extractImages, parseNostrRefs, buildEmojiMap } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey } from '$lib/utils/nostr';
   import Avatar from '$lib/components/Avatar.svelte';
@@ -37,7 +37,7 @@
     <div class="post-header">
       <Avatar pubkey={note.pubkey} {picture} size={26} />
       <span class="author">{author}</span>
-      <span class="time">{timeAgo(note.createdAt)}</span>
+      <span class="time">{formatAbsoluteTime(note.createdAt)}</span>
     </div>
     <div class="content">
       {#each segments as seg}

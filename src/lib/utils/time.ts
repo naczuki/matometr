@@ -10,3 +10,15 @@ export function timeAgo(unixSeconds: number): string {
   const yearPrefix = d.getFullYear() !== now.getFullYear() ? `${d.getFullYear()}年` : '';
   return `${yearPrefix}${d.getMonth() + 1}月${d.getDate()}日`;
 }
+
+export function formatAbsoluteTime(unixSeconds: number): string {
+  const d = new Date(unixSeconds * 1000);
+  const now = new Date();
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const month = `${d.getMonth() + 1}/${d.getDate()}`;
+  if (d.getFullYear() !== now.getFullYear()) {
+    return `${d.getFullYear()}/${month} ${time}`;
+  }
+  return `${month} ${time}`;
+}
