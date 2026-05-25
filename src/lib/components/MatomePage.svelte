@@ -13,7 +13,7 @@
   import { currentUser } from '$lib/stores/auth';
   import { markDeleted } from '$lib/stores/deletedMatomes';
   import { avatarStyle } from '$lib/utils/avatar';
-  import { shortNpubFromPubkey } from '$lib/utils/nostr';
+  import { shortNpubFromPubkey, shortNpub as shortNpubStr } from '$lib/utils/nostr';
   import { NOSLI_BASE_URL } from '$lib/utils/constants';
   import NoteCard from '$lib/components/NoteCard.svelte';
   import NaddrCard from '$lib/components/NaddrCard.svelte';
@@ -93,6 +93,8 @@
 
   type RenderBlock =
     | { type: 'note'; nevent: string; num: number }
+    | { type: 'naddr'; naddr: string }
+    | { type: 'mention'; pubkey: string; npub: string }
     | { type: 'heading'; content: string }
     | { type: 'paragraph'; content: string }
     | { type: 'comment'; content: string; html: string };
@@ -104,6 +106,14 @@
       if (b.type === 'nevent') {
         noteNum++;
         plan.push({ type: 'note', nevent: b.content, num: noteNum });
+      } else if (b.type === 'naddr') {
+        const encoded = b.content.replace(/^nostr:/, '');
+        plan.push({ type: 'naddr', naddr: encoded });
+      } else if (b.type === 'mention') {
+        try {
+          const npub = nip19.npubEncode(b.pubkey);
+          plan.push({ type: 'mention', pubkey: b.pubkey, npub });
+        } catch { /* skip invalid */ }
       } else if (b.type === 'comment') {
         const html = hasLayout ? renderInlineMarkdown(b.content) : '';
         plan.push({ type: 'comment', content: b.content, html });
@@ -116,6 +126,9 @@
 
   $: hasLayoutTag = matome ? matome.rawEvent.tags.some(([k]) => k === 'matome_layout') : false;
   $: renderPlan = matome ? buildRenderPlan(matome.blocks, hasLayoutTag) : [];
+  $: for (const block of renderPlan) {
+    if (block.type === 'mention') requestProfile(block.pubkey);
+  }
 
   let mdSegments: ContentSegment[] = [];
   $: if (matome && !matome.isMatometr && !matome.isNosli) {
@@ -404,6 +417,13 @@
           <div class="block-heading">{block.content}</div>
         {:else if block.type === 'note'}
           <NoteCard nevent={block.nevent} num={block.num} total={matome.postCount} />
+        {:else if block.type === 'naddr'}
+          <NaddrCard ref={'nostr:' + block.naddr} />
+        {:else if block.type === 'mention'}
+          {@const mp = $profiles.get(block.pubkey)}
+          <a class="block-mention" href="{base}/user/{block.npub}">
+            @{mp?.displayName ?? mp?.name ?? shortNpubStr(block.npub)}
+          </a>
         {:else if block.type === 'comment'}
           {#if block.html}
             <div class="block-comment block-comment-md">{@html block.html}</div>
@@ -1142,6 +1162,25 @@
   :global(.block-comment-md ol) {
     padding-left: 1.5em;
     margin: 0.4em 0;
+  }
+
+  .block-mention {
+    display: block;
+    padding: 10px 16px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+    margin-bottom: 12px;
+    transition: background 0.12s;
+  }
+
+  .block-mention:hover {
+    background: var(--accent-pale);
+    text-decoration: underline;
   }
 
   .block-paragraph {

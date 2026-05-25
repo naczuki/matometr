@@ -6,7 +6,7 @@
   import { fetchNoteById } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { parseNostrRefs, extractImages, resolveTagRefs, buildEmojiMap } from '$lib/utils/nostrContent';
-  import { shortNpubFromPubkey } from '$lib/utils/nostr';
+  import { shortNpubFromPubkey, resolveRepostTarget } from '$lib/utils/nostr';
   import { timeAgo } from '$lib/utils/time';
   import Avatar from '$lib/components/Avatar.svelte';
 
@@ -16,10 +16,29 @@
   let note: Note | null = null;
   let failed = false;
 
+  let repostSub: { unsubscribe(): void } | null = null;
+
   onMount(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const sub = fetchNoteById(eventId).subscribe({
       next: (n) => {
+        const repost = resolveRepostTarget(n);
+        if (repost) {
+          repostSub = fetchNoteById(repost.eventId).subscribe({
+            next: (original) => {
+              note = original;
+              requestProfile(original.pubkey);
+            },
+            error: () => { failed = true; }
+          });
+          if (timer) clearTimeout(timer);
+          return;
+        }
+        if (n.kind === 1111) {
+          failed = true;
+          if (timer) clearTimeout(timer);
+          return;
+        }
         note = n;
         requestProfile(n.pubkey);
         if (timer) clearTimeout(timer);
@@ -30,6 +49,7 @@
     timer = setTimeout(() => { if (!note) failed = true; }, 10_000);
     return () => {
       sub.unsubscribe();
+      repostSub?.unsubscribe();
       if (timer) clearTimeout(timer);
     };
   });
