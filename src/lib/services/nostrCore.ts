@@ -35,6 +35,11 @@ export async function sendToRelays(eventParams: {
 }): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     console.log('[sendToRelays] event:', JSON.stringify(eventParams, null, 2));
+    if (localStorage.getItem('debug:dryrun') === '1') {
+      console.warn('[sendToRelays] dry-run mode — イベントは送信されませんでした');
+      resolve();
+      return;
+    }
     let published = false;
     const sub = getClient()
       .send(eventParams, { signer: nip07Signer() })
