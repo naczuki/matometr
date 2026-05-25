@@ -302,7 +302,7 @@
 
       <div class="detail-meta">
         <a
-          href={authorNpub ? `${base}/user/${authorNpub}` : undefined}
+          href={authorNpub ? `${base}/user/?id=${authorNpub}` : undefined}
           class="detail-author-link"
           aria-label="{authorName} のユーザーページ"
         >
