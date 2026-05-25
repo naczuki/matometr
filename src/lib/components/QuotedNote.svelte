@@ -17,6 +17,8 @@
   let failed = false;
 
   let repostSub: { unsubscribe(): void } | null = null;
+  let resolvingRepost = false;
+  let repostTimer: ReturnType<typeof setTimeout> | null = null;
 
   onMount(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -24,14 +26,18 @@
       next: (n) => {
         const repost = resolveRepostTarget(n);
         if (repost) {
+          resolvingRepost = true;
+          if (timer) { clearTimeout(timer); timer = null; }
           repostSub = fetchNoteById(repost.eventId).subscribe({
             next: (original) => {
               note = original;
               requestProfile(original.pubkey);
+              if (repostTimer) { clearTimeout(repostTimer); repostTimer = null; }
             },
-            error: () => { failed = true; }
+            error: () => { failed = true; },
+            complete: () => { if (!note) failed = true; }
           });
-          if (timer) clearTimeout(timer);
+          repostTimer = setTimeout(() => { if (!note) failed = true; }, 10_000);
           return;
         }
         if (n.kind === 1111) {
@@ -44,13 +50,14 @@
         if (timer) clearTimeout(timer);
       },
       error: () => { failed = true; },
-      complete: () => { if (!note) failed = true; }
+      complete: () => { if (!note && !resolvingRepost) failed = true; }
     });
-    timer = setTimeout(() => { if (!note) failed = true; }, 10_000);
+    timer = setTimeout(() => { if (!note && !resolvingRepost) failed = true; }, 10_000);
     return () => {
       sub.unsubscribe();
       repostSub?.unsubscribe();
       if (timer) clearTimeout(timer);
+      if (repostTimer) clearTimeout(repostTimer);
     };
   });
 

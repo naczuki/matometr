@@ -27,6 +27,7 @@
   let removeDocListener: (() => void) | null = null;
 
   let repostSub: { unsubscribe(): void } | null = null;
+  let repostTimer: ReturnType<typeof setTimeout> | null = null;
 
   function handleFetchedNote(n: Note, relay: string): void {
     const repost = resolveRepostTarget(n);
@@ -36,9 +37,12 @@
           note = original;
           fetchedFrom = r;
           requestProfile(original.pubkey);
+          if (repostTimer) { clearTimeout(repostTimer); repostTimer = null; }
         },
-        error: () => { loadError = true; }
+        error: () => { loadError = true; },
+        complete: () => { if (!note) loadError = true; }
       });
+      repostTimer = setTimeout(() => { if (!note) loadError = true; }, 10_000);
       return;
     }
     if (n.kind === 1111) {
@@ -67,7 +71,7 @@
     const sub = fetchNoteByIdWithRelay(eventId).subscribe({
       next: ({ note: n, relay }) => {
         handleFetchedNote(n, relay);
-        if (timer) clearTimeout(timer);
+        if (timer) { clearTimeout(timer); timer = null; }
       },
       error: () => { loadError = true; }
     });
@@ -76,6 +80,7 @@
       sub.unsubscribe();
       repostSub?.unsubscribe();
       if (timer) clearTimeout(timer);
+      if (repostTimer) clearTimeout(repostTimer);
     };
   });
 
