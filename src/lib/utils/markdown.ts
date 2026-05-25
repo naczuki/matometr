@@ -8,6 +8,10 @@ export type ContentSegment = HtmlSegment | NeventSegment | NaddrSegment;
 
 const NOSTR_REF = /nostr:(nevent1[a-z0-9]+|naddr1[a-z0-9]+)/g;
 
+export function renderInlineMarkdown(text: string): string {
+  return DOMPurify.sanitize(marked.parse(text) as string);
+}
+
 export function parseMarkdownContent(content: string): ContentSegment[] {
   const segments: ContentSegment[] = [];
   let lastIndex = 0;
