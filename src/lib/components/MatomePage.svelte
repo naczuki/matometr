@@ -46,6 +46,8 @@
     editMenuOpen = false;
     showDeleteConfirm = false;
     showJson = false;
+    faved = false;
+    favCount = 0;
 
     if (!addr) {
       error = '無効なアドレスです';
@@ -121,6 +123,17 @@
   function formatDate(unixSeconds: number): string {
     const d = new Date(unixSeconds * 1000);
     return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+  }
+
+  // fav (kind:7 リアクション)
+  // TODO: 既存リアクション数の集計で favCount を初期化する
+  let faved = false;
+  let favCount = 0;
+  function toggleFav(): void {
+    if (!faved && favCount < 0) favCount = 0;
+    faved = !faved;
+    favCount = Math.max(0, favCount + (faved ? 1 : -1));
+    // TODO: ここで kind:7 を publish（faved=true）/ 削除（faved=false）。NIP-25 / NIP-09 準拠
   }
 
   // share actions
@@ -296,6 +309,14 @@
     <div class="detail-header">
       <div class="detail-title">{matome.title}</div>
 
+      <div class="detail-count" title="ノート{matome.postCount}件">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+        <b>{matome.postCount}</b>件
+      </div>
+
       {#if matome.summary}
         <div class="detail-desc">{matome.summary}</div>
       {/if}
@@ -313,19 +334,19 @@
               {authorStyle.initial}
             {/if}
           </div>
-          <div>
+          <div class="detail-author-text">
             <div class="detail-author-name">{authorName}</div>
             <div class="detail-author-pub">{shortNpubFromPubkey(matome.pubkey)}</div>
           </div>
         </a>
         <div class="detail-dates">
           <div class="detail-date-row">
-            <span class="detail-date-label">作成日</span>
+            <span class="detail-date-label">作成</span>
             <span>{formatDate(matome.publishedAt)}</span>
           </div>
           {#if matome.createdAt !== matome.publishedAt}
             <div class="detail-date-row">
-              <span class="detail-date-label">更新日</span>
+              <span class="detail-date-label">更新</span>
               <span>{formatDate(matome.createdAt)}</span>
             </div>
           {/if}
@@ -333,7 +354,19 @@
       </div>
 
       <div class="detail-stats">
-        <div class="stat-item"><b>{matome.postCount}</b>件の投稿</div>
+        <button
+          class="fav-btn"
+          class:is-faved={faved}
+          title="ふぁぼ"
+          aria-label="ふぁぼ"
+          aria-pressed={faved}
+          on:click={toggleFav}
+        >
+          <svg class="fav-star" width="14" height="14" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 17.75l-6.172 3.245 1.179-6.873-4.993-4.867 6.9-1.002L12 2.5l3.086 6.253 6.9 1.002-4.993 4.867 1.179 6.873z" />
+          </svg>
+          <span class="fav-count">{favCount}</span>
+        </button>
 
         <div class="stat-share-row">
           <!-- Nos: nostr-share-component（スロットでテキスト上書き） -->
@@ -654,7 +687,7 @@
     font-weight: 800;
     color: var(--ink);
     line-height: 1.4;
-    margin-bottom: 14px;
+    margin-bottom: 7px;
   }
 
   .detail-desc {
@@ -681,6 +714,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
+    overflow: hidden;
     text-decoration: none;
     border-radius: 8px;
     padding: 2px 4px;
@@ -713,10 +748,18 @@
     border-radius: 50%;
   }
 
+  .detail-author-text {
+    min-width: 0;
+    overflow: hidden;
+  }
+
   .detail-author-name {
     font-size: 13px;
     font-weight: 700;
     color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .detail-author-pub {
@@ -747,6 +790,26 @@
     color: var(--ink3);
   }
 
+  .detail-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink3);
+    font-family: var(--font-ui);
+    margin-bottom: 16px;
+  }
+
+  .detail-count svg {
+    flex-shrink: 0;
+  }
+
+  .detail-count b {
+    font-size: 14px;
+    margin-right: 1px;
+  }
+
   .detail-stats {
     display: flex;
     align-items: center;
@@ -757,16 +820,38 @@
     flex-wrap: wrap;
   }
 
-  .stat-item {
-    font-size: 12px;
-    color: var(--ink3);
+
+  .fav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    background: var(--accent-pale);
+    border: 1.5px solid var(--accent);
+    color: var(--accent);
     font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: background 0.12s, transform 0.12s;
   }
 
-  .stat-item b {
-    color: var(--ink);
-    font-size: 14px;
-    margin-right: 3px;
+  .fav-btn:hover {
+    background: var(--accent-mid);
+    transform: translateY(-1px);
+  }
+
+  .fav-star {
+    stroke: var(--accent);
+    fill: none;
+    transition: fill 0.12s;
+  }
+
+  .fav-btn.is-faved .fav-star {
+    fill: var(--accent);
   }
 
   .stat-share-row {

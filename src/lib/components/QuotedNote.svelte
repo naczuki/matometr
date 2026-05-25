@@ -82,7 +82,7 @@
   {:else}
     <div class="quoted-header">
       <Avatar pubkey={note.pubkey} {picture} size={20} />
-      <span class="quoted-name">{truncateName(authorName)}</span>
+      <span class="quoted-name">{authorName}</span>
       {#if showDate && note}
         <span class="quoted-date">{timeAgo(note.createdAt)}</span>
       {/if}
@@ -169,13 +169,20 @@
     align-items: center;
     gap: 6px;
     margin-bottom: 5px;
+    min-width: 0;
   }
 
   .quoted-name {
+    flex: 1;
     font-size: 12px;
     font-weight: 700;
     color: var(--ink);
     font-family: var(--font-ui);
+    display: inline-block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .quoted-date {
