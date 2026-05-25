@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import Spinner from '$lib/components/Spinner.svelte';
 
   export let loading: boolean = false;
@@ -9,6 +10,31 @@
   export let emptyMessage: string = '投稿が見つかりませんでした';
   export let loadingMessage: string = '読み込み中…';
   export let onLoadMore: (() => void) | null = null;
+
+  let sentinel: HTMLDivElement | undefined;
+  let observer: IntersectionObserver | undefined;
+
+  function setupObserver(node: HTMLDivElement): void {
+    sentinel = node;
+    observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && onLoadMore && !loadingMore && !reachedEnd) {
+          onLoadMore();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(node);
+  }
+
+  $: if (sentinel && observer && !loadingMore && !reachedEnd && onLoadMore) {
+    observer.unobserve(sentinel);
+    observer.observe(sentinel);
+  }
+
+  onDestroy(() => {
+    observer?.disconnect();
+  });
 </script>
 
 {#if loading}
@@ -28,9 +54,11 @@
   <div class="feed">
     <slot />
     {#if !reachedEnd && onLoadMore}
-      <button class="load-more" on:click={onLoadMore} disabled={loadingMore}>
-        {loadingMore ? '読み込み中…' : 'もっと読み込む'}
-      </button>
+      <div class="sentinel" use:setupObserver>
+        {#if loadingMore}
+          <Spinner />
+        {/if}
+      </div>
     {/if}
   </div>
 {/if}
@@ -54,28 +82,10 @@
     padding-bottom: 16px;
   }
 
-  .load-more {
-    background: var(--surface);
-    border: 1.5px dashed var(--accent-mid);
-    color: var(--accent-dark);
-    font-family: var(--font-ui);
-    font-weight: 700;
-    font-size: 13px;
-    padding: 10px 20px;
-    border-radius: 999px;
-    cursor: pointer;
-    align-self: center;
-    margin: 8px auto 0;
-    transition: all 0.12s;
-  }
-
-  .load-more:hover:not(:disabled) {
-    border-color: var(--accent);
-    background: var(--accent-pale);
-  }
-
-  .load-more:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  .sentinel {
+    display: flex;
+    justify-content: center;
+    padding: 16px 0;
+    min-height: 1px;
   }
 </style>
