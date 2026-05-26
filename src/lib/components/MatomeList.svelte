@@ -1,8 +1,23 @@
+<script lang="ts" context="module">
+  import { Matome } from '$lib/entities/Matome';
+
+  interface ListCache {
+    matomes: Matome[];
+    rawMap: Map<string, Matome>;
+    nosliCursors: Map<string, number>;
+    matometrCursors: Map<string, number>;
+    exhaustedNosli: Set<string>;
+    exhaustedMatometr: Set<string>;
+    hasMore: boolean;
+    scrollY: number;
+  }
+  let listCache: ListCache | null = null;
+</script>
+
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import type { Subscription } from 'rxjs';
   import { fetchMatomeListWithRelay, fetchNosliListWithRelay } from '$lib/services/NostrClient';
-  import { Matome } from '$lib/entities/Matome';
   import MatomeCard from '$lib/components/MatomeCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import type { Tab } from '$lib/types';
@@ -161,11 +176,32 @@
   }
 
   export async function refresh(): Promise<void> {
+    listCache = null;
     return initialLoad();
   }
 
+  function restoreFromCache(cache: ListCache): void {
+    for (const [k, v] of cache.rawMap) rawMap.set(k, v);
+    for (const [k, v] of cache.nosliCursors) nosliCursors.set(k, v);
+    for (const [k, v] of cache.matometrCursors) matometrCursors.set(k, v);
+    for (const v of cache.exhaustedNosli) exhaustedNosli.add(v);
+    for (const v of cache.exhaustedMatometr) exhaustedMatometr.add(v);
+    matomes = cache.matomes;
+    hasMore = cache.hasMore;
+    loading = false;
+  }
+
   onMount(() => {
-    initialLoad();
+    if (listCache) {
+      const savedScrollY = listCache.scrollY;
+      restoreFromCache(listCache);
+      listCache = null;
+      tick().then(() => {
+        window.scrollTo(0, savedScrollY);
+      });
+    } else {
+      initialLoad();
+    }
   });
 
   function getCursor(type: FeedType, relay: string): number | undefined {
@@ -308,6 +344,18 @@
 
   onDestroy(() => {
     subs.forEach((s) => s.unsubscribe());
+    if (matomes.length > 0) {
+      listCache = {
+        matomes,
+        rawMap: new Map(rawMap),
+        nosliCursors: new Map(nosliCursors),
+        matometrCursors: new Map(matometrCursors),
+        exhaustedNosli: new Set(exhaustedNosli),
+        exhaustedMatometr: new Set(exhaustedMatometr),
+        hasMore,
+        scrollY: typeof window !== 'undefined' ? window.scrollY : 0
+      };
+    }
   });
 
   $: items = tab === 'following' ? [] : matomes.filter((m) => !$deletedMatomeIds.has(m.id));
