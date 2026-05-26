@@ -553,10 +553,10 @@
     margin: 0.5em 0 0.3em;
   }
 
-  :global(.comment-preview-body h1) { font-size: 15px; }
-  :global(.comment-preview-body h2) { font-size: 14px; }
-  :global(.comment-preview-body h3) { font-size: 13px; }
-  :global(.comment-preview-body h4) { font-size: 13px; }
+  :global(.comment-preview-body h1) { font-size: 16px; }
+  :global(.comment-preview-body h2) { font-size: 15px; }
+  :global(.comment-preview-body h3) { font-size: 15px; }
+  :global(.comment-preview-body h4) { font-size: 14px; }
 
   :global(.comment-preview-body blockquote) {
     margin: 6px 0;
