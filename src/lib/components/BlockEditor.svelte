@@ -232,7 +232,7 @@
                   <textarea
                     class="comment-textarea"
                     data-block-id={block.id}
-                    placeholder="コメントを入力…（マークダウン対応）"
+                    placeholder="コメントを入力…"
                     value={block.text}
                     on:input={(e) => updateText(block.id, e.currentTarget.value)}
                     on:blur={() => stopEditingComment(block.id)}
