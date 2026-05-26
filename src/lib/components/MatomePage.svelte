@@ -1201,9 +1201,9 @@
   }
 
   :global(.block-comment-md h1) { font-size: 17px; }
-  :global(.block-comment-md h2) { font-size: 16px; }
+  :global(.block-comment-md h2) { font-size: 17px; }
   :global(.block-comment-md h3) { font-size: 16px; }
-  :global(.block-comment-md h4) { font-size: 15px; }
+  :global(.block-comment-md h4) { font-size: 16px; }
 
   .block-mention {
     display: block;
