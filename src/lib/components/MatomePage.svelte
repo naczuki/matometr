@@ -1135,9 +1135,9 @@
     background: var(--accent-pale);
     border-radius: 10px;
     border: 1.5px solid var(--accent-mid);
-    font-size: 13px;
+    font-size: 14px;
     color: var(--ink2);
-    line-height: 1.7;
+    line-height: 1.85;
     margin-bottom: 12px;
     white-space: pre-wrap;
     word-break: break-word;
