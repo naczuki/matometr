@@ -243,7 +243,7 @@
   .naddr-link {
     color: var(--accent);
     text-decoration: none;
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .mention-link {
