@@ -172,7 +172,7 @@
 
   .page-title {
     font-family: var(--font-ui);
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 800;
     color: var(--ink);
     margin: 0 0 20px;

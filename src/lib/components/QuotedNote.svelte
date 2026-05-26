@@ -200,7 +200,7 @@
 
   .quoted-name {
     flex: 1;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--ink);
     font-family: var(--font-ui);

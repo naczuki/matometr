@@ -92,7 +92,7 @@
   }
 
   .author-name {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     color: var(--ink2);
     flex: 1;
