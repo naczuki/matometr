@@ -51,6 +51,7 @@
     faved = false;
     favCount = 0;
     favSending = false;
+    _favFetchedPk = null;
 
     if (!addr) {
       error = '無効なアドレスです';
@@ -151,11 +152,12 @@
   let favSending = false;
   let favSub: Subscription | null = null;
 
-  function fetchFavState(m: Matome): void {
+  let _favFetchedPk: string | null = null;
+
+  function fetchFavState(m: Matome, myPk: string | null): void {
+    if (_favFetchedPk === myPk && favSub) return;
+    _favFetchedPk = myPk;
     favSub?.unsubscribe();
-    faved = false;
-    favCount = 0;
-    const myPk = $currentUser?.pubkey ?? null;
     favSub = fetchReactionsForMatome(m.pubkey, m.dTag, myPk).subscribe({
       next(result) {
         favCount = result.count;
@@ -164,7 +166,7 @@
     });
   }
 
-  $: if (matome) fetchFavState(matome);
+  $: if (matome) fetchFavState(matome, $currentUser?.pubkey ?? null);
 
   async function sendFav(): Promise<void> {
     if (!matome || faved || favSending) return;
