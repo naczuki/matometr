@@ -291,6 +291,39 @@ export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
   );
 }
 
+export function fetchReactionCounts(
+  matomes: { pubkey: string; dTag: string }[]
+): Observable<Map<string, number>> {
+  if (matomes.length === 0) return new Observable((s) => { s.next(new Map()); s.complete(); });
+  const client = getClient();
+  const aValues = matomes.map((m) => `30023:${m.pubkey}:${m.dTag}`);
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [7], '#a': aValues, limit: 5000 }
+  });
+
+  return new Observable((subscriber) => {
+    const counts = new Map<string, number>();
+    const seen = new Set<string>();
+
+    const sub = client.use(rxReq).pipe(uniq()).subscribe({
+      next({ event }) {
+        if (seen.has(event.id)) return;
+        seen.add(event.id);
+        const aTag = event.tags.find(([k]) => k === 'a');
+        if (aTag?.[1]) {
+          counts.set(aTag[1], (counts.get(aTag[1]) ?? 0) + 1);
+        }
+      },
+      error(err) { subscriber.error(err); },
+      complete() {
+        subscriber.next(counts);
+        subscriber.complete();
+      }
+    });
+    return () => sub.unsubscribe();
+  });
+}
+
 export function fetchReactionsForMatome(
   pubkey: string,
   dTag: string,

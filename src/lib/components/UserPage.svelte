@@ -5,7 +5,7 @@
   import { nip19 } from 'nostr-tools';
   import type { Subscription } from 'rxjs';
   import { Matome } from '$lib/entities/Matome';
-  import { fetchUserMatomes } from '$lib/services/NostrClient';
+  import { fetchUserMatomes, fetchReactionCounts } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
   import { shortNpub } from '$lib/utils/nostr';
@@ -66,7 +66,10 @@
       requestProfile(pubkey);
       sub = fetchUserMatomes(pubkey).subscribe({
         next: addMatome,
-        complete: () => { loading = false; },
+        complete: () => {
+          loading = false;
+          applyReactionCounts();
+        },
         error: () => { error = '取得に失敗しました'; loading = false; }
       });
     } catch {
@@ -77,8 +80,31 @@
 
   $: initForNpub(npub);
 
+  let favSub: Subscription | null = null;
+
+  function applyReactionCounts(): void {
+    const targets = [...rawMap.values()];
+    if (targets.length === 0) return;
+    favSub?.unsubscribe();
+    favSub = fetchReactionCounts(targets).subscribe({
+      next(counts) {
+        let changed = false;
+        for (const m of targets) {
+          const key = `30023:${m.pubkey}:${m.dTag}`;
+          const c = counts.get(key) ?? 0;
+          if (m.favCount !== c) {
+            m.favCount = c;
+            changed = true;
+          }
+        }
+        if (changed) matomes = matomes;
+      }
+    });
+  }
+
   onDestroy(() => {
     sub?.unsubscribe();
+    favSub?.unsubscribe();
     removeNpubDocListener?.();
     if (toastTimer) clearTimeout(toastTimer);
   });
