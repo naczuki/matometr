@@ -155,7 +155,7 @@
     window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank', 'noopener');
   }
 
-  $: shareText = matome ? `${matome.title} #まとめたー\nnostr:${matome.naddr}` : '';
+  $: shareText = matome ? `${matome.title} #まとめたー\n${shareUrl}\nnostr:${matome.naddr}` : '';
 
   // ⋮ menu
   let menuOpen = false;
