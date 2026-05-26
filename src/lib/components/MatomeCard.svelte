@@ -59,6 +59,13 @@
     {#if matome.isNosli}
       <span class="nosli-badge">nosli</span>
     {/if}
+    {#if matome.favCount > 0}
+      <span class="fav-stat">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 17.75l-6.172 3.245 1.179-6.873-4.993-4.867 6.9-1.002L12 2.5l3.086 6.253 6.9 1.002-4.993 4.867 1.179 6.873z" />
+        </svg>{matome.favCount}
+      </span>
+    {/if}
   </div>
 </a>
 
@@ -185,5 +192,20 @@
     border: 1px solid var(--border2);
     font-family: var(--font-ui);
     font-style: italic;
+  }
+
+  .fav-stat {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .fav-stat svg {
+    flex-shrink: 0;
   }
 </style>

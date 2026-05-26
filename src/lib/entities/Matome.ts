@@ -30,6 +30,8 @@ export class Matome {
   readonly isNosli: boolean;
   readonly tags: string[];
   readonly rawEvent: NostrEvent;
+  // TODO: 既存リアクション数の集計で初期化する
+  favCount: number = 0;
 
   private constructor(params: {
     id: string;

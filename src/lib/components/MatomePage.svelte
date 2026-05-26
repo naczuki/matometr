@@ -140,6 +140,16 @@
     return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
   }
 
+  // fav (kind:7 リアクション)
+  // TODO: 既存リアクション数の集計で favCount を初期化する
+  let faved = false;
+  let favCount = 0;
+  function toggleFav(): void {
+    faved = !faved;
+    favCount += faved ? 1 : -1;
+    // TODO: ここで kind:7 を publish（faved=true）/ 削除（faved=false）。NIP-25 / NIP-09 準拠
+  }
+
   // share actions
   let copiedUrl = false;
   async function copyUrl(): Promise<void> {
@@ -358,6 +368,20 @@
       </div>
 
       <div class="detail-stats">
+        <button
+          class="fav-btn"
+          class:is-faved={faved}
+          title="ふぁぼ"
+          aria-label="ふぁぼ"
+          aria-pressed={faved}
+          on:click={toggleFav}
+        >
+          <svg class="fav-star" width="14" height="14" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 17.75l-6.172 3.245 1.179-6.873-4.993-4.867 6.9-1.002L12 2.5l3.086 6.253 6.9 1.002-4.993 4.867 1.179 6.873z" />
+          </svg>
+          <span class="fav-count">{favCount}</span>
+        </button>
+
         <div class="stat-share-row">
           <!-- Nos: nostr-share-component（スロットでテキスト上書き） -->
           <nostr-share data-text={shareText}><span class="nos-label">Nos</span></nostr-share>
@@ -821,6 +845,39 @@
     flex-wrap: wrap;
   }
 
+
+  .fav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    background: var(--accent-pale);
+    border: 1.5px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: background 0.12s, transform 0.12s;
+  }
+
+  .fav-btn:hover {
+    background: var(--accent-mid);
+    transform: translateY(-1px);
+  }
+
+  .fav-star {
+    stroke: var(--accent);
+    fill: none;
+    transition: fill 0.12s;
+  }
+
+  .fav-btn.is-faved .fav-star {
+    fill: var(--accent);
+  }
 
   .stat-share-row {
     display: flex;
