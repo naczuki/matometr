@@ -384,7 +384,7 @@
 
   .note-name {
     font-weight: 700;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--ink);
     font-family: var(--font-ui);
     overflow: hidden;
@@ -394,7 +394,7 @@
   }
 
   .note-pub {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--ink3);
     font-family: monospace;
   }
@@ -403,7 +403,7 @@
     display: inline-flex;
     align-items: center;
     gap: 3px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--ink3);
     flex-shrink: 0;
     margin-left: auto;
@@ -473,7 +473,7 @@
   }
 
   .note-content {
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1.85;
     color: var(--ink);
     overflow-wrap: anywhere;

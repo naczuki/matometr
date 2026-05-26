@@ -712,7 +712,7 @@
   }
 
   .detail-desc {
-    font-size: 14px;
+    font-size: 16px;
     color: var(--ink2);
     line-height: 1.85;
     margin-bottom: 18px;
@@ -1020,7 +1020,7 @@
 
   /* ===== マークダウン記事 ===== */
   .md-body {
-    font-size: 15px;
+    font-size: 16px;
     line-height: 1.85;
     color: var(--ink2);
     word-break: break-word;
@@ -1037,9 +1037,9 @@
     line-height: 1.4;
   }
 
-  :global(.md-body h1) { font-size: 20px; }
-  :global(.md-body h2) { font-size: 17px; border-left: 4px solid var(--accent); padding-left: 12px; }
-  :global(.md-body h3) { font-size: 15px; }
+  :global(.md-body h1) { font-size: 22px; }
+  :global(.md-body h2) { font-size: 19px; border-left: 4px solid var(--accent); padding-left: 12px; }
+  :global(.md-body h3) { font-size: 17px; }
 
   :global(.md-body p) {
     margin: 0.8em 0;
@@ -1122,7 +1122,7 @@
   /* ===== ブロック ===== */
   .block-heading {
     font-family: var(--font-ui);
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 800;
     color: var(--ink);
     padding: 10px 0 10px 14px;
@@ -1135,7 +1135,7 @@
     background: var(--accent-pale);
     border-radius: 10px;
     border: 1.5px solid var(--accent-mid);
-    font-size: 14px;
+    font-size: 16px;
     color: var(--ink2);
     line-height: 1.85;
     margin-bottom: 12px;
@@ -1195,7 +1195,7 @@
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: 10px;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 600;
     color: var(--accent);
     text-decoration: none;
@@ -1209,7 +1209,7 @@
   }
 
   .block-paragraph {
-    font-size: 14px;
+    font-size: 16px;
     color: var(--ink2);
     line-height: 1.85;
     margin-bottom: 12px;

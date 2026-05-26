@@ -200,7 +200,7 @@
 
   .quoted-name {
     flex: 1;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--ink);
     font-family: var(--font-ui);
@@ -213,14 +213,14 @@
 
   .quoted-date {
     margin-left: auto;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--ink3);
     white-space: nowrap;
     flex-shrink: 0;
   }
 
   .quoted-content {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--ink2);
     line-height: 1.7;
     overflow-wrap: anywhere;

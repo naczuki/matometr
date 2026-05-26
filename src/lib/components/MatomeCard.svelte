@@ -92,7 +92,7 @@
   }
 
   .author-name {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--ink2);
     flex: 1;
@@ -103,7 +103,7 @@
   }
 
   .time {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--ink3);
     margin-left: auto;
     display: flex;
@@ -114,13 +114,13 @@
   }
 
   .time-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 400;
   }
 
   .title {
     font-family: var(--font-ui);
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--ink);
     line-height: 1.5;
@@ -129,7 +129,7 @@
   }
 
   .preview {
-    font-size: 12px;
+    font-size: 14px;
     color: var(--ink2);
     line-height: 1.6;
     display: -webkit-box;
