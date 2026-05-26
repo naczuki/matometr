@@ -1194,16 +1194,14 @@
   :global(.block-comment-md h3),
   :global(.block-comment-md h4) {
     font-family: var(--font-ui);
-    font-weight: 700;
-    color: var(--ink);
     line-height: 1.4;
     margin: 0.6em 0 0.3em;
   }
 
-  :global(.block-comment-md h1) { font-size: 17px; }
-  :global(.block-comment-md h2) { font-size: 17px; }
-  :global(.block-comment-md h3) { font-size: 16px; }
-  :global(.block-comment-md h4) { font-size: 16px; }
+  :global(.block-comment-md h1) { font-size: 17px; font-weight: 800; color: var(--ink); }
+  :global(.block-comment-md h2) { font-size: 16px; font-weight: 800; color: var(--ink); }
+  :global(.block-comment-md h3) { font-size: 16px; font-weight: 700; color: var(--ink); }
+  :global(.block-comment-md h4) { font-size: 16px; font-weight: 700; color: var(--ink2); }
 
   .block-mention {
     display: block;
