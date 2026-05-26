@@ -56,7 +56,7 @@ export async function initAuth(): Promise<void> {
 
   await init({
     noBanner: true,
-    perms: 'sign_event:30023,sign_event:5,sign_event:1',
+    perms: 'sign_event:30023,sign_event:5,sign_event:1,sign_event:7',
     bunkers: 'nsec.app',
     theme: 'default',
     title: 'まとめたーにログイン',

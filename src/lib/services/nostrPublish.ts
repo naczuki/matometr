@@ -176,6 +176,29 @@ export async function deleteMatome(eventId: string): Promise<void> {
   });
 }
 
+export async function publishReaction(params: {
+  eventId: string;
+  eventPubkey: string;
+  kind: number;
+  dTag: string;
+}): Promise<void> {
+  if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
+
+  const now = Math.floor(Date.now() / 1000);
+  const aTagValue = `${params.kind}:${params.eventPubkey}:${params.dTag}`;
+  await sendToRelays({
+    kind: 7,
+    created_at: now,
+    tags: [
+      ['e', params.eventId],
+      ['p', params.eventPubkey],
+      ['a', aTagValue],
+      ['k', String(params.kind)],
+    ],
+    content: '+',
+  });
+}
+
 export async function publishAnnouncement(content: string): Promise<void> {
   if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
   const now = Math.floor(Date.now() / 1000);

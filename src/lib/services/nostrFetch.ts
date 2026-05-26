@@ -1,5 +1,5 @@
 import { createRxOneshotReq, uniq } from 'rx-nostr';
-import { EMPTY, merge, type Observable } from 'rxjs';
+import { EMPTY, merge, Observable } from 'rxjs';
 import { map, filter, take } from 'rxjs';
 import { nip19 } from 'nostr-tools';
 import type { AddressPointer } from 'nostr-tools/nip19';
@@ -289,6 +289,40 @@ export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
     }),
     filter((p): p is UserProfile => p !== null)
   );
+}
+
+export function fetchReactionsForMatome(
+  pubkey: string,
+  dTag: string,
+  myPubkey: string | null
+): Observable<{ count: number; myFaved: boolean }> {
+  const client = getClient();
+  const aTagValue = `30023:${pubkey}:${dTag}`;
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [7], '#a': [aTagValue], limit: 500 }
+  });
+
+  return new Observable((subscriber) => {
+    const seen = new Set<string>();
+    let myFaved = false;
+
+    const sub = client.use(rxReq).pipe(uniq()).subscribe({
+      next({ event }) {
+        if (!seen.has(event.id)) {
+          seen.add(event.id);
+          if (myPubkey && event.pubkey === myPubkey) {
+            myFaved = true;
+          }
+        }
+      },
+      error(err) { subscriber.error(err); },
+      complete() {
+        subscriber.next({ count: seen.size, myFaved });
+        subscriber.complete();
+      }
+    });
+    return () => sub.unsubscribe();
+  });
 }
 
 export function fetchNosliListWithRelay(

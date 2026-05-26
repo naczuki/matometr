@@ -8,7 +8,7 @@
   import type { Subscription } from 'rxjs';
   import { Matome } from '$lib/entities/Matome';
   import type { MatomeBlock } from '$lib/entities/Matome';
-  import { fetchMatomeByAddress, deleteMatome } from '$lib/services/NostrClient';
+  import { fetchMatomeByAddress, deleteMatome, fetchReactionsForMatome, publishReaction } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
   import { markDeleted } from '$lib/stores/deletedMatomes';
@@ -39,6 +39,8 @@
 
     sub?.unsubscribe();
     sub = null;
+    favSub?.unsubscribe();
+    favSub = null;
     matome = null;
     error = '';
     loading = true;
@@ -46,6 +48,9 @@
     editMenuOpen = false;
     showDeleteConfirm = false;
     showJson = false;
+    faved = false;
+    favCount = 0;
+    favSending = false;
 
     if (!addr) {
       error = '無効なアドレスです';
@@ -141,13 +146,44 @@
   }
 
   // fav (kind:7 リアクション)
-  // TODO: 既存リアクション数の集計で favCount を初期化する
   let faved = false;
   let favCount = 0;
-  function toggleFav(): void {
-    faved = !faved;
-    favCount += faved ? 1 : -1;
-    // TODO: ここで kind:7 を publish（faved=true）/ 削除（faved=false）。NIP-25 / NIP-09 準拠
+  let favSending = false;
+  let favSub: Subscription | null = null;
+
+  function fetchFavState(m: Matome): void {
+    favSub?.unsubscribe();
+    faved = false;
+    favCount = 0;
+    const myPk = $currentUser?.pubkey ?? null;
+    favSub = fetchReactionsForMatome(m.pubkey, m.dTag, myPk).subscribe({
+      next(result) {
+        favCount = result.count;
+        faved = result.myFaved;
+      }
+    });
+  }
+
+  $: if (matome) fetchFavState(matome);
+
+  async function sendFav(): Promise<void> {
+    if (!matome || faved || favSending) return;
+    if (!$currentUser) return;
+    favSending = true;
+    try {
+      await publishReaction({
+        eventId: matome.id,
+        eventPubkey: matome.pubkey,
+        kind: 30023,
+        dTag: matome.dTag,
+      });
+      faved = true;
+      favCount += 1;
+    } catch (e) {
+      console.error('[sendFav]', e);
+    } finally {
+      favSending = false;
+    }
   }
 
   // share actions
@@ -371,10 +407,11 @@
         <button
           class="fav-btn"
           class:is-faved={faved}
-          title="ふぁぼ"
-          aria-label="ふぁぼ"
+          title={faved ? 'ふぁぼ済み' : 'ふぁぼ'}
+          aria-label={faved ? 'ふぁぼ済み' : 'ふぁぼ'}
           aria-pressed={faved}
-          on:click={toggleFav}
+          disabled={faved || favSending || !$currentUser}
+          on:click={sendFav}
         >
           <svg class="fav-star" width="14" height="14" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 17.75l-6.172 3.245 1.179-6.873-4.993-4.867 6.9-1.002L12 2.5l3.086 6.253 6.9 1.002-4.993 4.867 1.179 6.873z" />
@@ -864,7 +901,11 @@
     transition: background 0.12s, transform 0.12s;
   }
 
-  .fav-btn:hover {
+  .fav-btn:disabled {
+    cursor: default;
+  }
+
+  .fav-btn:not(:disabled):hover {
     background: var(--accent-mid);
     transform: translateY(-1px);
   }
