@@ -1,18 +1,6 @@
-<script lang="ts">
-  import { onMount, onDestroy, tick } from 'svelte';
-  import type { Subscription } from 'rxjs';
-  import { fetchMatomeListWithRelay, fetchNosliListWithRelay } from '$lib/services/NostrClient';
+<script lang="ts" context="module">
   import { Matome } from '$lib/entities/Matome';
-  import MatomeCard from '$lib/components/MatomeCard.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import type { Tab } from '$lib/types';
-  import { DEFAULT_RELAYS } from '$lib/stores/relays';
-  import { deletedMatomeIds } from '$lib/stores/deletedMatomes';
 
-  // rx-nostr の EventPacket.from はスラッシュなしで返るため正規化
-  const RELAYS: string[] = DEFAULT_RELAYS.map((r) => r.replace(/\/$/, ''));
-
-  // --- SPA内遷移でのスクロール位置・データ復元用キャッシュ（モジュールスコープ） ---
   interface ListCache {
     matomes: Matome[];
     rawMap: Map<string, Matome>;
@@ -24,6 +12,20 @@
     scrollY: number;
   }
   let listCache: ListCache | null = null;
+</script>
+
+<script lang="ts">
+  import { onMount, onDestroy, tick } from 'svelte';
+  import type { Subscription } from 'rxjs';
+  import { fetchMatomeListWithRelay, fetchNosliListWithRelay } from '$lib/services/NostrClient';
+  import MatomeCard from '$lib/components/MatomeCard.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
+  import type { Tab } from '$lib/types';
+  import { DEFAULT_RELAYS } from '$lib/stores/relays';
+  import { deletedMatomeIds } from '$lib/stores/deletedMatomes';
+
+  // rx-nostr の EventPacket.from はスラッシュなしで返るため正規化
+  const RELAYS: string[] = DEFAULT_RELAYS.map((r) => r.replace(/\/$/, ''));
 
   export let tab: Tab;
 
