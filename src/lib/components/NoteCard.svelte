@@ -497,7 +497,7 @@
   .naddr-link {
     color: var(--accent);
     text-decoration: none;
-    font-size: 12px;
+    font-size: 14px;
     word-break: break-all;
   }
 
@@ -570,7 +570,7 @@
     color: var(--accent);
     text-decoration: none;
     word-break: break-all;
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .url-link:hover {
