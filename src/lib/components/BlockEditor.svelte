@@ -3,6 +3,7 @@
   import { sortableAction } from '$lib/actions/sortable';
   import { fetchNotesByIds } from '$lib/services/NostrClient';
   import { parseNostrInput, eventIdFromNevent } from '$lib/utils/nostr';
+  import { renderInlineMarkdown } from '$lib/utils/markdown';
   import type { EditorBlock, NoteEditorBlock } from '$lib/types';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import AddNoteModal from '$lib/components/AddNoteModal.svelte';
@@ -15,6 +16,18 @@
   let createdAtCache = new Map<string, number>();
   let pendingInsertIndex: number | null = null;
   let openGapId: string | null = null;
+  let editingComments = new Set<string>();
+
+  function startEditingComment(id: string): void {
+    editingComments.add(id);
+    editingComments = editingComments;
+    focusBlockInput(id, 'comment');
+  }
+
+  function stopEditingComment(id: string): void {
+    editingComments.delete(id);
+    editingComments = editingComments;
+  }
 
   $: noteCount = blocks.filter((b) => b.type === 'nevent' && b.nevent).length;
 
@@ -39,6 +52,10 @@
         : { id: crypto.randomUUID(), type: 'heading', text: '' };
     const insertPos = afterIndex + 1;
     blocks = [...blocks.slice(0, insertPos), newBlock, ...blocks.slice(insertPos)];
+    if (type === 'comment') {
+      editingComments.add(newBlock.id);
+      editingComments = editingComments;
+    }
     focusBlockInput(newBlock.id, type);
   }
 
@@ -211,14 +228,30 @@
                 {/if}
               {:else if block.type === 'comment'}
                 <span class="block-type-label">コメント</span>
-                <textarea
-                  class="comment-textarea"
-                  data-block-id={block.id}
-                  placeholder="コメントを入力…"
-                  value={block.text}
-                  on:input={(e) => updateText(block.id, e.currentTarget.value)}
-                  rows={3}
-                ></textarea>
+                {#if editingComments.has(block.id) || !block.text.trim()}
+                  <textarea
+                    class="comment-textarea"
+                    data-block-id={block.id}
+                    placeholder="コメントを入力…（マークダウン対応）"
+                    value={block.text}
+                    on:input={(e) => updateText(block.id, e.currentTarget.value)}
+                    on:blur={() => stopEditingComment(block.id)}
+                    rows={3}
+                  ></textarea>
+                {:else}
+                  <!-- svelte-ignore a11y-no-static-element-interactions -->
+                  <div
+                    class="comment-preview"
+                    on:click={() => startEditingComment(block.id)}
+                    on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') startEditingComment(block.id); }}
+                    role="button"
+                    tabindex="0"
+                    title="クリックで編集"
+                  >
+                    <div class="comment-preview-body block-comment-md">{@html renderInlineMarkdown(block.text)}</div>
+                    <span class="comment-preview-hint">クリックで編集</span>
+                  </div>
+                {/if}
               {:else if block.type === 'heading'}
                 <span class="block-type-label">見出し</span>
                 <input
@@ -439,6 +472,131 @@
   .comment-textarea:focus {
     outline: none;
     border-color: var(--accent);
+  }
+
+  .comment-preview {
+    position: relative;
+    border: 1.5px solid var(--border2);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: var(--accent-pale);
+    cursor: text;
+    transition: border-color 0.12s;
+  }
+
+  .comment-preview:hover {
+    border-color: var(--accent-mid);
+  }
+
+  .comment-preview:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .comment-preview-body {
+    font-size: 14px;
+    color: var(--ink2);
+    line-height: 1.75;
+    word-break: break-word;
+  }
+
+  :global(.comment-preview-body p) {
+    margin: 0.3em 0;
+  }
+
+  :global(.comment-preview-body p:first-child) {
+    margin-top: 0;
+  }
+
+  :global(.comment-preview-body p:last-child) {
+    margin-bottom: 0;
+  }
+
+  :global(.comment-preview-body strong) {
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  :global(.comment-preview-body em) {
+    font-style: italic;
+  }
+
+  :global(.comment-preview-body a) {
+    color: var(--accent);
+    text-decoration: underline;
+    word-break: break-all;
+  }
+
+  :global(.comment-preview-body code) {
+    font-family: monospace;
+    font-size: 0.9em;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  :global(.comment-preview-body ul),
+  :global(.comment-preview-body ol) {
+    padding-left: 1.5em;
+    margin: 0.3em 0;
+  }
+
+  :global(.comment-preview-body h1),
+  :global(.comment-preview-body h2),
+  :global(.comment-preview-body h3),
+  :global(.comment-preview-body h4) {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.4;
+    margin: 0.5em 0 0.3em;
+  }
+
+  :global(.comment-preview-body h1) { font-size: 15px; }
+  :global(.comment-preview-body h2) { font-size: 14px; }
+  :global(.comment-preview-body h3) { font-size: 13px; }
+  :global(.comment-preview-body h4) { font-size: 13px; }
+
+  :global(.comment-preview-body blockquote) {
+    margin: 6px 0;
+    padding: 6px 12px;
+    border-left: 3px solid var(--accent);
+    background: var(--bg);
+    border-radius: 4px;
+    color: var(--ink3);
+    font-size: 13px;
+  }
+
+  :global(.comment-preview-body pre) {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 6px 0;
+  }
+
+  :global(.comment-preview-body pre code) {
+    background: none;
+    border: none;
+    padding: 0;
+  }
+
+  .comment-preview-hint {
+    display: block;
+    text-align: right;
+    font-size: 10px;
+    color: var(--ink3);
+    margin-top: 4px;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+
+  .comment-preview:hover .comment-preview-hint {
+    opacity: 1;
   }
 
   .heading-input {
