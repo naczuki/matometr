@@ -384,7 +384,7 @@
 
   .note-name {
     font-weight: 700;
-    font-size: 14px;
+    font-size: 15px;
     color: var(--ink);
     font-family: var(--font-ui);
     overflow: hidden;
