@@ -1189,6 +1189,20 @@
     margin: 0.4em 0;
   }
 
+  :global(.block-comment-md h1),
+  :global(.block-comment-md h2),
+  :global(.block-comment-md h3),
+  :global(.block-comment-md h4) {
+    font-family: var(--font-ui);
+    line-height: 1.4;
+    margin: 0.6em 0 0.3em;
+  }
+
+  :global(.block-comment-md h1) { font-size: 17px; font-weight: 800; color: var(--ink); }
+  :global(.block-comment-md h2) { font-size: 16px; font-weight: 800; color: var(--ink); }
+  :global(.block-comment-md h3) { font-size: 16px; font-weight: 700; color: var(--ink); }
+  :global(.block-comment-md h4) { font-size: 16px; font-weight: 700; color: var(--ink2); }
+
   .block-mention {
     display: block;
     padding: 10px 16px;

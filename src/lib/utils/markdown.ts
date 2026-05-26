@@ -1,6 +1,8 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
+marked.setOptions({ breaks: true });
+
 export type HtmlSegment = { type: 'html'; html: string };
 export type NeventSegment = { type: 'nevent'; ref: string };
 export type NaddrSegment = { type: 'naddr'; ref: string };
