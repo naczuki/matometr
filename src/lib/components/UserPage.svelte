@@ -5,7 +5,7 @@
   import { nip19 } from 'nostr-tools';
   import type { Subscription } from 'rxjs';
   import { Matome } from '$lib/entities/Matome';
-  import { fetchUserMatomes, fetchReactionCounts } from '$lib/services/NostrClient';
+  import { fetchUserMatomes, fetchReactionCounts, fetchUserFavedMatomes } from '$lib/services/NostrClient';
   import { clearFavDeltas } from '$lib/stores/favs';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
@@ -18,6 +18,9 @@
 
   export let npub: string;
 
+  type UserTab = 'matomes' | 'reactions';
+  let activeTab: UserTab = 'matomes';
+
   $: npubParam = npub;
 
   let pubkey = '';
@@ -25,6 +28,13 @@
   let loading = true;
   let matomes: Matome[] = [];
   let sub: Subscription | null = null;
+
+  let reactLoading = false;
+  let reactLoaded = false;
+  let reactMatomes: Matome[] = [];
+  let reactSub: Subscription | null = null;
+  let reactFavSub: Subscription | null = null;
+  const reactRawMap = new Map<string, Matome>();
 
   const rawMap = new Map<string, Matome>();
 
@@ -48,11 +58,20 @@
 
     sub?.unsubscribe();
     sub = null;
+    reactSub?.unsubscribe();
+    reactSub = null;
+    reactFavSub?.unsubscribe();
+    reactFavSub = null;
     rawMap.clear();
+    reactRawMap.clear();
     matomes = [];
+    reactMatomes = [];
+    reactLoaded = false;
+    reactLoading = false;
     pubkey = '';
     error = '';
     loading = true;
+    activeTab = 'matomes';
     npubMenuOpen = false;
 
     if (!n) { error = '無効なユーザーIDです'; loading = false; return; }
@@ -106,9 +125,63 @@
     });
   }
 
+  function loadReactions(): void {
+    if (reactLoaded || reactLoading || !pubkey) return;
+    reactLoading = true;
+    reactRawMap.clear();
+    reactMatomes = [];
+    reactSub?.unsubscribe();
+    reactSub = fetchUserFavedMatomes(pubkey).subscribe({
+      next(m) {
+        const key = `${m.pubkey}:${m.dTag}`;
+        const existing = reactRawMap.get(key);
+        if (!existing || m.createdAt > existing.createdAt) {
+          reactRawMap.set(key, m);
+          reactMatomes = [...reactRawMap.values()].sort((a, b) => b.createdAt - a.createdAt);
+        }
+      },
+      complete() {
+        reactLoading = false;
+        reactLoaded = true;
+        applyReactTabFavCounts();
+      },
+      error() {
+        reactLoading = false;
+        reactLoaded = true;
+      }
+    });
+  }
+
+  function applyReactTabFavCounts(): void {
+    const targets = [...reactRawMap.values()];
+    if (targets.length === 0) return;
+    reactFavSub?.unsubscribe();
+    reactFavSub = fetchReactionCounts(targets).subscribe({
+      next(counts) {
+        const updatedKeys: string[] = [];
+        let changed = false;
+        for (const m of targets) {
+          const key = `30023:${m.pubkey}:${m.dTag}`;
+          const c = counts.get(key) ?? 0;
+          if (m.favCount !== c) { m.favCount = c; changed = true; }
+          updatedKeys.push(key);
+        }
+        clearFavDeltas(updatedKeys);
+        if (changed) reactMatomes = reactMatomes;
+      }
+    });
+  }
+
+  function switchTab(tab: UserTab): void {
+    activeTab = tab;
+    if (tab === 'reactions') loadReactions();
+  }
+
   onDestroy(() => {
     sub?.unsubscribe();
     favSub?.unsubscribe();
+    reactSub?.unsubscribe();
+    reactFavSub?.unsubscribe();
     removeNpubDocListener?.();
     if (toastTimer) clearTimeout(toastTimer);
   });
@@ -267,23 +340,70 @@
       </div>
     </div>
 
-    <!-- まとめ一覧 -->
-    {#if loading}
-      <div class="state-wrap">
-        <Spinner />
-        <div class="state-text">読み込み中…</div>
-      </div>
-    {:else if matomes.length === 0}
-      <div class="state-wrap">
-        <div class="state-icon">📋</div>
-        <div class="state-text">まだまとめがありません</div>
-      </div>
+    <!-- タブ -->
+    <div class="tab-bar">
+      <button
+        class="tab-btn"
+        class:active={activeTab === 'matomes'}
+        on:click={() => switchTab('matomes')}
+      >
+        <svg class="doc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+        まとめ
+      </button>
+      <button
+        class="tab-btn"
+        class:active={activeTab === 'reactions'}
+        on:click={() => switchTab('reactions')}
+      >
+        <svg class="star-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 17.75l-6.172 3.245 1.179-6.873-4.993-4.867 6.9-1.002L12 2.5l3.086 6.253 6.9 1.002-4.993 4.867 1.179 6.873z" />
+        </svg>
+        リアクション
+      </button>
+    </div>
+
+    <!-- まとめタブ -->
+    {#if activeTab === 'matomes'}
+      {#if loading}
+        <div class="state-wrap">
+          <Spinner />
+          <div class="state-text">読み込み中…</div>
+        </div>
+      {:else if matomes.length === 0}
+        <div class="state-wrap">
+          <div class="state-icon">📋</div>
+          <div class="state-text">まだまとめがありません</div>
+        </div>
+      {:else}
+        <div class="grid">
+          {#each matomes as matome (matome.id)}
+            <MatomeCard {matome} />
+          {/each}
+        </div>
+      {/if}
+
+    <!-- リアクションタブ -->
     {:else}
-      <div class="grid">
-        {#each matomes as matome (matome.id)}
-          <MatomeCard {matome} />
-        {/each}
-      </div>
+      {#if reactLoading}
+        <div class="state-wrap">
+          <Spinner />
+          <div class="state-text">読み込み中…</div>
+        </div>
+      {:else if reactMatomes.length === 0}
+        <div class="state-wrap">
+          <div class="state-icon">☆</div>
+          <div class="state-text">まだリアクションがありません</div>
+        </div>
+      {:else}
+        <div class="grid">
+          {#each reactMatomes as matome (matome.id)}
+            <MatomeCard {matome} />
+          {/each}
+        </div>
+      {/if}
     {/if}
   {/if}
 </div>
@@ -517,6 +637,52 @@
 
   .btn-create:hover {
     background: var(--accent-dark);
+  }
+
+  /* タブ */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1.5px solid var(--border);
+    margin-bottom: 20px;
+  }
+
+  .tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: var(--font-ui);
+    color: var(--ink3);
+    background: none;
+    border: none;
+    border-bottom: 2.5px solid transparent;
+    margin-bottom: -1.5px;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s;
+  }
+
+  .tab-btn:hover {
+    color: var(--ink2);
+  }
+
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .doc-icon {
+    width: 15px;
+    height: 15px;
+    margin-bottom: -1px;
+  }
+
+  .star-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: -2px;
   }
 
   /* まとめグリッド */

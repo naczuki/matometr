@@ -395,3 +395,52 @@ export function fetchUserMatomes(pubkey: string, limit = 50): Observable<Matome>
 
   return merge(makeObs('matometr'), makeObs('nosli'));
 }
+
+export function fetchUserFavedMatomes(
+  pubkey: string
+): Observable<Matome> {
+  const client = getClient();
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [7], authors: [pubkey] }
+  });
+
+  return new Observable((subscriber) => {
+    const aTagValues = new Set<string>();
+
+    const sub = client.use(rxReq).pipe(uniq()).subscribe({
+      next({ event }) {
+        const aTag = event.tags.find(([k]) => k === 'a');
+        if (aTag?.[1]?.startsWith('30023:')) {
+          aTagValues.add(aTag[1]);
+        }
+      },
+      error(err) { subscriber.error(err); },
+      complete() {
+        if (aTagValues.size === 0) {
+          subscriber.complete();
+          return;
+        }
+        let pending = aTagValues.size;
+        for (const aVal of aTagValues) {
+          const parts = aVal.split(':');
+          if (parts.length < 3) { if (--pending === 0) subscriber.complete(); continue; }
+          const authorPk = parts[1];
+          const dTag = parts.slice(2).join(':');
+          const matomeReq = createRxOneshotReq({
+            filters: { kinds: [30023], authors: [authorPk], '#d': [dTag] }
+          });
+          const mSub = client.use(matomeReq).pipe(
+            map(({ event: ev }) => Matome.fromEvent(ev)),
+            filter((m): m is Matome => m !== null),
+            take(1)
+          ).subscribe({
+            next(m) { subscriber.next(m); },
+            complete() { if (--pending === 0) subscriber.complete(); },
+            error() { if (--pending === 0) subscriber.complete(); }
+          });
+        }
+      }
+    });
+    return () => sub.unsubscribe();
+  });
+}
