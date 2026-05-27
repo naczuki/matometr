@@ -4,8 +4,9 @@
   export let pubkey: string;
   export let picture: string | null = null;
   export let size: number = 36;
+  export let name: string | null = null;
 
-  $: style = avatarStyle(pubkey);
+  $: style = avatarStyle(pubkey, name);
   let imgFailed = false;
   $: picture, (imgFailed = false);
 </script>

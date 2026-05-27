@@ -35,7 +35,7 @@
   <div class="check" aria-hidden="true">{selected ? '✓' : ''}</div>
   <div class="post-body">
     <div class="post-header">
-      <Avatar pubkey={note.pubkey} {picture} size={26} />
+      <Avatar pubkey={note.pubkey} {picture} size={26} name={author} />
       <span class="author">{author}</span>
       <span class="time">{formatAbsoluteTime(note.createdAt)}</span>
     </div>

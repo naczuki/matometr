@@ -266,7 +266,7 @@
     <!-- プロフィールヘッダー -->
     <div class="profile-header">
       <div class="profile-main">
-        <Avatar {pubkey} {picture} size={72} />
+        <Avatar {pubkey} {picture} size={72} name={displayName} />
 
       <div class="profile-info">
         <div class="profile-name">
