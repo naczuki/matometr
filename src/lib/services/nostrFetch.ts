@@ -411,7 +411,7 @@ export function fetchUserFavedMatomes(
 ): Observable<Matome> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
-    filters: { kinds: [7], authors: [pubkey] }
+    filters: { kinds: [7], authors: [pubkey], '#k': ['30023'] }
   });
 
   return new Observable((subscriber) => {
