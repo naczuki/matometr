@@ -1,5 +1,5 @@
 import { createRxOneshotReq, uniq } from 'rx-nostr';
-import { EMPTY, merge, type Observable } from 'rxjs';
+import { EMPTY, merge, Observable, forkJoin } from 'rxjs';
 import { map, filter, take } from 'rxjs';
 import { nip19 } from 'nostr-tools';
 import type { AddressPointer } from 'nostr-tools/nip19';
@@ -288,6 +288,68 @@ export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
       }
     }),
     filter((p): p is UserProfile => p !== null)
+  );
+}
+
+export function fetchReactionCounts(
+  matomes: { pubkey: string; dTag: string }[]
+): Observable<Map<string, number>> {
+  if (matomes.length === 0) return new Observable((s) => { s.next(new Map()); s.complete(); });
+  const client = getClient();
+
+  const entries = matomes.map((m) => {
+    const key = `30023:${m.pubkey}:${m.dTag}`;
+    const rxReq = createRxOneshotReq({ filters: { kinds: [7], '#a': [key] } });
+    return new Observable<[string, number]>((subscriber) => {
+      const seen = new Set<string>();
+      const sub = client.use(rxReq).pipe(uniq()).subscribe({
+        next({ event }) { seen.add(event.id); },
+        complete() { subscriber.next([key, seen.size]); subscriber.complete(); },
+        error() { subscriber.next([key, 0]); subscriber.complete(); }
+      });
+      return () => sub.unsubscribe();
+    });
+  });
+
+  return forkJoin(entries).pipe(map((results) => new Map(results)));
+}
+
+export function fetchReactionsForMatome(
+  pubkey: string,
+  dTag: string,
+  myPubkey: string | null
+): Observable<{ count: number; myFaved: boolean }> {
+  const client = getClient();
+  const aTagValue = `30023:${pubkey}:${dTag}`;
+
+  const count$ = new Observable<number>((subscriber) => {
+    const seen = new Set<string>();
+    const rxReq = createRxOneshotReq({ filters: { kinds: [7], '#a': [aTagValue] } });
+    const sub = client.use(rxReq).pipe(uniq()).subscribe({
+      next({ event }) { seen.add(event.id); },
+      complete() { subscriber.next(seen.size); subscriber.complete(); },
+      error() { subscriber.next(0); subscriber.complete(); }
+    });
+    return () => sub.unsubscribe();
+  });
+
+  const faved$ = myPubkey
+    ? new Observable<boolean>((subscriber) => {
+        const rxReq = createRxOneshotReq({
+          filters: { kinds: [7], authors: [myPubkey], '#a': [aTagValue], limit: 1 }
+        });
+        let found = false;
+        const sub = client.use(rxReq).subscribe({
+          next() { found = true; },
+          complete() { subscriber.next(found); subscriber.complete(); },
+          error() { subscriber.next(false); subscriber.complete(); }
+        });
+        return () => sub.unsubscribe();
+      })
+    : new Observable<boolean>((s) => { s.next(false); s.complete(); });
+
+  return forkJoin([count$, faved$]).pipe(
+    map(([count, myFaved]) => ({ count, myFaved }))
   );
 }
 

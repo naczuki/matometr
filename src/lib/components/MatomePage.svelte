@@ -8,10 +8,11 @@
   import type { Subscription } from 'rxjs';
   import { Matome } from '$lib/entities/Matome';
   import type { MatomeBlock } from '$lib/entities/Matome';
-  import { fetchMatomeByAddress, deleteMatome } from '$lib/services/NostrClient';
+  import { fetchMatomeByAddress, deleteMatome, fetchReactionsForMatome, publishReaction } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
   import { markDeleted } from '$lib/stores/deletedMatomes';
+  import { markFaved } from '$lib/stores/favs';
   import { avatarStyle } from '$lib/utils/avatar';
   import { shortNpubFromPubkey, shortNpub as shortNpubStr } from '$lib/utils/nostr';
   import { NOSLI_BASE_URL } from '$lib/utils/constants';
@@ -39,6 +40,8 @@
 
     sub?.unsubscribe();
     sub = null;
+    favSub?.unsubscribe();
+    favSub = null;
     matome = null;
     error = '';
     loading = true;
@@ -46,6 +49,10 @@
     editMenuOpen = false;
     showDeleteConfirm = false;
     showJson = false;
+    faved = false;
+    favCount = 0;
+    favSending = false;
+    _favFetchedPk = null;
 
     if (!addr) {
       error = '無効なアドレスです';
@@ -138,6 +145,49 @@
   function formatDate(unixSeconds: number): string {
     const d = new Date(unixSeconds * 1000);
     return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+  }
+
+  // fav (kind:7 リアクション)
+  let faved = false;
+  let favCount = 0;
+  let favSending = false;
+  let favSub: Subscription | null = null;
+
+  let _favFetchedPk: string | null = null;
+
+  function fetchFavState(m: Matome, myPk: string | null): void {
+    if (_favFetchedPk === myPk && favSub) return;
+    _favFetchedPk = myPk;
+    favSub?.unsubscribe();
+    favSub = fetchReactionsForMatome(m.pubkey, m.dTag, myPk).subscribe({
+      next(result) {
+        favCount = result.count;
+        faved = result.myFaved;
+      }
+    });
+  }
+
+  $: if (matome) fetchFavState(matome, $currentUser?.pubkey ?? null);
+
+  async function sendFav(): Promise<void> {
+    if (!matome || faved || favSending) return;
+    if (!$currentUser) return;
+    favSending = true;
+    try {
+      await publishReaction({
+        eventId: matome.id,
+        eventPubkey: matome.pubkey,
+        kind: 30023,
+        dTag: matome.dTag,
+      });
+      faved = true;
+      favCount += 1;
+      markFaved(matome.pubkey, matome.dTag);
+    } catch (e) {
+      console.error('[sendFav]', e);
+    } finally {
+      favSending = false;
+    }
   }
 
   // share actions
@@ -358,6 +408,21 @@
       </div>
 
       <div class="detail-stats">
+        <button
+          class="fav-btn"
+          class:is-faved={faved}
+          title={faved ? 'ふぁぼ済み' : 'ふぁぼ'}
+          aria-label={faved ? 'ふぁぼ済み' : 'ふぁぼ'}
+          aria-pressed={faved}
+          disabled={faved || favSending || !$currentUser}
+          on:click={sendFav}
+        >
+          <svg class="fav-star" width="14" height="14" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 17.75l-6.172 3.245 1.179-6.873-4.993-4.867 6.9-1.002L12 2.5l3.086 6.253 6.9 1.002-4.993 4.867 1.179 6.873z" />
+          </svg>
+          <span class="fav-count">{favCount}</span>
+        </button>
+
         <div class="stat-share-row">
           <!-- Nos: nostr-share-component（スロットでテキスト上書き） -->
           <nostr-share data-text={shareText}><span class="nos-label">Nos</span></nostr-share>
@@ -821,6 +886,43 @@
     flex-wrap: wrap;
   }
 
+
+  .fav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    background: var(--accent-pale);
+    border: 1.5px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: background 0.12s, transform 0.12s;
+  }
+
+  .fav-btn:disabled {
+    cursor: default;
+  }
+
+  .fav-btn:not(:disabled):hover {
+    background: var(--accent-mid);
+    transform: translateY(-1px);
+  }
+
+  .fav-star {
+    stroke: var(--accent);
+    fill: none;
+    transition: fill 0.12s;
+  }
+
+  .fav-btn.is-faved .fav-star {
+    fill: var(--accent);
+  }
 
   .stat-share-row {
     display: flex;

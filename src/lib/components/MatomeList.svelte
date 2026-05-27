@@ -17,12 +17,13 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
   import type { Subscription } from 'rxjs';
-  import { fetchMatomeListWithRelay, fetchNosliListWithRelay } from '$lib/services/NostrClient';
+  import { fetchMatomeListWithRelay, fetchNosliListWithRelay, fetchReactionCounts } from '$lib/services/NostrClient';
   import MatomeCard from '$lib/components/MatomeCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import type { Tab } from '$lib/types';
   import { DEFAULT_RELAYS } from '$lib/stores/relays';
   import { deletedMatomeIds } from '$lib/stores/deletedMatomes';
+  import { clearFavDeltas } from '$lib/stores/favs';
 
   // rx-nostr の EventPacket.from はスラッシュなしで返るため正規化
   const RELAYS: string[] = DEFAULT_RELAYS.map((r) => r.replace(/\/$/, ''));
@@ -149,6 +150,7 @@
         loading = false;
         hasMore = computeHasMore();
         resolve();
+        applyReactionCounts(adopted);
       }
 
       const s1 = fetchMatomeListWithRelay(BATCH_SIZE).subscribe({
@@ -296,6 +298,28 @@
     return out;
   }
 
+  function applyReactionCounts(targets: Matome[]): void {
+    if (targets.length === 0) return;
+    const sub = fetchReactionCounts(targets).subscribe({
+      next(counts) {
+        const updatedKeys: string[] = [];
+        let changed = false;
+        for (const m of targets) {
+          const key = `30023:${m.pubkey}:${m.dTag}`;
+          const c = counts.get(key) ?? 0;
+          if (m.favCount !== c) {
+            m.favCount = c;
+            changed = true;
+          }
+          updatedKeys.push(key);
+        }
+        clearFavDeltas(updatedKeys);
+        if (changed) matomes = matomes;
+      }
+    });
+    subs.push(sub);
+  }
+
   async function loadMore(): Promise<void> {
     if (loadingMore || !hasMore) return;
     loadingMore = true;
@@ -340,6 +364,7 @@
     matomes = [...matomes, ...adopted];
     loadingMore = false;
     hasMore = computeHasMore();
+    applyReactionCounts(adopted);
   }
 
   onDestroy(() => {
