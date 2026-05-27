@@ -3,8 +3,8 @@
 
   export let pubkey: string;
   export let picture: string | null = null;
-  export let size: number = 36;
   export let name: string | null = null;
+  export let size: number = 36;
 
   $: style = avatarStyle(pubkey, name);
   let imgFailed = false;
@@ -17,7 +17,7 @@
 >
   {#if picture && !imgFailed}
     <img src={picture} alt="" on:error={() => (imgFailed = true)} />
-  {:else}
+  {:else if style.initial}
     {style.initial}
   {/if}
 </div>

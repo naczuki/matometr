@@ -1,14 +1,17 @@
-const PALETTES = [
-  { bg: '#fef9c3', fg: '#a16207' },
-  { bg: '#ffe4e6', fg: '#be123c' },
-  { bg: '#dcfce7', fg: '#15803d' },
-  { bg: '#f3e8ff', fg: '#7e22ce' },
-  { bg: '#dbeafe', fg: '#1d4ed8' }
-] as const;
+export function avatarStyle(
+  pubkey: string,
+  name?: string | null
+): { bg: string; fg: string; initial: string } {
+  const hex = pubkey.slice(0, 6).padEnd(6, '0');
+  const bg = `#${hex}`;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  const fg = luminance > 0.5 ? '#1a1a1a' : '#ffffff';
 
-export function avatarStyle(pubkey: string, name?: string | null): { bg: string; fg: string; initial: string } {
-  const idx = parseInt(pubkey[0] ?? '0', 16) % PALETTES.length;
-  const palette = PALETTES[idx];
-  const initial = name ? [...name][0] : pubkey[0]?.toUpperCase() ?? '?';
-  return { bg: palette.bg, fg: palette.fg, initial };
+  const initial = name
+    ? ((name.startsWith('npub1') ? name[5] : name[0])?.toUpperCase() ?? '')
+    : '';
+  return { bg, fg, initial };
 }
