@@ -16,6 +16,16 @@ export function markFaved(pubkey: string, dTag: string): void {
   });
 }
 
+export function clearFavDeltas(keys: string[]): void {
+  _faved.update((m) => {
+    let changed = false;
+    for (const key of keys) {
+      if (m.has(key)) { m.delete(key); changed = true; }
+    }
+    return changed ? new Map(m) : m;
+  });
+}
+
 export function getFavDelta(pubkey: string, dTag: string): number {
   return get(_faved).get(toKey(pubkey, dTag)) ?? 0;
 }

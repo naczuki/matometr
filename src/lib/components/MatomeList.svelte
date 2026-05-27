@@ -23,6 +23,7 @@
   import type { Tab } from '$lib/types';
   import { DEFAULT_RELAYS } from '$lib/stores/relays';
   import { deletedMatomeIds } from '$lib/stores/deletedMatomes';
+  import { clearFavDeltas } from '$lib/stores/favs';
 
   // rx-nostr の EventPacket.from はスラッシュなしで返るため正規化
   const RELAYS: string[] = DEFAULT_RELAYS.map((r) => r.replace(/\/$/, ''));
@@ -200,6 +201,7 @@
       tick().then(() => {
         window.scrollTo(0, savedScrollY);
       });
+      applyReactionCounts(matomes);
     } else {
       initialLoad();
     }
@@ -301,6 +303,7 @@
     if (targets.length === 0) return;
     const sub = fetchReactionCounts(targets).subscribe({
       next(counts) {
+        const updatedKeys: string[] = [];
         let changed = false;
         for (const m of targets) {
           const key = `30023:${m.pubkey}:${m.dTag}`;
@@ -309,7 +312,9 @@
             m.favCount = c;
             changed = true;
           }
+          updatedKeys.push(key);
         }
+        clearFavDeltas(updatedKeys);
         if (changed) matomes = matomes;
       }
     });

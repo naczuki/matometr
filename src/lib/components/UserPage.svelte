@@ -6,6 +6,7 @@
   import type { Subscription } from 'rxjs';
   import { Matome } from '$lib/entities/Matome';
   import { fetchUserMatomes, fetchReactionCounts } from '$lib/services/NostrClient';
+  import { clearFavDeltas } from '$lib/stores/favs';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
   import { shortNpub } from '$lib/utils/nostr';
@@ -88,6 +89,7 @@
     favSub?.unsubscribe();
     favSub = fetchReactionCounts(targets).subscribe({
       next(counts) {
+        const updatedKeys: string[] = [];
         let changed = false;
         for (const m of targets) {
           const key = `30023:${m.pubkey}:${m.dTag}`;
@@ -96,7 +98,9 @@
             m.favCount = c;
             changed = true;
           }
+          updatedKeys.push(key);
         }
+        clearFavDeltas(updatedKeys);
         if (changed) matomes = matomes;
       }
     });
