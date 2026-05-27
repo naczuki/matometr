@@ -12,6 +12,7 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
   import { markDeleted } from '$lib/stores/deletedMatomes';
+  import { markFaved } from '$lib/stores/favs';
   import { avatarStyle } from '$lib/utils/avatar';
   import { shortNpubFromPubkey, shortNpub as shortNpubStr } from '$lib/utils/nostr';
   import { NOSLI_BASE_URL } from '$lib/utils/constants';
@@ -181,6 +182,7 @@
       });
       faved = true;
       favCount += 1;
+      markFaved(matome.pubkey, matome.dTag);
     } catch (e) {
       console.error('[sendFav]', e);
     } finally {
