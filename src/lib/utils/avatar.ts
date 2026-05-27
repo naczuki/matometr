@@ -6,8 +6,17 @@ const PALETTES = [
   { bg: '#dbeafe', fg: '#1d4ed8' }
 ] as const;
 
-export function avatarStyle(pubkey: string): { bg: string; fg: string; initial: string } {
+export function avatarStyle(
+  pubkey: string,
+  name?: string | null
+): { bg: string; fg: string; initial: string } {
   const idx = parseInt(pubkey[0] ?? '0', 16) % PALETTES.length;
   const palette = PALETTES[idx];
-  return { bg: palette.bg, fg: palette.fg, initial: pubkey[0]?.toUpperCase() ?? '?' };
+  let initial: string;
+  if (name) {
+    initial = (name.startsWith('npub1') ? name[5] : name[0])?.toUpperCase() ?? '?';
+  } else {
+    initial = pubkey[0]?.toUpperCase() ?? '?';
+  }
+  return { bg: palette.bg, fg: palette.fg, initial };
 }
