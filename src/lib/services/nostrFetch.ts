@@ -441,7 +441,8 @@ export function fetchUserFavedMatomes(
         const mSub = client.use(matomeReq).pipe(
           uniq(),
           map(({ event: ev }) => Matome.fromEvent(ev)),
-          filter((m): m is Matome => m !== null)
+          filter((m): m is Matome => m !== null),
+          filter((m) => m.isMatometr || m.isNosli)
         ).subscribe({
           next(m) { subscriber.next(m); },
           complete() { subscriber.complete(); },
