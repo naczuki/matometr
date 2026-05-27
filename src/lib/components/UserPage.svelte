@@ -163,7 +163,7 @@
     <!-- プロフィールヘッダー -->
     <div class="profile-header">
       <div class="profile-main">
-        <Avatar {pubkey} {picture} size={72} />
+        <Avatar {pubkey} {picture} name={displayName} size={72} />
 
       <div class="profile-info">
         <div class="profile-name">
