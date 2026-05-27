@@ -43,7 +43,6 @@
     const existing = rawMap.get(key);
     if (!existing || m.createdAt > existing.createdAt) {
       rawMap.set(key, m);
-      matomes = [...rawMap.values()].sort((a, b) => b.createdAt - a.createdAt);
     }
   }
 
@@ -87,6 +86,7 @@
       sub = fetchUserMatomes(pubkey).subscribe({
         next: addMatome,
         complete: () => {
+          matomes = [...rawMap.values()].sort((a, b) => b.createdAt - a.createdAt);
           loading = false;
           applyReactionCounts();
         },
