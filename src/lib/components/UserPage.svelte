@@ -137,10 +137,10 @@
         const existing = reactRawMap.get(key);
         if (!existing || m.createdAt > existing.createdAt) {
           reactRawMap.set(key, m);
-          reactMatomes = [...reactRawMap.values()].sort((a, b) => b.createdAt - a.createdAt);
         }
       },
       complete() {
+        reactMatomes = [...reactRawMap.values()].sort((a, b) => b.createdAt - a.createdAt);
         reactLoading = false;
         reactLoaded = true;
         applyReactTabFavCounts();
