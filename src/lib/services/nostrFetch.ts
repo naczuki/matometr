@@ -420,25 +420,23 @@ export function fetchUserFavedMatomes(
           subscriber.complete();
           return;
         }
-        let pending = aTagValues.size;
+        const filters: { kinds: number[]; authors: string[]; '#d': string[] }[] = [];
         for (const aVal of aTagValues) {
           const parts = aVal.split(':');
-          if (parts.length < 3) { if (--pending === 0) subscriber.complete(); continue; }
-          const authorPk = parts[1];
-          const dTag = parts.slice(2).join(':');
-          const matomeReq = createRxOneshotReq({
-            filters: { kinds: [30023], authors: [authorPk], '#d': [dTag] }
-          });
-          const mSub = client.use(matomeReq).pipe(
-            map(({ event: ev }) => Matome.fromEvent(ev)),
-            filter((m): m is Matome => m !== null),
-            take(1)
-          ).subscribe({
-            next(m) { subscriber.next(m); },
-            complete() { if (--pending === 0) subscriber.complete(); },
-            error() { if (--pending === 0) subscriber.complete(); }
-          });
+          if (parts.length < 3) continue;
+          filters.push({ kinds: [30023], authors: [parts[1]], '#d': [parts.slice(2).join(':')] });
         }
+        if (filters.length === 0) { subscriber.complete(); return; }
+        const matomeReq = createRxOneshotReq({ filters });
+        const mSub = client.use(matomeReq).pipe(
+          uniq(),
+          map(({ event: ev }) => Matome.fromEvent(ev)),
+          filter((m): m is Matome => m !== null)
+        ).subscribe({
+          next(m) { subscriber.next(m); },
+          complete() { subscriber.complete(); },
+          error() { subscriber.complete(); }
+        });
       }
     });
     return () => sub.unsubscribe();
