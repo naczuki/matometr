@@ -201,7 +201,6 @@
       tick().then(() => {
         window.scrollTo(0, savedScrollY);
       });
-      applyReactionCounts(matomes);
     } else {
       initialLoad();
     }
