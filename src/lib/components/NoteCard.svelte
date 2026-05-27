@@ -198,7 +198,7 @@
     <div class="load-placeholder">取得中…</div>
   {:else}
     <div class="note-header">
-      <Avatar pubkey={note.pubkey} {picture} name={authorName} size={36} />
+      <Avatar pubkey={note.pubkey} {picture} name={profile?.displayName ?? profile?.name ?? null} size={36} />
       <div class="note-meta">
         <div class="note-name">{authorName}</div>
         <div class="note-pub">{shortNpubFromPubkey(note.pubkey)}</div>

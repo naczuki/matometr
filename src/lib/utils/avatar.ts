@@ -10,11 +10,8 @@ export function avatarStyle(
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   const fg = luminance > 0.5 ? '#1a1a1a' : '#ffffff';
 
-  let initial: string;
-  if (name) {
-    initial = (name.startsWith('npub1') ? name[5] : name[0])?.toUpperCase() ?? '?';
-  } else {
-    initial = pubkey[0]?.toUpperCase() ?? '?';
-  }
+  const initial = name
+    ? ((name.startsWith('npub1') ? name[5] : name[0])?.toUpperCase() ?? '')
+    : '';
   return { bg, fg, initial };
 }

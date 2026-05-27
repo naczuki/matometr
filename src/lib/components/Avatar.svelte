@@ -17,7 +17,7 @@
 >
   {#if picture && !imgFailed}
     <img src={picture} alt="" on:error={() => (imgFailed = true)} />
-  {:else}
+  {:else if style.initial}
     {style.initial}
   {/if}
 </div>
