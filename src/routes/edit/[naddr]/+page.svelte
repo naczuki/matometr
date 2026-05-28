@@ -1,14 +1,15 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/stores';
   import { base } from '$app/paths';
-  import { goto } from '$app/navigation';
+  import { goto, beforeNavigate } from '$app/navigation';
   import { nip19 } from 'nostr-tools';
   import type { AddressPointer } from 'nostr-tools/nip19';
   import { fetchMatomeByAddress, updateMatome } from '$lib/services/NostrClient';
   import { currentUser } from '$lib/stores/auth';
   import BlockEditor from '$lib/components/BlockEditor.svelte';
   import AnnounceModal from '$lib/components/AnnounceModal.svelte';
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import type { EditorBlock } from '$lib/types';
 
   $: naddr = $page.params.naddr;
@@ -20,6 +21,14 @@
   let blocks: EditorBlock[] = [];
   let origDTag = '';
   let origPublishedAt = 0;
+
+  let initialSnapshot = '';
+  $: currentSnapshot = JSON.stringify({ title, summary, blocks });
+  $: isDirty = initialSnapshot !== '' && currentSnapshot !== initialSnapshot;
+
+  let allowNavigate = false;
+  let pendingNavUrl: URL | null = null;
+  let showLeaveConfirm = false;
 
   onMount(() => {
     try {
@@ -53,16 +62,58 @@
             else if (b.type === 'heading') converted.push({ id: crypto.randomUUID(), type: 'heading', text: b.content });
           }
           blocks = converted;
+          initialSnapshot = JSON.stringify({ title, summary, blocks });
         },
         complete: () => { loading = false; },
         error: () => { error = '取得に失敗しました'; loading = false; }
       });
-      return () => sub.unsubscribe();
+
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => {
+        sub.unsubscribe();
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
     } catch {
       error = '無効なアドレスです';
       loading = false;
     }
   });
+
+  onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    }
+  });
+
+  function handleBeforeUnload(e: BeforeUnloadEvent): void {
+    if (isDirty && !publishing) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  }
+
+  beforeNavigate(({ to, cancel }) => {
+    if (allowNavigate || !isDirty || publishing) return;
+    if (!to) return;
+    cancel();
+    pendingNavUrl = to.url;
+    showLeaveConfirm = true;
+  });
+
+  function handleLeaveConfirm(): void {
+    showLeaveConfirm = false;
+    allowNavigate = true;
+    if (pendingNavUrl) {
+      const target = pendingNavUrl.pathname + pendingNavUrl.search + pendingNavUrl.hash;
+      pendingNavUrl = null;
+      goto(target);
+    }
+  }
+
+  function handleLeaveCancel(): void {
+    showLeaveConfirm = false;
+    pendingNavUrl = null;
+  }
 
   $: noteCount = blocks.filter((b) => b.type === 'nevent' && b.nevent).length;
   $: canPublish = title.trim().length > 0 && noteCount > 0;
@@ -94,6 +145,7 @@
 
   async function onAnnounceDone(): Promise<void> {
     showAnnounceModal = false;
+    allowNavigate = true;
     await goto(`${base}/matome/?id=${pendingNaddr}`);
   }
 </script>
@@ -165,6 +217,15 @@
 {#if showAnnounceModal}
   <AnnounceModal naddr={pendingNaddr} {title} isUpdate={true} on:done={onAnnounceDone} />
 {/if}
+
+<ConfirmDialog
+  open={showLeaveConfirm}
+  title="離れると変更が失われます。いいですか？"
+  confirmText="はい"
+  cancelText="いいえ"
+  on:confirm={handleLeaveConfirm}
+  on:cancel={handleLeaveCancel}
+/>
 
 <style>
   .gate {
