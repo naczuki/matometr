@@ -271,7 +271,7 @@
                 <div class="media-wrap video-wrap">
                   <!-- svelte-ignore a11y-media-has-caption -->
                   <video
-                    src={`${url}#t=0.1`}
+                    src={url}
                     controls
                     preload="metadata"
                     playsinline
