@@ -108,7 +108,7 @@
     <span class="quoted-state">取得中…</span>
   {:else}
     <div class="quoted-header">
-      <Avatar pubkey={note.pubkey} {picture} size={20} name={authorName} />
+      <Avatar pubkey={note.pubkey} {picture} name={authorName} size={20} />
       <span class="quoted-name">{authorName}</span>
       {#if showDate && note}
         <span class="quoted-date">{timeAgo(note.createdAt)}</span>

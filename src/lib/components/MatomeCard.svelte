@@ -42,7 +42,7 @@
 
 <a href="{base}/matome/?id={matome.naddr}" class="card">
   <div class="author">
-    <Avatar pubkey={matome.pubkey} {picture} size={28} name={displayName} />
+    <Avatar pubkey={matome.pubkey} {picture} name={displayName} size={28} />
     <span class="author-name">{displayName}</span>
     <span class="time"><span class="time-label">更新</span>{elapsed}</span>
   </div>
