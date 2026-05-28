@@ -92,11 +92,13 @@
     }
   });
 
-  function handleBeforeUnload(e: BeforeUnloadEvent): void {
+  function handleBeforeUnload(e: BeforeUnloadEvent): string | undefined {
     if (checkDirty() && !publishing) {
       e.preventDefault();
       e.returnValue = '';
+      return '';
     }
+    return undefined;
   }
 
   beforeNavigate(({ to, cancel }) => {
