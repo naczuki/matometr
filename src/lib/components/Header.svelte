@@ -45,6 +45,15 @@
       dropdownOpen = false;
     }
   }
+
+  let imgFailed = false;
+  $: $currentUser?.picture, (imgFailed = false);
+
+  function avatarInitial(user: { displayName?: string | null; name?: string | null; npub: string }): string {
+    const n = user.displayName ?? user.name ?? null;
+    if (!n) return user.npub[5]?.toUpperCase() ?? '?';
+    return (n.startsWith('npub1') ? n[5] : n[0])?.toUpperCase() ?? '?';
+  }
 </script>
 
 <svelte:window on:click={handleWindowClick} />
@@ -64,10 +73,10 @@
         <div class="dropdown-wrap">
           <button class="user-avatar-btn" on:click={toggleDropdown}>
             <div class="user-avatar">
-              {#if $currentUser.picture}
-                <img src={$currentUser.picture} alt={$currentUser.name ?? ''} />
+              {#if $currentUser.picture && !imgFailed}
+                <img src={$currentUser.picture} alt={$currentUser.name ?? ''} on:error={() => (imgFailed = true)} />
               {:else}
-                {($currentUser.name ?? $currentUser.pubkey)[0].toUpperCase()}
+                {avatarInitial($currentUser)}
               {/if}
             </div>
             <span class="user-name">
