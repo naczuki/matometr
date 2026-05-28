@@ -23,8 +23,15 @@
   let origPublishedAt = 0;
 
   let initialSnapshot = '';
-  $: currentSnapshot = JSON.stringify({ title, summary, blocks });
-  $: isDirty = initialSnapshot !== '' && currentSnapshot !== initialSnapshot;
+
+  function computeSnapshot(): string {
+    return JSON.stringify({ title, summary, blocks });
+  }
+
+  function checkDirty(): boolean {
+    if (initialSnapshot === '') return false;
+    return computeSnapshot() !== initialSnapshot;
+  }
 
   let allowNavigate = false;
   let pendingNavUrl: URL | null = null;
@@ -62,7 +69,7 @@
             else if (b.type === 'heading') converted.push({ id: crypto.randomUUID(), type: 'heading', text: b.content });
           }
           blocks = converted;
-          initialSnapshot = JSON.stringify({ title, summary, blocks });
+          initialSnapshot = computeSnapshot();
         },
         complete: () => { loading = false; },
         error: () => { error = '取得に失敗しました'; loading = false; }
@@ -86,14 +93,15 @@
   });
 
   function handleBeforeUnload(e: BeforeUnloadEvent): void {
-    if (isDirty && !publishing) {
+    if (checkDirty() && !publishing) {
       e.preventDefault();
       e.returnValue = '';
     }
   }
 
   beforeNavigate(({ to, cancel }) => {
-    if (allowNavigate || !isDirty || publishing) return;
+    if (allowNavigate || publishing) return;
+    if (!checkDirty()) return;
     if (!to) return;
     cancel();
     pendingNavUrl = to.url;
@@ -118,7 +126,9 @@
   function handleCancelClick(e: MouseEvent): void {
     e.preventDefault();
     const target = `${base}/matome/?id=${naddr}`;
-    if (isDirty && !publishing) {
+    const dirty = checkDirty();
+    console.log('[edit] cancel clicked. dirty=', dirty, 'initialSnapshot.length=', initialSnapshot.length, 'currentSnapshot.length=', computeSnapshot().length);
+    if (dirty && !publishing) {
       pendingNavUrl = new URL(target, window.location.origin);
       showLeaveConfirm = true;
     } else {
