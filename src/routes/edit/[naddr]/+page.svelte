@@ -126,9 +126,7 @@
   function handleCancelClick(e: MouseEvent): void {
     e.preventDefault();
     const target = `${base}/matome/?id=${naddr}`;
-    const dirty = checkDirty();
-    console.log('[edit] cancel clicked. dirty=', dirty, 'initialSnapshot.length=', initialSnapshot.length, 'currentSnapshot.length=', computeSnapshot().length);
-    if (dirty && !publishing) {
+    if (checkDirty() && !publishing) {
       pendingNavUrl = new URL(target, window.location.origin);
       showLeaveConfirm = true;
     } else {
