@@ -92,7 +92,7 @@
   $: profile = $profiles.get(matome?.pubkey ?? '');
   $: authorName = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(matome?.pubkey ?? '');
   $: authorPicture = profile?.picture ?? null;
-  $: authorStyle = matome ? avatarStyle(matome.pubkey) : { bg: '#e5e5e5', fg: '#737373', initial: '?' };
+  $: authorStyle = matome ? avatarStyle(matome.pubkey, profile?.displayName ?? profile?.name ?? null) : { bg: '#e5e5e5', fg: '#737373', initial: '' };
   $: authorNpub = matome ? (() => { try { return nip19.npubEncode(matome!.pubkey); } catch { return null; } })() : null;
 
   let authorImgFailed = false;
