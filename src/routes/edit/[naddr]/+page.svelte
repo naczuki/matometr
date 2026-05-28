@@ -82,10 +82,13 @@
     }
   });
 
-  function handleBeforeUnload(e: BeforeUnloadEvent): void {
-    if (checkDirty() && !publishing) {
+  function handleBeforeUnload(e: BeforeUnloadEvent): string | void {
+    const dirty = checkDirty();
+    console.log('[edit] beforeunload fired. dirty=', dirty, 'publishing=', publishing);
+    if (dirty && !publishing) {
       e.preventDefault();
-      e.returnValue = true;
+      e.returnValue = '変更が失われます';
+      return '変更が失われます';
     }
   }
 
