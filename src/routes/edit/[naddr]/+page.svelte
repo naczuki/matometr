@@ -83,9 +83,7 @@
   });
 
   function handleBeforeUnload(e: BeforeUnloadEvent): string | void {
-    const dirty = checkDirty();
-    console.log('[edit] beforeunload fired. dirty=', dirty, 'publishing=', publishing);
-    if (dirty && !publishing) {
+    if (checkDirty() && !publishing) {
       e.preventDefault();
       e.returnValue = '変更が失われます';
       return '変更が失われます';
