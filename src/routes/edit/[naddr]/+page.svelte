@@ -85,7 +85,7 @@
   function handleBeforeUnload(e: BeforeUnloadEvent): void {
     if (checkDirty() && !publishing) {
       e.preventDefault();
-      e.returnValue = '';
+      e.returnValue = true;
     }
   }
 
