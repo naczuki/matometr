@@ -191,6 +191,10 @@
     } catch { /* clipboard API 利用不可 */ }
   }
 
+  function seekToThumbnail(e: Event, poster: string | undefined): void {
+    if (!poster) (e.currentTarget as HTMLVideoElement).currentTime = 0.1;
+  }
+
   onDestroy(() => {
     removeDocListener?.();
     if (toastTimer) clearTimeout(toastTimer);
@@ -278,6 +282,7 @@
                     poster={imeta?.poster}
                     class="note-video"
                     style={imeta?.w && imeta?.h ? `aspect-ratio: ${imeta.w}/${imeta.h}` : ''}
+                    on:loadedmetadata={(e) => seekToThumbnail(e, imeta?.poster)}
                     on:error={() => onVideoError(url)}
                   ></video>
                 </div>
