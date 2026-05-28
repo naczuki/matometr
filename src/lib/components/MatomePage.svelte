@@ -1234,15 +1234,16 @@
 
   .block-comment {
     padding: 12px 16px;
-    background: var(--accent-pale);
-    border-radius: 10px;
-    border: 1.5px solid var(--accent-mid);
+    background: var(--accent-mid);
     font-size: 16px;
     color: var(--ink2);
     line-height: 1.85;
-    margin-bottom: 12px;
+    margin: 16px 0 14px;
     white-space: pre-wrap;
     word-break: break-word;
+    box-shadow:
+      0 3px 6px rgba(234, 88, 12, 0.15),
+      0 8px 20px rgba(234, 88, 12, 0.12);
   }
 
   .block-comment-md {
