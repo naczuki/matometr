@@ -97,22 +97,30 @@
   $: parsedContent = note ? extractImages(resolveTagRefs(note.content, note.tags)) : { text: '', urls: [], videoUrls: [] };
   $: segments = parseNostrRefs(parsedContent.text, emojiMap);
 
+  type ImetaInfo = { poster?: string; w?: number; h?: number };
+
   $: imetaMap = (() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, ImetaInfo>();
     if (!note) return map;
     for (const tag of note.tags) {
       if (tag[0] !== 'imeta') continue;
       let url = '';
-      let image = '';
+      const info: ImetaInfo = {};
       for (let i = 1; i < tag.length; i++) {
         const sp = tag[i].indexOf(' ');
         if (sp === -1) continue;
         const key = tag[i].slice(0, sp);
         const val = tag[i].slice(sp + 1);
         if (key === 'url') url = val;
-        if (key === 'image') image = val;
+        if (key === 'image' && val) info.poster = val;
+        if (key === 'dim') {
+          const [wStr, hStr] = val.split('x');
+          const w = parseInt(wStr ?? '', 10);
+          const h = parseInt(hStr ?? '', 10);
+          if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) { info.w = w; info.h = h; }
+        }
       }
-      if (url && image) map.set(url, image);
+      if (url) map.set(url, info);
     }
     return map;
   })();
@@ -259,6 +267,7 @@
                   <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
                 </div>
               {:else}
+                {@const imeta = imetaMap.get(url)}
                 <div class="media-wrap video-wrap">
                   <!-- svelte-ignore a11y-media-has-caption -->
                   <video
@@ -266,8 +275,9 @@
                     controls
                     preload="metadata"
                     playsinline
-                    poster={imetaMap.get(url)}
+                    poster={imeta?.poster}
                     class="note-video"
+                    style={imeta?.w && imeta?.h ? `aspect-ratio: ${imeta.w}/${imeta.h}` : ''}
                     on:error={() => onVideoError(url)}
                   ></video>
                 </div>
