@@ -1224,12 +1224,25 @@
   /* ===== ブロック ===== */
   .block-heading {
     font-family: var(--font-ui);
-    font-size: 18px;
+    font-size: 19px;
     font-weight: 800;
     color: var(--ink);
-    padding: 10px 0 10px 14px;
-    border-left: 4px solid var(--accent);
-    margin: 20px 0 12px;
+    line-height: 1.4;
+    margin: 24px 0 14px;
+    padding: 6px 0 10px;
+    border-bottom: 3px solid var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .block-heading::before {
+    content: '';
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+    flex-shrink: 0;
   }
 
   .block-comment {
@@ -1238,7 +1251,7 @@
     font-size: 16px;
     color: var(--ink2);
     line-height: 1.85;
-    margin: 16px 0 14px;
+    margin: 16px 48px 14px 4px;
     white-space: pre-wrap;
     word-break: break-word;
     box-shadow:
