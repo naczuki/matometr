@@ -19,6 +19,7 @@
   import NoteCard from '$lib/components/NoteCard.svelte';
   import NaddrCard from '$lib/components/NaddrCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import { parseMarkdownContent, renderInlineMarkdown } from '$lib/utils/markdown';
   import type { ContentSegment } from '$lib/utils/markdown';
 
@@ -234,6 +235,26 @@
     setTimeout(() => { copiedNaddr = false; menuOpen = false; }, 1500);
   }
 
+  // nosli インポート確認
+  let showNosliImportConfirm = false;
+
+  function openNosliImportConfirm(e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    editMenuOpen = false;
+    showNosliImportConfirm = true;
+  }
+
+  function handleNosliImportConfirm(): void {
+    if (!matome) return;
+    showNosliImportConfirm = false;
+    goto(`${base}/new?from=${matome.naddr}`);
+  }
+
+  function handleNosliImportCancel(): void {
+    showNosliImportConfirm = false;
+  }
+
   // 削除
   let showDeleteConfirm = false;
   let deleting = false;
@@ -311,10 +332,11 @@
           </button>
           {#if editMenuOpen}
             <div class="edit-dropdown" role="menu">
-              <a
+              <button
                 class="edit-dropdown-item"
                 role="menuitem"
-                href="{base}/new?from={matome.naddr}"
+                type="button"
+                on:click={openNosliImportConfirm}
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -322,7 +344,7 @@
                   <line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
                 インポートして編集
-              </a>
+              </button>
               <a
                 class="edit-dropdown-item"
                 role="menuitem"
@@ -521,6 +543,17 @@
   {/if}
 </div>
 
+<!-- nosli インポート確認ダイアログ -->
+<ConfirmDialog
+  open={showNosliImportConfirm}
+  title="まとめたーでの編集はnosliには反映されません"
+  note="インポート後の編集はnosliには同期されず、まとめたー上の別まとめとして公開されます。"
+  confirmText="OK"
+  cancelText="キャンセル"
+  on:confirm={handleNosliImportConfirm}
+  on:cancel={handleNosliImportCancel}
+/>
+
 <!-- 削除確認ダイアログ -->
 {#if showDeleteConfirm}
   <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
@@ -714,6 +747,11 @@
     text-decoration: none;
     transition: background 0.1s;
     white-space: nowrap;
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
   }
 
   .edit-dropdown-item:hover {
