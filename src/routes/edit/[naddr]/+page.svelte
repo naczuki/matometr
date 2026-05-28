@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { base } from '$app/paths';
   import { goto, beforeNavigate } from '$app/navigation';
@@ -75,30 +75,18 @@
         error: () => { error = '取得に失敗しました'; loading = false; }
       });
 
-      window.addEventListener('beforeunload', handleBeforeUnload);
-      return () => {
-        sub.unsubscribe();
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-      };
+      return () => sub.unsubscribe();
     } catch {
       error = '無効なアドレスです';
       loading = false;
     }
   });
 
-  onDestroy(() => {
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    }
-  });
-
-  function handleBeforeUnload(e: BeforeUnloadEvent): string | undefined {
+  function handleBeforeUnload(e: BeforeUnloadEvent): void {
     if (checkDirty() && !publishing) {
       e.preventDefault();
       e.returnValue = '';
-      return '';
     }
-    return undefined;
   }
 
   beforeNavigate(({ to, cancel }) => {
@@ -171,6 +159,8 @@
     await goto(`${base}/matome/?id=${pendingNaddr}`);
   }
 </script>
+
+<svelte:window on:beforeunload={handleBeforeUnload} />
 
 <svelte:head>
   <title>{title ? `${title} を編集` : 'まとめを編集'} | まとめたー</title>
