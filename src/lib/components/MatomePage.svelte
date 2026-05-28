@@ -1251,7 +1251,7 @@
     font-size: 16px;
     color: var(--ink2);
     line-height: 1.85;
-    margin: 16px 48px 14px 4px;
+    margin: 16px 14px 14px 4px;
     white-space: pre-wrap;
     word-break: break-word;
     box-shadow:
