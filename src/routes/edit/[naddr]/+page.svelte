@@ -115,6 +115,18 @@
     pendingNavUrl = null;
   }
 
+  function handleCancelClick(e: MouseEvent): void {
+    e.preventDefault();
+    const target = `${base}/matome/?id=${naddr}`;
+    if (isDirty && !publishing) {
+      pendingNavUrl = new URL(target, window.location.origin);
+      showLeaveConfirm = true;
+    } else {
+      allowNavigate = true;
+      goto(target);
+    }
+  }
+
   $: noteCount = blocks.filter((b) => b.type === 'nevent' && b.nevent).length;
   $: canPublish = title.trim().length > 0 && noteCount > 0;
 
@@ -202,7 +214,7 @@
       <p class="publish-error">{publishError}</p>
     {/if}
     <div class="action-bar">
-      <a href="{base}/matome/?id={naddr}" class="btn-cancel">キャンセル</a>
+      <a href="{base}/matome/?id={naddr}" class="btn-cancel" on:click={handleCancelClick}>キャンセル</a>
       <button
         class="btn-publish"
         disabled={!canPublish || publishing}
