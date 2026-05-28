@@ -296,22 +296,32 @@ export function fetchReactionCounts(
 ): Observable<Map<string, number>> {
   if (matomes.length === 0) return new Observable((s) => { s.next(new Map()); s.complete(); });
   const client = getClient();
-
-  const entries = matomes.map((m) => {
-    const key = `30023:${m.pubkey}:${m.dTag}`;
-    const rxReq = createRxOneshotReq({ filters: { kinds: [7], '#a': [key] } });
-    return new Observable<[string, number]>((subscriber) => {
-      const seen = new Set<string>();
-      const sub = client.use(rxReq).pipe(uniq()).subscribe({
-        next({ event }) { seen.add(event.id); },
-        complete() { subscriber.next([key, seen.size]); subscriber.complete(); },
-        error() { subscriber.next([key, 0]); subscriber.complete(); }
-      });
-      return () => sub.unsubscribe();
-    });
+  const aValues = matomes.map((m) => `30023:${m.pubkey}:${m.dTag}`);
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [7], '#a': aValues }
   });
 
-  return forkJoin(entries).pipe(map((results) => new Map(results)));
+  return new Observable((subscriber) => {
+    const counts = new Map<string, number>();
+    const seen = new Set<string>();
+
+    const sub = client.use(rxReq).pipe(uniq()).subscribe({
+      next({ event }) {
+        if (seen.has(event.id)) return;
+        seen.add(event.id);
+        const aTag = event.tags.find(([k]) => k === 'a');
+        if (aTag?.[1]) {
+          counts.set(aTag[1], (counts.get(aTag[1]) ?? 0) + 1);
+        }
+      },
+      error(err) { subscriber.error(err); },
+      complete() {
+        subscriber.next(counts);
+        subscriber.complete();
+      }
+    });
+    return () => sub.unsubscribe();
+  });
 }
 
 export function fetchReactionsForMatome(
@@ -394,4 +404,52 @@ export function fetchUserMatomes(pubkey: string, limit = 50): Observable<Matome>
   }
 
   return merge(makeObs('matometr'), makeObs('nosli'));
+}
+
+export function fetchUserFavedMatomes(
+  pubkey: string
+): Observable<Matome> {
+  const client = getClient();
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [7], authors: [pubkey], '#k': ['30023'] }
+  });
+
+  return new Observable((subscriber) => {
+    const aTagValues = new Set<string>();
+
+    const sub = client.use(rxReq).pipe(uniq()).subscribe({
+      next({ event }) {
+        const aTag = event.tags.find(([k]) => k === 'a');
+        if (aTag?.[1]?.startsWith('30023:')) {
+          aTagValues.add(aTag[1]);
+        }
+      },
+      error(err) { subscriber.error(err); },
+      complete() {
+        if (aTagValues.size === 0) {
+          subscriber.complete();
+          return;
+        }
+        const filters: { kinds: number[]; authors: string[]; '#d': string[] }[] = [];
+        for (const aVal of aTagValues) {
+          const parts = aVal.split(':');
+          if (parts.length < 3) continue;
+          filters.push({ kinds: [30023], authors: [parts[1]], '#d': [parts.slice(2).join(':')] });
+        }
+        if (filters.length === 0) { subscriber.complete(); return; }
+        const matomeReq = createRxOneshotReq({ filters });
+        const mSub = client.use(matomeReq).pipe(
+          uniq(),
+          map(({ event: ev }) => Matome.fromEvent(ev)),
+          filter((m): m is Matome => m !== null),
+          filter((m) => m.isMatometr || m.isNosli)
+        ).subscribe({
+          next(m) { subscriber.next(m); },
+          complete() { subscriber.complete(); },
+          error() { subscriber.complete(); }
+        });
+      }
+    });
+    return () => sub.unsubscribe();
+  });
 }

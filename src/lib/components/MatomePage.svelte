@@ -92,7 +92,7 @@
   $: profile = $profiles.get(matome?.pubkey ?? '');
   $: authorName = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(matome?.pubkey ?? '');
   $: authorPicture = profile?.picture ?? null;
-  $: authorStyle = matome ? avatarStyle(matome.pubkey) : { bg: '#e5e5e5', fg: '#737373', initial: '?' };
+  $: authorStyle = matome ? avatarStyle(matome.pubkey, authorName) : { bg: '#000000', fg: '#ffffff', initial: '' };
   $: authorNpub = matome ? (() => { try { return nip19.npubEncode(matome!.pubkey); } catch { return null; } })() : null;
 
   let authorImgFailed = false;
@@ -1251,7 +1251,7 @@
     font-size: 16px;
     color: var(--ink2);
     line-height: 1.85;
-    margin: 16px 48px 14px 4px;
+    margin: 16px 4px 14px 4px;
     white-space: pre-wrap;
     word-break: break-word;
     box-shadow:
