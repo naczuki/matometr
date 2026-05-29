@@ -46,6 +46,20 @@ npm run format    # フォーマット
 | 新規作成 | `/new` |
 | まとめ編集 | `/edit/{naddr1}` |
 
+## デフォルトリレー
+
+**日本向け**
+- `wss://relay-jp.nostr.wirednet.jp/`
+- `wss://yabu.me/`
+- `wss://r.kojira.io/`
+- `wss://nrelay-jp.c-stellar.net/`
+
+**グローバル**
+- `wss://nos.lol/`
+- `wss://relay.damus.io/`
+
+ログイン後は NIP-65（kind:10002）でユーザーのリレーを取得、未設定の場合は上記にフォールバック。
+
 ## 参考
 
 - [nosli](https://github.com/akiomik/nosli) — 元ネタ
