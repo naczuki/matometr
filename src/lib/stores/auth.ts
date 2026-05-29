@@ -51,6 +51,82 @@ function setupNostrLoginStyles(): void {
   });
 }
 
+const NOSTR_LOGIN_DICT: Record<string, string> = {
+  'Log in': 'ログイン',
+  'Sign up': '新規登録',
+  'Connect': '接続',
+  'Read only': '閲覧のみ',
+  'With extension': '拡張機能で',
+  'With nsec': 'nsecで',
+  "If you don't have a profile please sign up.": 'アカウントをお持ちでない方は新規登録してください。',
+  'If you already have a profile please log in.': 'すでにアカウントをお持ちの方はログインしてください。',
+  'Connect to key store': '鍵ストアに接続',
+  'Select key store:': '鍵ストアを選択：',
+  'Other key stores': 'その他の鍵ストア',
+  'offline': 'オフライン',
+  'Advanced: Relay Settings': '詳細設定：リレー設定',
+  'Advanced': '詳細設定',
+  'User name': 'ユーザー名',
+  'Connection string': '接続文字列',
+  'Bunker URL': 'Bunker URL',
+  'Log in to read only': '閲覧のみでログイン',
+  'Please enter the user name or npub of any Nostr user.': '任意のNostrユーザーのユーザー名またはnpubを入力してください。',
+  'Login with nsec': 'nsecでログイン',
+  'Enter your private key (nsec) to log in.': 'ログインするには秘密鍵（nsec）を入力してください。',
+  'Use at your own risk': '自己責任でご利用ください',
+  'Entering your private key directly is not recommended. We suggest migrating to a key store service for better security.':
+    '秘密鍵を直接入力することは推奨されません。安全性のため、鍵ストアサービスへの移行をおすすめします。',
+  'Connecting...': '接続中...',
+  'Establishing connection to your key storage.': '鍵ストレージへの接続を確立しています。',
+  'Press Cancel to abort': '中止するにはキャンセルを押してください',
+  'Cancel': 'キャンセル',
+  'Signing in...': 'サインイン中...',
+  'Nostr profiles are based on cryptographic keys. You can create keys right here, or with a key storage app.':
+    'Nostrのプロフィールは暗号鍵に基づいています。ここで鍵を作成するか、鍵管理アプリを使用できます。',
+  'Create keys': '鍵を作成',
+  'With key store': '鍵ストアで',
+  'Create Nostr profile': 'Nostrプロフィールを作成',
+  'Choose any username, you can always change it later.': 'ユーザー名はあとでいつでも変更できます。',
+  'Enter username': 'ユーザー名を入力',
+  'Create profile': 'プロフィールを作成',
+  'Error: Please enter some nickname': 'エラー：ニックネームを入力してください',
+  'Create keys with key store': '鍵ストアで鍵を作成',
+  'Choose some username and a key store service.': 'ユーザー名と鍵ストアサービスを選択してください。',
+  'Name': '名前',
+};
+
+const NOSTR_LOGIN_PLACEHOLDERS: Record<string, string> = {
+  'npub or name@domain': 'npub または name@domain',
+  'Enter username': 'ユーザー名を入力',
+  'Name': '名前',
+};
+
+function translateNostrLogin(sr: ShadowRoot): void {
+  const walker = document.createTreeWalker(sr, NodeFilter.SHOW_TEXT);
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    const text = node.textContent?.trim() ?? '';
+    const translated = NOSTR_LOGIN_DICT[text];
+    if (translated) node.textContent = translated;
+  }
+  sr.querySelectorAll('input[placeholder]').forEach((input) => {
+    const el = input as HTMLInputElement;
+    const translated = NOSTR_LOGIN_PLACEHOLDERS[el.placeholder.trim()];
+    if (translated) el.placeholder = translated;
+  });
+}
+
+function setupNostrLoginI18n(): void {
+  const host = document.querySelector('nl-auth');
+  if (!host?.shadowRoot) return;
+  const sr = host.shadowRoot;
+  translateNostrLogin(sr);
+  new MutationObserver(() => translateNostrLogin(sr)).observe(sr, {
+    childList: true,
+    subtree: true,
+  });
+}
+
 // ログイン中の pubkey（null = 未ログイン）
 const _pubkey = writable<string | null>(null);
 
@@ -119,4 +195,6 @@ export async function initAuth(): Promise<void> {
       }
     },
   });
+
+  setupNostrLoginI18n();
 }
