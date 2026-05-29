@@ -71,8 +71,15 @@ body {
 .user-name,
 .detail-author-name,
 .profile-name,
+.quoted-name,
+.page-title,
 .btn-publish,
 .btn-login,
-.btn-create {
+.btn-create,
+.btn-cancel,
+.cancel-btn,
+.add-btn,
+.search-btn,
+.dropdown-item {
   transform: rotate(0.04deg);
 }
