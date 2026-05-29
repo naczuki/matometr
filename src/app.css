@@ -70,6 +70,8 @@ input,
 h1, h2, h3, h4,
 .tab,
 .label-text,
+.dropdown-item,
+.count,
 [class*='btn'],
 [class*='title'],
 [class*='name'] {
