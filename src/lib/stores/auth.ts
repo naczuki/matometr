@@ -5,8 +5,8 @@ import type { UserProfile } from '$lib/types';
 import { fetchProfiles } from '$lib/services/NostrClient';
 
 const NOSTR_LOGIN_CSS = `
-  :host {
-    font-family: var(--font-ui), sans-serif;
+  * {
+    font-family: var(--font-ui), sans-serif !important;
   }
   .nl-action-button {
     color: var(--accent) !important;
