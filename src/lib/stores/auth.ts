@@ -6,6 +6,9 @@ import { fetchProfiles } from '$lib/services/NostrClient';
 
 const NOSTR_LOGIN_CSS = `
   * {
+    font-family: var(--font-body), sans-serif !important;
+  }
+  .nl-title {
     font-family: var(--font-ui), sans-serif !important;
   }
   .nl-action-button {
@@ -42,18 +45,16 @@ function setupNostrLoginStyles(): void {
     value(this: Element, init: ShadowRootInit): ShadowRoot {
       const root = _origAttachShadow.call(this, init);
       if (this.tagName.startsWith('NL-')) {
+        // CSS は shadow 境界を越えないため各 NL-* ルートに注入する
         const style = document.createElement('style');
         style.textContent = NOSTR_LOGIN_CSS;
         root.appendChild(style);
 
-        // ダイアログは遅延生成されるため、shadow root 生成時に
-        // 翻訳と MutationObserver を仕掛ける（画面遷移にも追従）
-        translateNostrLogin(root);
-        new MutationObserver(() => translateNostrLogin(root)).observe(root, {
-          childList: true,
-          subtree: true,
-          characterData: true,
-        });
+        // 翻訳対象テキストは nl-auth のルート配下に描画されるため、
+        // observer は nl-auth のルート1つだけに仕掛ける（重複・自己発火を防ぐ）
+        if (this.tagName === 'NL-AUTH') {
+          observeNostrLogin(root);
+        }
       }
       return root;
     },
@@ -126,6 +127,23 @@ function translateNostrLogin(sr: ShadowRoot): void {
     const translated = NOSTR_LOGIN_PLACEHOLDERS[el.placeholder.trim()];
     if (translated) el.placeholder = translated;
   });
+}
+
+// nl-auth のルートを監視して画面遷移のたびに翻訳する。
+// 書き換え中は observer を止め、自身の変更で再発火しないようにする。
+function observeNostrLogin(root: ShadowRoot): void {
+  const options: MutationObserverInit = {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  };
+  const observer = new MutationObserver(() => {
+    observer.disconnect();
+    translateNostrLogin(root);
+    observer.observe(root, options);
+  });
+  translateNostrLogin(root);
+  observer.observe(root, options);
 }
 
 // ログイン中の pubkey（null = 未ログイン）
