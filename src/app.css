@@ -61,3 +61,18 @@ body {
   min-height: 100vh;
   max-width: 100%;
 }
+
+/* Windows ClearType による太字テキストのギザギザ対策。
+   微小な transform で描画をグレースケールAAに切り替え輪郭を滑らかにする。 */
+.title,
+.detail-title,
+.block-heading,
+.author-name,
+.user-name,
+.detail-author-name,
+.profile-name,
+.btn-publish,
+.btn-login,
+.btn-create {
+  transform: rotate(0.04deg);
+}
