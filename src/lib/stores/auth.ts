@@ -67,8 +67,11 @@ const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Read only': '閲覧のみ',
   'With extension': '拡張機能で',
   'With nsec': 'nsecで',
-  "If you don't have a profile please sign up.": 'アカウントをお持ちでない方は新規登録してください。',
-  'If you already have a profile please log in.': 'すでにアカウントをお持ちの方はログインしてください。',
+  // 文末は「テキスト + <a>リンク</a> + .」に分割されるため断片ごとに登録
+  "If you don't have a profile please": 'アカウントをお持ちでない方は',
+  'If you already have a profile please': 'すでにアカウントをお持ちの方は',
+  'sign up': '新規登録',
+  'log in': 'ログイン',
   'Connect to key store': '鍵ストアに接続',
   'Select key store:': '鍵ストアを選択：',
   'Other key stores': 'その他の鍵ストア',
