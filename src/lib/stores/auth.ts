@@ -15,6 +15,15 @@ const NOSTR_LOGIN_CSS = `
     color: var(--accent-dark) !important;
     background-color: var(--accent-pale) !important;
   }
+  .nl-button {
+    background-color: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #fff !important;
+  }
+  .nl-button:hover {
+    background-color: var(--accent-dark) !important;
+    border-color: var(--accent-dark) !important;
+  }
   .nl-input:focus {
     border-color: var(--accent) !important;
     --tw-ring-color: var(--accent) !important;
