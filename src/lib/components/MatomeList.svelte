@@ -423,7 +423,7 @@
     margin: 0 auto;
     padding: 16px 20px 48px;
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px;
   }
 
