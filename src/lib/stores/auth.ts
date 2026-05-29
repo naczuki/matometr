@@ -106,6 +106,8 @@ const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Create keys with key store': '鍵ストアで鍵を作成',
   'Choose some username and a key store service.': 'ユーザー名と鍵ストアサービスを選択してください。',
   'Name': '名前',
+  'Install browser extension!': 'ブラウザ拡張機能をインストール！',
+  'Try Alby, nos2x or Nostore': 'Alby、nos2x、Nostore などをお試しください',
 };
 
 const NOSTR_LOGIN_PLACEHOLDERS: Record<string, string> = {
