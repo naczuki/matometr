@@ -45,6 +45,15 @@ function setupNostrLoginStyles(): void {
         const style = document.createElement('style');
         style.textContent = NOSTR_LOGIN_CSS;
         root.appendChild(style);
+
+        // ダイアログは遅延生成されるため、shadow root 生成時に
+        // 翻訳と MutationObserver を仕掛ける（画面遷移にも追従）
+        translateNostrLogin(root);
+        new MutationObserver(() => translateNostrLogin(root)).observe(root, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        });
       }
       return root;
     },
@@ -116,17 +125,6 @@ function translateNostrLogin(sr: ShadowRoot): void {
   });
 }
 
-function setupNostrLoginI18n(): void {
-  const host = document.querySelector('nl-auth');
-  if (!host?.shadowRoot) return;
-  const sr = host.shadowRoot;
-  translateNostrLogin(sr);
-  new MutationObserver(() => translateNostrLogin(sr)).observe(sr, {
-    childList: true,
-    subtree: true,
-  });
-}
-
 // ログイン中の pubkey（null = 未ログイン）
 const _pubkey = writable<string | null>(null);
 
@@ -195,6 +193,4 @@ export async function initAuth(): Promise<void> {
       }
     },
   });
-
-  setupNostrLoginI18n();
 }
