@@ -25,7 +25,11 @@ function flush(): void {
   fetchProfiles(pubkeys).subscribe({
     next: (profile) => {
       profiles.update((m) => {
-        m.set(profile.pubkey, profile);
+        const existing = m.get(profile.pubkey);
+        // 複数リレーから kind:0 が届いた場合、created_at が最も新しいものを採用する
+        if (!existing || (profile.createdAt ?? 0) >= (existing.createdAt ?? 0)) {
+          m.set(profile.pubkey, profile);
+        }
         return m;
       });
       pending.delete(profile.pubkey);
