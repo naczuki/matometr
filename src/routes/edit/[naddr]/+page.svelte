@@ -2,13 +2,14 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { base } from '$app/paths';
-  import { goto } from '$app/navigation';
+  import { goto, beforeNavigate } from '$app/navigation';
   import { nip19 } from 'nostr-tools';
   import type { AddressPointer } from 'nostr-tools/nip19';
   import { fetchMatomeByAddress, updateMatome } from '$lib/services/NostrClient';
   import { currentUser } from '$lib/stores/auth';
   import BlockEditor from '$lib/components/BlockEditor.svelte';
   import AnnounceModal from '$lib/components/AnnounceModal.svelte';
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import type { EditorBlock } from '$lib/types';
 
   $: naddr = $page.params.naddr;
@@ -20,6 +21,21 @@
   let blocks: EditorBlock[] = [];
   let origDTag = '';
   let origPublishedAt = 0;
+
+  let initialSnapshot = '';
+
+  function computeSnapshot(): string {
+    return JSON.stringify({ title, summary, blocks });
+  }
+
+  function checkDirty(): boolean {
+    if (initialSnapshot === '') return false;
+    return computeSnapshot() !== initialSnapshot;
+  }
+
+  let allowNavigate = false;
+  let pendingNavUrl: URL | null = null;
+  let showLeaveConfirm = false;
 
   onMount(() => {
     try {
@@ -53,16 +69,62 @@
             else if (b.type === 'heading') converted.push({ id: crypto.randomUUID(), type: 'heading', text: b.content });
           }
           blocks = converted;
+          initialSnapshot = computeSnapshot();
         },
         complete: () => { loading = false; },
         error: () => { error = '取得に失敗しました'; loading = false; }
       });
+
       return () => sub.unsubscribe();
     } catch {
       error = '無効なアドレスです';
       loading = false;
     }
   });
+
+  function handleBeforeUnload(e: BeforeUnloadEvent): string | void {
+    if (checkDirty() && !publishing) {
+      e.preventDefault();
+      e.returnValue = '変更が失われます';
+      return '変更が失われます';
+    }
+  }
+
+  beforeNavigate(({ to, cancel }) => {
+    if (allowNavigate || publishing) return;
+    if (!checkDirty()) return;
+    if (!to) return;
+    cancel();
+    pendingNavUrl = to.url;
+    showLeaveConfirm = true;
+  });
+
+  function handleLeaveConfirm(): void {
+    showLeaveConfirm = false;
+    allowNavigate = true;
+    if (pendingNavUrl) {
+      const target = pendingNavUrl.pathname + pendingNavUrl.search + pendingNavUrl.hash;
+      pendingNavUrl = null;
+      goto(target);
+    }
+  }
+
+  function handleLeaveCancel(): void {
+    showLeaveConfirm = false;
+    pendingNavUrl = null;
+  }
+
+  function handleCancelClick(e: MouseEvent): void {
+    e.preventDefault();
+    const target = `${base}/matome/?id=${naddr}`;
+    if (checkDirty() && !publishing) {
+      pendingNavUrl = new URL(target, window.location.origin);
+      showLeaveConfirm = true;
+    } else {
+      allowNavigate = true;
+      goto(target);
+    }
+  }
 
   $: noteCount = blocks.filter((b) => b.type === 'nevent' && b.nevent).length;
   $: canPublish = title.trim().length > 0 && noteCount > 0;
@@ -94,9 +156,12 @@
 
   async function onAnnounceDone(): Promise<void> {
     showAnnounceModal = false;
+    allowNavigate = true;
     await goto(`${base}/matome/?id=${pendingNaddr}`);
   }
 </script>
+
+<svelte:window on:beforeunload={handleBeforeUnload} />
 
 <svelte:head>
   <title>{title ? `${title} を編集` : 'まとめを編集'} | まとめたー</title>
@@ -150,7 +215,7 @@
       <p class="publish-error">{publishError}</p>
     {/if}
     <div class="action-bar">
-      <a href="{base}/matome/?id={naddr}" class="btn-cancel">キャンセル</a>
+      <a href="{base}/matome/?id={naddr}" class="btn-cancel" on:click={handleCancelClick}>キャンセル</a>
       <button
         class="btn-publish"
         disabled={!canPublish || publishing}
@@ -165,6 +230,15 @@
 {#if showAnnounceModal}
   <AnnounceModal naddr={pendingNaddr} {title} isUpdate={true} on:done={onAnnounceDone} />
 {/if}
+
+<ConfirmDialog
+  open={showLeaveConfirm}
+  title="離れると変更が失われます。いいですか？"
+  confirmText="はい"
+  cancelText="いいえ"
+  on:confirm={handleLeaveConfirm}
+  on:cancel={handleLeaveCancel}
+/>
 
 <style>
   .gate {

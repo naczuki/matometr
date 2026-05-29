@@ -176,7 +176,12 @@ function handleLogin(npub: string): void {
     _pubkey.set(pk);
     _profile.set(null);
     _profileSub = fetchProfiles([pk]).subscribe((profile) => {
-      _profile.set(profile);
+      // 複数リレーから kind:0 が届いた場合、created_at が最も新しいものを採用する
+      _profile.update((existing) =>
+        !existing || (profile.createdAt ?? 0) >= (existing.createdAt ?? 0)
+          ? profile
+          : existing
+      );
     });
   } catch {
     // 無効な npub
