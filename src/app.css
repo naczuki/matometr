@@ -80,6 +80,13 @@ body {
 .cancel-btn,
 .add-btn,
 .search-btn,
-.dropdown-item {
+.dropdown-item,
+.tab,
+.paste-label,
+.paste-input,
+.add-paste-btn,
+.commit-btn,
+.btn-load-more,
+.label-text {
   transform: rotate(0.04deg);
 }
