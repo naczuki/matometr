@@ -7,6 +7,7 @@ export type Tab = 'recent' | 'trending' | 'following';
 export interface UserProfile {
   pubkey: string;
   npub: string;
+  createdAt?: number;
   name?: string;
   displayName?: string;
   picture?: string;

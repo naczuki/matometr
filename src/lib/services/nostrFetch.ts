@@ -271,6 +271,7 @@ export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
         const profile: UserProfile = {
           pubkey: event.pubkey,
           npub: nip19.npubEncode(event.pubkey),
+          createdAt: event.created_at,
           name: typeof meta.name === 'string' && meta.name ? meta.name : undefined,
           displayName:
             typeof meta.display_name === 'string' && meta.display_name
