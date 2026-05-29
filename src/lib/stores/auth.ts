@@ -4,6 +4,44 @@ import type { Subscription } from 'rxjs';
 import type { UserProfile } from '$lib/types';
 import { fetchProfiles } from '$lib/services/NostrClient';
 
+const NOSTR_LOGIN_CSS = `
+  :host {
+    font-family: var(--font-ui), sans-serif;
+  }
+  .nl-action-button {
+    color: var(--accent) !important;
+  }
+  .nl-action-button:hover {
+    color: var(--accent-dark) !important;
+    background-color: var(--accent-pale) !important;
+  }
+  .nl-input:focus {
+    border-color: var(--accent) !important;
+    --tw-ring-color: var(--accent) !important;
+  }
+`;
+
+const _origAttachShadow = Element.prototype.attachShadow;
+let _stylesSetup = false;
+
+function setupNostrLoginStyles(): void {
+  if (_stylesSetup) return;
+  _stylesSetup = true;
+
+  Object.defineProperty(Element.prototype, 'attachShadow', {
+    configurable: true,
+    value(this: Element, init: ShadowRootInit): ShadowRoot {
+      const root = _origAttachShadow.call(this, init);
+      if (this.tagName.startsWith('NL-')) {
+        const style = document.createElement('style');
+        style.textContent = NOSTR_LOGIN_CSS;
+        root.appendChild(style);
+      }
+      return root;
+    },
+  });
+}
+
 // ログイン中の pubkey（null = 未ログイン）
 const _pubkey = writable<string | null>(null);
 
@@ -51,6 +89,7 @@ export function logout(): void {
 
 // ページ読み込み時に一度だけ呼ぶ（+layout.svelte の onMount から）
 export async function initAuth(): Promise<void> {
+  setupNostrLoginStyles();
   const { init, logout: nlLogout } = await import('@konemono/nostr-login');
   _nlLogout = nlLogout;
 
