@@ -141,7 +141,7 @@ const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Choose some username and a key store service.': 'ユーザー名と鍵ストアサービスを選択してください。',
   'Name': '名前',
   'Install browser extension!': 'ブラウザ拡張機能をインストール！',
-  'Try Alby, nos2x or Nostore': 'nos2x、Nostash などをお試しください',
+  'Try Alby, nos2x or Nostore': 'nos2x（Chrome）、nos2x-fox（Firefox）、Nostash（iOS）をお試しください',
   'Scan or copy the connection string with key store app': '鍵ストアアプリで接続文字列をスキャンまたはコピーしてください',
   'Nip46 Relays:': 'NIP-46 リレー：',
 };
@@ -166,10 +166,10 @@ function translateNostrLogin(sr: ShadowRoot): void {
     if (translated) el.placeholder = translated;
   });
 
-  // Nostore は廃止済み → 後継の Nostash に差し替え
+  // Nostore は廃止済み → 後継の Nostash に差し替え＋OS注釈
   sr.querySelectorAll<HTMLAnchorElement>('a[href*="nostore"]').forEach((a) => {
     a.href = 'https://apps.apple.com/jp/app/nostash/id6744309333';
-    a.textContent = 'Nostash';
+    a.textContent = 'Nostash（iOS）';
   });
 
   // Alby はアカウント登録が必要なため削除（前後のテキストノードも整理）
@@ -177,6 +177,18 @@ function translateNostrLogin(sr: ShadowRoot): void {
     const next = a.nextSibling;
     if (next?.nodeType === Node.TEXT_NODE) next.textContent = '';
     a.remove();
+  });
+
+  // nos2x に Chrome 注釈を追加し、Firefox 版 nos2x-fox を隣に挿入（冪等）
+  sr.querySelectorAll<HTMLAnchorElement>('a[href*="nos2x"]:not([href*="nos2x-fox"])').forEach((a) => {
+    a.textContent = 'nos2x（Chrome）';
+    if (!sr.querySelector('a[href*="nos2x-fox"]')) {
+      const sep = document.createTextNode('、');
+      const fox = document.createElement('a');
+      fox.href = 'https://addons.mozilla.org/ja/firefox/addon/nos2x-fox/';
+      fox.textContent = 'nos2x-fox（Firefox）';
+      a.after(sep, fox);
+    }
   });
 }
 
