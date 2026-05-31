@@ -9,6 +9,12 @@ const NOSTR_LOGIN_CSS = `
     font-family: var(--font-body), sans-serif !important;
   }
 
+  /* 大きすぎる Tailwind テキストサイズを抑制 */
+  [class~='text-lg'],
+  [class~='text-xl'] {
+    font-size: 1rem !important;
+  }
+
   /* ダイアログ外枠の角丸・スクロール */
   .nl-bg {
     border-radius: var(--radius-card) !important;
@@ -164,6 +170,16 @@ function translateNostrLogin(sr: ShadowRoot): void {
     const el = input as HTMLInputElement;
     const translated = NOSTR_LOGIN_PLACEHOLDERS[el.placeholder.trim()];
     if (translated) el.placeholder = translated;
+  });
+  // <summary> は ▶ 記号が混入するため contains-match で翻訳
+  sr.querySelectorAll('summary').forEach((summary) => {
+    const text = summary.textContent ?? '';
+    for (const [en, ja] of Object.entries(NOSTR_LOGIN_DICT)) {
+      if (text.includes(en)) {
+        summary.textContent = text.replace(en, ja);
+        break;
+      }
+    }
   });
 
   // Nostore は廃止済み → 後継の Nostash に差し替え＋OS注釈
