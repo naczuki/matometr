@@ -202,14 +202,17 @@ function translateNostrLogin(sr: ShadowRoot): void {
     }
   });
 
-  // 「見るだけ」ボタンのアイコンを 👀 に差し替え（SVG が怖いため）
+  // 「見るだけ」ボタンのアイコンを両目 SVG に差し替え（Heroicons スタイルに統一）
   sr.querySelectorAll<HTMLElement>('.nl-button').forEach((btn) => {
     if (btn.textContent?.includes('見るだけ') || btn.textContent?.includes('Read only')) {
       const svg = btn.querySelector('svg');
       if (svg) {
-        const emoji = document.createElement('span');
-        emoji.textContent = '👀';
-        svg.replaceWith(emoji);
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.innerHTML =
+          '<path stroke-linecap="round" stroke-linejoin="round" d="M1.5 12c.84-2.19 2.84-3.75 4.5-3.75S9.66 9.81 10.5 12c-.84 2.19-2.84 3.75-4.5 3.75S2.34 14.19 1.5 12Z"/>' +
+          '<circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/>' +
+          '<path stroke-linecap="round" stroke-linejoin="round" d="M13.5 12c.84-2.19 2.84-3.75 4.5-3.75s3.66 1.56 4.5 3.75c-.84 2.19-2.84 3.75-4.5 3.75S14.34 14.19 13.5 12Z"/>' +
+          '<circle cx="17" cy="12" r="1.5" fill="currentColor" stroke="none"/>';
       }
     }
   });
