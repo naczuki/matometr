@@ -52,6 +52,10 @@ body {
   overflow-x: hidden;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   font-family: var(--font-body);
   background: var(--bg);
