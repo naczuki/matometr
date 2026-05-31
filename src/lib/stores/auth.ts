@@ -141,7 +141,7 @@ const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Choose some username and a key store service.': 'ユーザー名と鍵ストアサービスを選択してください。',
   'Name': '名前',
   'Install browser extension!': 'ブラウザ拡張機能をインストール！',
-  'Try Alby, nos2x or Nostore': 'Alby、nos2x、Nostore などをお試しください',
+  'Try Alby, nos2x or Nostore': 'Alby、nos2x、Nostash などをお試しください',
   'Scan or copy the connection string with key store app': '鍵ストアアプリで接続文字列をスキャンまたはコピーしてください',
   'Nip46 Relays:': 'NIP-46 リレー：',
 };
@@ -164,6 +164,12 @@ function translateNostrLogin(sr: ShadowRoot): void {
     const el = input as HTMLInputElement;
     const translated = NOSTR_LOGIN_PLACEHOLDERS[el.placeholder.trim()];
     if (translated) el.placeholder = translated;
+  });
+
+  // Nostore は廃止済み → 後継の Nostash に差し替え
+  sr.querySelectorAll<HTMLAnchorElement>('a[href*="nostore"]').forEach((a) => {
+    a.href = 'https://apps.apple.com/jp/app/nostash/id6744309333';
+    a.textContent = 'Nostash';
   });
 }
 
