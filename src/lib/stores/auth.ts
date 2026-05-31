@@ -208,11 +208,12 @@ function translateNostrLogin(sr: ShadowRoot): void {
       const svg = btn.querySelector('svg');
       if (svg) {
         svg.setAttribute('viewBox', '0 0 24 24');
+        // 縦長の楕円（8×10.5）＋瞳を左寄せでキョロ目に
         svg.innerHTML =
-          '<path stroke-linecap="round" stroke-linejoin="round" d="M1.5 12c.84-2.19 2.84-3.75 4.5-3.75S9.66 9.81 10.5 12c-.84 2.19-2.84 3.75-4.5 3.75S2.34 14.19 1.5 12Z"/>' +
-          '<circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/>' +
-          '<path stroke-linecap="round" stroke-linejoin="round" d="M13.5 12c.84-2.19 2.84-3.75 4.5-3.75s3.66 1.56 4.5 3.75c-.84 2.19-2.84 3.75-4.5 3.75S14.34 14.19 13.5 12Z"/>' +
-          '<circle cx="17" cy="12" r="1.5" fill="currentColor" stroke="none"/>';
+          '<path stroke-linecap="round" stroke-linejoin="round" d="M10 12C10 9.1 8.2 6.75 6 6.75C3.8 6.75 2 9.1 2 12C2 14.9 3.8 17.25 6 17.25C8.2 17.25 10 14.9 10 12Z"/>' +
+          '<circle cx="4.5" cy="12.5" r="2" fill="currentColor" stroke="none"/>' +
+          '<path stroke-linecap="round" stroke-linejoin="round" d="M22 12C22 9.1 20.2 6.75 18 6.75C15.8 6.75 14 9.1 14 12C14 14.9 15.8 17.25 18 17.25C20.2 17.25 22 14.9 22 12Z"/>' +
+          '<circle cx="16.5" cy="12.5" r="2" fill="currentColor" stroke="none"/>';
       }
     }
   });
