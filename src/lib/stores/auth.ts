@@ -208,12 +208,12 @@ function translateNostrLogin(sr: ShadowRoot): void {
       const svg = btn.querySelector('svg');
       if (svg) {
         svg.setAttribute('viewBox', '0 0 24 24');
-        // 縦長の楕円（8×10.5）＋瞳を左寄せでキョロ目に
+        // 縦長の楕円（8×10.5）x=12 で両目をくっつけ、瞳を左寄せでキョロ目に
         svg.innerHTML =
-          '<path stroke-linecap="round" stroke-linejoin="round" d="M10 12C10 9.1 8.2 6.75 6 6.75C3.8 6.75 2 9.1 2 12C2 14.9 3.8 17.25 6 17.25C8.2 17.25 10 14.9 10 12Z"/>' +
-          '<circle cx="4.5" cy="12.5" r="2" fill="currentColor" stroke="none"/>' +
-          '<path stroke-linecap="round" stroke-linejoin="round" d="M22 12C22 9.1 20.2 6.75 18 6.75C15.8 6.75 14 9.1 14 12C14 14.9 15.8 17.25 18 17.25C20.2 17.25 22 14.9 22 12Z"/>' +
-          '<circle cx="16.5" cy="12.5" r="2" fill="currentColor" stroke="none"/>';
+          '<path stroke-linecap="round" stroke-linejoin="round" d="M12 12C12 9.1 10.2 6.75 8 6.75C5.8 6.75 4 9.1 4 12C4 14.9 5.8 17.25 8 17.25C10.2 17.25 12 14.9 12 12Z"/>' +
+          '<circle cx="6.5" cy="12.5" r="2" fill="currentColor" stroke="none"/>' +
+          '<path stroke-linecap="round" stroke-linejoin="round" d="M12 12C12 9.1 13.8 6.75 16 6.75C18.2 6.75 20 9.1 20 12C20 14.9 18.2 17.25 16 17.25C13.8 17.25 12 14.9 12 12Z"/>' +
+          '<circle cx="14.5" cy="12.5" r="2" fill="currentColor" stroke="none"/>';
       }
     }
   });
