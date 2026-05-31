@@ -7,6 +7,17 @@ import { fetchProfiles } from '$lib/services/NostrClient';
 const NOSTR_LOGIN_CSS = `
   * {
     font-family: var(--font-body), sans-serif !important;
+    font-size: 1rem !important;
+  }
+
+  /* 小さいラベルはそのまま */
+  .text-xs {
+    font-size: 0.75rem !important;
+  }
+
+  /* ダイアログ外枠の角丸をアプリに合わせる */
+  :host > div {
+    border-radius: var(--radius-card) !important;
   }
 
   .nl-title {
@@ -43,6 +54,14 @@ const NOSTR_LOGIN_CSS = `
   .nl-action-button:hover {
     color: var(--accent-dark) !important;
     background-color: var(--accent-pale) !important;
+  }
+
+  /* Add ボタンなど bg-blue-* をオレンジに */
+  [class*='bg-blue'] {
+    background-color: var(--accent) !important;
+  }
+  [class*='bg-blue']:hover {
+    background-color: var(--accent-dark) !important;
   }
 
   rect[fill="#6951FA"] {
