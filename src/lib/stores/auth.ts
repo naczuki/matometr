@@ -36,7 +36,7 @@ const NOSTR_LOGIN_CSS = `
     font-size: 1rem !important;
   }
   p.nl-title[class~='text-xs'] {
-    font-size: 0.875rem !important;
+    font-size: 1rem !important;
   }
 
   /* 太字テキストのジャギー対策（本サイトと同設定） */
@@ -222,6 +222,8 @@ function translateNostrLogin(sr: ShadowRoot): void {
       const sep = document.createTextNode('、');
       const fox = document.createElement('a');
       fox.href = 'https://addons.mozilla.org/ja/firefox/addon/nos2x-fox/';
+      fox.target = '_blank';
+      fox.rel = 'noopener noreferrer';
       fox.textContent = 'nos2x-fox（Firefox）';
       a.after(sep, fox);
     }
