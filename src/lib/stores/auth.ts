@@ -28,6 +28,16 @@ const NOSTR_LOGIN_CSS = `
     margin-bottom: 0.5rem !important;
     color: var(--ink) !important;
   }
+  /* nl-title はリスト項目（div）や警告文（p）にも使われるため抑制 */
+  div.nl-title {
+    font-size: 1rem !important;
+  }
+  p.nl-title {
+    font-size: 1rem !important;
+  }
+  p.nl-title[class~='text-xs'] {
+    font-size: 0.75rem !important;
+  }
 
   .nl-button {
     border-radius: var(--radius-btn) !important;
