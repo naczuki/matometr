@@ -128,7 +128,7 @@ const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Connect': 'アプリでログイン',
   'Read only': '見るだけログイン（npub）',
   'With extension': '拡張機能でログイン',
-  'With nsec': '秘密鍵（nsec…）でログイン',
+  'With nsec': '秘密鍵でログイン（nsec）',
   // 文末は「テキスト + <a>リンク</a> + .」に分割されるため断片ごとに登録
   "If you don't have a profile please": 'アカウントをお持ちでない方は',
   'If you already have a profile please': 'すでにアカウントをお持ちの方は',
