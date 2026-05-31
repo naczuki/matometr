@@ -83,8 +83,7 @@
     cursor: pointer;
     transition:
       box-shadow 0.15s,
-      border-color 0.15s,
-      transform 0.12s;
+      border-color 0.15s;
     text-decoration: none;
     color: inherit;
   }
@@ -92,7 +91,6 @@
   .card:hover {
     box-shadow: 0 6px 20px rgba(249, 115, 22, 0.1);
     border-color: var(--accent-mid);
-    transform: translateY(-2px);
   }
 
   .author {
