@@ -202,6 +202,18 @@ function translateNostrLogin(sr: ShadowRoot): void {
     }
   });
 
+  // 「見るだけ」ボタンのアイコンを 👀 に差し替え（SVG が怖いため）
+  sr.querySelectorAll<HTMLElement>('.nl-button').forEach((btn) => {
+    if (btn.textContent?.includes('見るだけ') || btn.textContent?.includes('Read only')) {
+      const svg = btn.querySelector('svg');
+      if (svg) {
+        const emoji = document.createElement('span');
+        emoji.textContent = '👀';
+        svg.replaceWith(emoji);
+      }
+    }
+  });
+
   // Nostore は廃止済み → 後継の Nostash に差し替え＋OS注釈
   sr.querySelectorAll<HTMLAnchorElement>('a[href*="nostore"]').forEach((a) => {
     a.href = 'https://apps.apple.com/jp/app/nostash/id6744309333';
