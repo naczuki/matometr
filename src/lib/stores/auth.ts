@@ -113,6 +113,7 @@ function setupNostrLoginStyles(): void {
         style.textContent = NOSTR_LOGIN_CSS;
         root.appendChild(style);
 
+        
         // 各 NL-* のルートを個別に監視（子コンポーネントの画面も翻訳する）
         observeNostrLogin(root);
       }
@@ -124,10 +125,10 @@ function setupNostrLoginStyles(): void {
 const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Log in': 'ログイン',
   'Sign up': '新規登録',
-  'Connect': '拡張機能・アプリでログイン',
-  'Read only': '見るだけ',
-  'With extension': '拡張機能で',
-  'With nsec': '秘密鍵（nsec）で',
+  'Connect': 'アプリでログイン',
+  'Read only': '見るだけログイン（npub）',
+  'With extension': '拡張機能でログイン',
+  'With nsec': '秘密鍵（nsec…）でログイン',
   // 文末は「テキスト + <a>リンク</a> + .」に分割されるため断片ごとに登録
   "If you don't have a profile please": 'アカウントをお持ちでない方は',
   'If you already have a profile please': 'すでにアカウントをお持ちの方は',
