@@ -36,7 +36,17 @@ const NOSTR_LOGIN_CSS = `
     font-size: 1rem !important;
   }
   p.nl-title[class~='text-xs'] {
-    font-size: 0.75rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* 太字テキストのジャギー対策（本サイトと同設定） */
+  button,
+  h1, h2, h3, h4,
+  .nl-title, .nl-button,
+  [class~='font-bold'],
+  [class~='font-semibold'],
+  [class~='font-medium'] {
+    transform: rotate(0.04deg);
   }
 
   .nl-button {
