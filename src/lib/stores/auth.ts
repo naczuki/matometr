@@ -36,7 +36,8 @@ const NOSTR_LOGIN_CSS = `
   }
 
   .nl-action-button,
-  a {
+  a,
+  [class*='text-blue'] {
     color: var(--accent) !important;
   }
   .nl-action-button:hover {
