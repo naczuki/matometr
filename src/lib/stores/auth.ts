@@ -7,17 +7,13 @@ import { fetchProfiles } from '$lib/services/NostrClient';
 const NOSTR_LOGIN_CSS = `
   * {
     font-family: var(--font-body), sans-serif !important;
-    font-size: 1rem !important;
   }
 
-  /* 小さいラベルはそのまま */
-  .text-xs {
-    font-size: 0.75rem !important;
-  }
-
-  /* ダイアログ外枠の角丸をアプリに合わせる */
-  :host > div {
+  /* ダイアログ外枠の角丸・スクロール */
+  .nl-bg {
     border-radius: var(--radius-card) !important;
+    max-height: 90dvh !important;
+    overflow-y: auto !important;
   }
 
   .nl-title {
@@ -91,11 +87,8 @@ function setupNostrLoginStyles(): void {
         style.textContent = NOSTR_LOGIN_CSS;
         root.appendChild(style);
 
-        // 翻訳対象テキストは nl-auth のルート配下に描画されるため、
-        // observer は nl-auth のルート1つだけに仕掛ける（重複・自己発火を防ぐ）
-        if (this.tagName === 'NL-AUTH') {
-          observeNostrLogin(root);
-        }
+        // 各 NL-* のルートを個別に監視（子コンポーネントの画面も翻訳する）
+        observeNostrLogin(root);
       }
       return root;
     },
@@ -149,6 +142,8 @@ const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Name': '名前',
   'Install browser extension!': 'ブラウザ拡張機能をインストール！',
   'Try Alby, nos2x or Nostore': 'Alby、nos2x、Nostore などをお試しください',
+  'Scan or copy the connection string with key store app': '鍵ストアアプリで接続文字列をスキャンまたはコピーしてください',
+  'Nip46 Relays:': 'NIP-46 リレー：',
 };
 
 const NOSTR_LOGIN_PLACEHOLDERS: Record<string, string> = {
