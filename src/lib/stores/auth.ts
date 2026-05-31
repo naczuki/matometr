@@ -33,13 +33,16 @@ const NOSTR_LOGIN_CSS = `
     color: var(--accent-dark) !important;
   }
 
-  .nl-action-button,
-  a {
+  .nl-action-button {
     color: var(--accent) !important;
   }
   .nl-action-button:hover {
     color: var(--accent-dark) !important;
     background-color: var(--accent-pale) !important;
+  }
+
+  .nl-footer a {
+    color: var(--accent) !important;
   }
 
   .nl-input:focus {
