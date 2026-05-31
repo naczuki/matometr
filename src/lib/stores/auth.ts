@@ -45,6 +45,10 @@ const NOSTR_LOGIN_CSS = `
     background-color: var(--accent-pale) !important;
   }
 
+  rect[fill="#6951FA"] {
+    fill: var(--accent) !important;
+  }
+
   .nl-input:focus {
     border-color: var(--accent) !important;
     --tw-ring-color: var(--accent) !important;
