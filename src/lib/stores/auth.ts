@@ -52,8 +52,8 @@ const NOSTR_LOGIN_CSS = `
   .nl-button {
     border-radius: var(--radius-btn) !important;
     border: 1.5px solid var(--accent) !important;
-    background-color: var(--surface) !important;
-    color: var(--accent-dark) !important;
+    background-color: var(--accent) !important;
+    color: #fff !important;
     font-family: var(--font-ui), sans-serif !important;
     font-weight: 700 !important;
     padding-top: 0.75rem !important;
@@ -64,8 +64,8 @@ const NOSTR_LOGIN_CSS = `
   }
   .nl-button:hover {
     border-color: var(--accent-dark) !important;
-    background-color: var(--accent-pale) !important;
-    color: var(--accent-dark) !important;
+    background-color: var(--accent-dark) !important;
+    color: #fff !important;
   }
 
   .nl-action-button,
