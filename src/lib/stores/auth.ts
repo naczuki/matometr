@@ -8,25 +8,40 @@ const NOSTR_LOGIN_CSS = `
   * {
     font-family: var(--font-body), sans-serif !important;
   }
+
   .nl-title {
     font-family: var(--font-ui), sans-serif !important;
+    font-size: 1.5rem !important;
+    margin-bottom: 0.5rem !important;
+    color: var(--ink) !important;
   }
-  .nl-action-button {
+
+  .nl-button {
+    border-radius: var(--radius-btn) !important;
+    border: 1.5px solid var(--border2) !important;
+    background-color: var(--surface) !important;
+    color: var(--ink) !important;
+    font-family: var(--font-ui), sans-serif !important;
+    font-weight: 700 !important;
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+  .nl-button:hover {
+    border-color: var(--accent) !important;
+    background-color: var(--accent-pale) !important;
+    color: var(--accent-dark) !important;
+  }
+
+  .nl-action-button,
+  a {
     color: var(--accent) !important;
   }
   .nl-action-button:hover {
     color: var(--accent-dark) !important;
     background-color: var(--accent-pale) !important;
   }
-  .nl-button {
-    background-color: var(--accent) !important;
-    border-color: var(--accent) !important;
-    color: #fff !important;
-  }
-  .nl-button:hover {
-    background-color: var(--accent-dark) !important;
-    border-color: var(--accent-dark) !important;
-  }
+
   .nl-input:focus {
     border-color: var(--accent) !important;
     --tw-ring-color: var(--accent) !important;
@@ -64,16 +79,16 @@ function setupNostrLoginStyles(): void {
 const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Log in': 'ログイン',
   'Sign up': '新規登録',
-  'Connect': '接続',
-  'Read only': '閲覧のみ',
+  'Connect': '拡張機能・アプリでログイン',
+  'Read only': '見るだけ',
   'With extension': '拡張機能で',
-  'With nsec': 'nsecで',
+  'With nsec': '秘密鍵（nsec）で',
   // 文末は「テキスト + <a>リンク</a> + .」に分割されるため断片ごとに登録
   "If you don't have a profile please": 'アカウントをお持ちでない方は',
   'If you already have a profile please': 'すでにアカウントをお持ちの方は',
   'sign up': '新規登録',
   'log in': 'ログイン',
-  'Connect to key store': '鍵ストアに接続',
+  'Connect to key store': '鍵ストアでログイン',
   'Select key store:': '鍵ストアを選択：',
   'Other key stores': 'その他の鍵ストア',
   'offline': 'オフライン',
@@ -82,18 +97,18 @@ const NOSTR_LOGIN_DICT: Record<string, string> = {
   'User name': 'ユーザー名',
   'Connection string': '接続文字列',
   'Bunker URL': 'Bunker URL',
-  'Log in to read only': '閲覧のみでログイン',
-  'Please enter the user name or npub of any Nostr user.': '任意のNostrユーザーのユーザー名またはnpubを入力してください。',
-  'Login with nsec': 'nsecでログイン',
-  'Enter your private key (nsec) to log in.': 'ログインするには秘密鍵（nsec）を入力してください。',
+  'Log in to read only': '見るだけでログイン',
+  'Please enter the user name or npub of any Nostr user.': 'Nostrユーザーの名前かnpubを入れてください。',
+  'Login with nsec': '秘密鍵（nsec）でログイン',
+  'Enter your private key (nsec) to log in.': '秘密鍵（nsec）を入れてログインします。',
   'Use at your own risk': '自己責任でご利用ください',
   'Entering your private key directly is not recommended. We suggest migrating to a key store service for better security.':
     '秘密鍵を直接入力することは推奨されません。安全性のため、鍵ストアサービスへの移行をおすすめします。',
-  'Connecting...': '接続中...',
-  'Establishing connection to your key storage.': '鍵ストレージへの接続を確立しています。',
+  'Connecting...': 'つないでいます…',
+  'Establishing connection to your key storage.': '鍵ストアにつないでいます。',
   'Press Cancel to abort': '中止するにはキャンセルを押してください',
   'Cancel': 'キャンセル',
-  'Signing in...': 'サインイン中...',
+  'Signing in...': 'ログインしています…',
   'Nostr profiles are based on cryptographic keys. You can create keys right here, or with a key storage app.':
     'Nostrのプロフィールは暗号鍵に基づいています。ここで鍵を作成するか、鍵管理アプリを使用できます。',
   'Create keys': '鍵を作成',
