@@ -1,5 +1,5 @@
 import { createRxOneshotReq, uniq } from 'rx-nostr';
-import { EMPTY, merge, Observable, forkJoin } from 'rxjs';
+import { EMPTY, merge, Observable, forkJoin, Subscription } from 'rxjs';
 import { map, filter, take } from 'rxjs';
 import { nip19 } from 'nostr-tools';
 import type { AddressPointer } from 'nostr-tools/nip19';
@@ -415,8 +415,13 @@ export function fetchUserFavedMatomes(
     filters: { kinds: [7], authors: [pubkey], '#k': ['30023'] }
   });
 
+  // 1 REQ に詰め込む filter 数の上限。著者が多くても、リレーに大量の
+  // filter を一度に並べて投げないようチャンクに分割して複数 REQ にする。
+  const MAX_FILTERS_PER_REQ = 20;
+
   return new Observable((subscriber) => {
     const aTagValues = new Set<string>();
+    const innerSubs: Subscription[] = [];
 
     const sub = client.use(rxReq).pipe(uniq()).subscribe({
       next({ event }) {
@@ -427,30 +432,48 @@ export function fetchUserFavedMatomes(
       },
       error(err) { subscriber.error(err); },
       complete() {
-        if (aTagValues.size === 0) {
-          subscriber.complete();
-          return;
-        }
-        const filters: { kinds: number[]; authors: string[]; '#d': string[] }[] = [];
+        // 著者ごとに dtag を集約する。同一著者内の #d 配列は OR 評価なので
+        // クロスプロダクト誤マッチが起きず、filter 数を「ふぁぼ件数」から
+        // 「ふぁぼった著者数」まで減らせる。
+        const dTagsByAuthor = new Map<string, string[]>();
         for (const aVal of aTagValues) {
           const parts = aVal.split(':');
           if (parts.length < 3) continue;
-          filters.push({ kinds: [30023], authors: [parts[1]], '#d': [parts.slice(2).join(':')] });
+          const author = parts[1];
+          const dTag = parts.slice(2).join(':');
+          const list = dTagsByAuthor.get(author);
+          if (list) list.push(dTag);
+          else dTagsByAuthor.set(author, [dTag]);
         }
+
+        const filters = [...dTagsByAuthor].map(([author, dTags]) => ({
+          kinds: [30023],
+          authors: [author],
+          '#d': dTags
+        }));
         if (filters.length === 0) { subscriber.complete(); return; }
-        const matomeReq = createRxOneshotReq({ filters });
-        const mSub = client.use(matomeReq).pipe(
-          uniq(),
-          map(({ event: ev }) => Matome.fromEvent(ev)),
-          filter((m): m is Matome => m !== null),
-          filter((m) => m.isMatometr || m.isNosli)
-        ).subscribe({
-          next(m) { subscriber.next(m); },
-          complete() { subscriber.complete(); },
-          error() { subscriber.complete(); }
-        });
+
+        let remaining = 0;
+        for (let i = 0; i < filters.length; i += MAX_FILTERS_PER_REQ) {
+          const chunk = filters.slice(i, i + MAX_FILTERS_PER_REQ);
+          remaining++;
+          const mSub = client.use(createRxOneshotReq({ filters: chunk })).pipe(
+            uniq(),
+            map(({ event: ev }) => Matome.fromEvent(ev)),
+            filter((m): m is Matome => m !== null),
+            filter((m) => m.isMatometr || m.isNosli)
+          ).subscribe({
+            next(m) { subscriber.next(m); },
+            complete() { if (--remaining === 0) subscriber.complete(); },
+            error() { if (--remaining === 0) subscriber.complete(); }
+          });
+          innerSubs.push(mSub);
+        }
       }
     });
-    return () => sub.unsubscribe();
+    return () => {
+      sub.unsubscribe();
+      for (const s of innerSubs) s.unsubscribe();
+    };
   });
 }
