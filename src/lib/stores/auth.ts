@@ -15,10 +15,10 @@ const NOSTR_LOGIN_CSS = `
     font-size: 1rem !important;
   }
 
-  /* 他のモーダルと同じ上端位置に表示 */
+  /* 他のモーダルと同じ位置・余白で表示 */
   [role=dialog] {
     align-items: flex-start !important;
-    padding-top: 24px !important;
+    padding: 24px 16px !important;
   }
 
   /* ダイアログ外枠の角丸・スクロール・幅（自作モーダルと統一） */
