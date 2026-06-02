@@ -1,10 +1,10 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { StartScreens } from '@konemono/nostr-login/dist/types';
+  import { getNostrExtension } from '$lib/stores/auth';
 
   export let launching: boolean = false;
 
-  let bunkerUrl = '';
   let extensionError = '';
   let busy = false;
 
@@ -21,12 +21,13 @@
     extensionError = '';
     busy = true;
     try {
-      const nostr = (window as any).nostr;
-      if (!nostr) {
-        extensionError = '拡張機能が見つかりません';
+      // nostr-login が window.nostr を上書きする前に保存した本物の拡張機能を使う
+      const ext = getNostrExtension();
+      if (!ext) {
+        extensionError = 'ブラウザ拡張機能が見つかりません';
         return;
       }
-      const pubkey: string = await nostr.getPublicKey();
+      const pubkey: string = await ext.getPublicKey();
       if (!pubkey) {
         extensionError = '公開鍵を取得できませんでした';
         return;
@@ -100,22 +101,17 @@
         </svg>
         QRコードで接続
       </button>
-
-      <div class="bunker-row">
-        <input
-          class="text-input"
-          type="text"
-          placeholder="bunker://"
-          bind:value={bunkerUrl}
-          aria-label="bunker URL"
-          disabled={launching || busy}
-        />
-        <button
-          class="bunker-btn"
-          on:click={() => dispatch('launch', { screen: 'login-bunker-url' })}
-          disabled={launching || busy || !bunkerUrl.trim()}
-        >接続</button>
-      </div>
+      <button
+        class="method-btn secondary"
+        on:click={() => dispatch('launch', { screen: 'login-bunker-url' })}
+        disabled={launching || busy}
+      >
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+        </svg>
+        bunker://で接続
+      </button>
     </div>
 
     <div class="sep"><span>or</span></div>
@@ -229,57 +225,6 @@
     flex: 1;
     height: 1px;
     background: var(--border, #e5e7eb);
-  }
-
-  .bunker-row {
-    display: flex;
-    gap: 6px;
-  }
-
-  .text-input {
-    width: 100%;
-    padding: 11px 12px;
-    border: 1.5px solid var(--border, #e5e7eb);
-    border-radius: 6px;
-    background: var(--bg, #f9fafb);
-    font-size: 13px;
-    font-family: monospace;
-    color: var(--ink, #111827);
-    outline: none;
-    transition: border-color 0.12s;
-    box-sizing: border-box;
-  }
-
-  .text-input:focus {
-    border-color: #10b981;
-  }
-
-  .bunker-row .text-input {
-    min-width: 0;
-  }
-
-  .bunker-btn {
-    flex-shrink: 0;
-    padding: 11px 14px;
-    border: none;
-    border-radius: 6px;
-    background: #10b981;
-    color: #fff;
-    font-size: 13px;
-    font-weight: 700;
-    font-family: var(--font-ui);
-    cursor: pointer;
-    transition: background 0.12s, opacity 0.12s;
-    white-space: nowrap;
-  }
-
-  .bunker-btn:hover:not(:disabled) {
-    background: #059669;
-  }
-
-  .bunker-btn:disabled {
-    opacity: 0.45;
-    cursor: default;
   }
 
   .close-btn {

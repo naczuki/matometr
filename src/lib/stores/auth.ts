@@ -46,6 +46,10 @@ function handleLogin(npub: string): void {
 
 let _nlLogout: (() => Promise<void>) | null = null;
 
+// nostr-login が window.nostr を上書きする前の本物の拡張機能への参照
+let _nostrExtension: { getPublicKey: () => Promise<string> } | null = null;
+export const getNostrExtension = () => _nostrExtension;
+
 export function logout(): void {
   _profileSub?.unsubscribe();
   _profileSub = null;
@@ -56,6 +60,9 @@ export function logout(): void {
 
 // ページ読み込み時に一度だけ呼ぶ（+layout.svelte の onMount から）
 export async function initAuth(): Promise<void> {
+  // init() が window.nostr を proxy に置き換える前に本物の拡張機能を保存する
+  _nostrExtension = (window as any).nostr ?? null;
+
   const { init, logout: nlLogout } = await import('@konemono/nostr-login');
   _nlLogout = nlLogout;
 
