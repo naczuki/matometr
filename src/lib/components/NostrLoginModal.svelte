@@ -126,7 +126,7 @@
   .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.45);
+    background: rgba(28, 25, 23, 0.6);
     z-index: 10000;
     display: flex;
     align-items: flex-end;
