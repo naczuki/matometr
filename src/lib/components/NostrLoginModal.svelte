@@ -193,7 +193,7 @@
 
   .group {
     margin-bottom: 24px;
-    max-width: 300px;
+    max-width: 260px;
     margin-left: auto;
     margin-right: auto;
   }
