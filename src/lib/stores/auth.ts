@@ -15,11 +15,18 @@ const NOSTR_LOGIN_CSS = `
     font-size: 1rem !important;
   }
 
+  /* 他のモーダルと同じ上端位置に表示 */
+  [role=dialog] {
+    align-items: flex-start !important;
+    padding-top: 24px !important;
+  }
+
   /* ダイアログ外枠の角丸・スクロール */
   .nl-bg {
     border-radius: var(--radius-card) !important;
     max-height: 90dvh !important;
     overflow-y: auto !important;
+    margin: 20px auto !important;
   }
 
   .nl-title {
