@@ -198,6 +198,10 @@
     margin-right: auto;
   }
 
+  .group:first-of-type {
+    margin-bottom: 12px;
+  }
+
   .group:last-child {
     margin-bottom: 0;
   }
