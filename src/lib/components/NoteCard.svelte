@@ -210,11 +210,13 @@
     <div class="load-placeholder">取得中…</div>
   {:else}
     <div class="note-header">
-      <Avatar pubkey={note.pubkey} {picture} name={authorName} size={36} />
-      <div class="note-meta">
-        <div class="note-name">{authorName}</div>
-        <div class="note-pub">{shortNpubFromPubkey(note.pubkey)}</div>
-      </div>
+      <a href="{base}/user/?id={nip19.npubEncode(note.pubkey)}" class="note-author-link">
+        <Avatar pubkey={note.pubkey} {picture} name={authorName} size={36} />
+        <div class="note-meta">
+          <div class="note-name">{authorName}</div>
+          <div class="note-pub">{shortNpubFromPubkey(note.pubkey)}</div>
+        </div>
+      </a>
       <!-- svelte-ignore a11y-interactive-supports-focus -->
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <span class="note-time" role="button" on:click={openMenu}>
@@ -390,6 +392,20 @@
     align-items: center;
     gap: 10px;
     margin-bottom: 11px;
+  }
+
+  .note-author-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .note-author-link:hover .note-name {
+    text-decoration: underline;
   }
 
   .note-meta {
