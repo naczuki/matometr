@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
 
   export let launching: boolean = false;
+  export let leadText: string = '☆をつける&まとめを作るには';
 
   const dispatch = createEventDispatcher<{
     close: undefined;
@@ -23,7 +24,7 @@
     <button class="modal-close" on:click={() => dispatch('close')} aria-label="閉じる">×</button>
     <h2 class="modal-title">まとめたーへようこそ</h2>
     <p class="modal-lead">
-      まとめを作るには<br />
+      {@html leadText.replace(/☆/g, '<span class="modal-lead-star">★</span>')}<br />
       <b>Nostrアカウント</b>でログインしてください
     </p>
     <button class="login-btn" on:click={() => dispatch('open-nostr')} disabled={launching}>
@@ -48,7 +49,7 @@
       メールや電話番号を使わない、新しい仕組みのSNSの基盤です。アカウントひとつで色々なアプリで使えます。
     </div>
     <div class="modal-nostr-info">
-      <p>まとめたーはNostrというSNSの投稿をまとめるサービスです。<br />まとめの作成にはNostrのアカウントが必要です。（見るだけならログイン不要です）</p>
+      <p>まとめたーはNostrというSNSの投稿をまとめるサービスです。<br />☆でのリアクションやまとめの作成にはNostrのアカウントが必要です。（見るだけならログイン不要です）</p>
       <p>作者がふだん使っているNostrアプリ：<br />
         ・<a href="https://nostter.app" target="_blank" rel="noopener noreferrer">nostter（ブラウザですぐ使えます）↗</a>
       </p>
@@ -123,6 +124,10 @@
   .modal-lead b {
     color: var(--accent-dark);
     font-weight: 700;
+  }
+
+  :global(.modal-lead-star) {
+    color: var(--accent);
   }
 
   .login-btn {

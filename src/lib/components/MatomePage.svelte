@@ -20,6 +20,9 @@
   import NaddrCard from '$lib/components/NaddrCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import LoginModal from '$lib/components/LoginModal.svelte';
+  import NostrLoginModal from '$lib/components/NostrLoginModal.svelte';
+  import type { StartScreens } from '@konemono/nostr-login/dist/types';
   import { parseMarkdownContent, renderInlineMarkdown } from '$lib/utils/markdown';
   import type { ContentSegment } from '$lib/utils/markdown';
 
@@ -153,6 +156,11 @@
   let favCount = 0;
   let favSending = false;
   let favSub: Subscription | null = null;
+  let showFavLoginModal = false;
+  let showFavNostrModal = false;
+  let favLoginLaunching = false;
+
+  $: if ($currentUser) { showFavLoginModal = false; showFavNostrModal = false; }
 
   let _favFetchedPk: string | null = null;
 
@@ -170,9 +178,20 @@
 
   $: if (matome) fetchFavState(matome, $currentUser?.pubkey ?? null);
 
+  async function launchFavLogin(screen: StartScreens): Promise<void> {
+    favLoginLaunching = true;
+    try {
+      const { launch } = await import('@konemono/nostr-login');
+      showFavNostrModal = false;
+      await launch(screen);
+    } finally {
+      favLoginLaunching = false;
+    }
+  }
+
   async function sendFav(): Promise<void> {
     if (!matome || faved || favSending) return;
-    if (!$currentUser) return;
+    if (!$currentUser) { showFavLoginModal = true; return; }
     favSending = true;
     try {
       await publishReaction({
@@ -436,7 +455,7 @@
           title={faved ? 'ふぁぼ済み' : 'ふぁぼ'}
           aria-label={faved ? 'ふぁぼ済み' : 'ふぁぼ'}
           aria-pressed={faved}
-          disabled={faved || favSending || !$currentUser}
+          disabled={faved || favSending}
           on:click={sendFav}
         >
           <svg class="fav-star" width="14" height="14" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
@@ -542,6 +561,23 @@
     {/if}
   {/if}
 </div>
+
+{#if showFavLoginModal}
+  <LoginModal
+    launching={favLoginLaunching}
+    leadText="☆をつけるには"
+    on:close={() => (showFavLoginModal = false)}
+    on:open-nostr={() => (showFavNostrModal = true)}
+  />
+{/if}
+
+{#if showFavNostrModal}
+  <NostrLoginModal
+    launching={favLoginLaunching}
+    on:close={() => (showFavNostrModal = false)}
+    on:launch={(e) => launchFavLogin(e.detail.screen)}
+  />
+{/if}
 
 <!-- nosli インポート確認ダイアログ -->
 <ConfirmDialog

@@ -66,6 +66,22 @@ const NOSTR_LOGIN_CSS = `
     color: #fff !important;
   }
 
+  .nl-button--nsec {
+    border: 1.5px solid var(--border2) !important;
+    background-color: #fff !important;
+    color: var(--ink2) !important;
+    box-shadow: none !important;
+  }
+  .nl-button--nsec:hover {
+    border-color: var(--ink2) !important;
+    background-color: var(--bg) !important;
+    color: var(--ink) !important;
+  }
+
+  .nl-footer {
+    display: none !important;
+  }
+
   .nl-action-button,
   a,
   [class*='text-blue'] {
@@ -195,6 +211,15 @@ function translateNostrLogin(sr: ShadowRoot): void {
   });
 
   sr.querySelectorAll<HTMLElement>('.nl-button').forEach((btn) => {
+    const text = btn.textContent ?? '';
+    if (text.includes('nsec') || text.includes('秘密鍵')) {
+      btn.classList.add('nl-button--nsec');
+    } else {
+      btn.classList.remove('nl-button--nsec');
+    }
+  });
+
+  sr.querySelectorAll<HTMLElement>('.nl-button').forEach((btn) => {
     if (btn.textContent?.includes('見るだけ') || btn.textContent?.includes('Read only')) {
       const svg = btn.querySelector('svg');
       if (svg) {
@@ -319,6 +344,7 @@ export async function initAuth(): Promise<void> {
   await init({
     noBanner: true,
     perms: 'sign_event:30023,sign_event:5,sign_event:1,sign_event:7',
+    methods: ['connect', 'extension', 'nsec'],
     theme: 'default',
     title: 'まとめたーにログイン',
     description: '無料・メールアドレス不要でアカウントを作れます',

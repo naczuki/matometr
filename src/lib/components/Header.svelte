@@ -35,9 +35,9 @@
 
   async function launchNostrLogin(screen: StartScreens): Promise<void> {
     launching = true;
-    hideNostrModal();
     try {
       const { launch } = await import('@konemono/nostr-login');
+      hideNostrModal();
       await launch(screen);
     } finally {
       launching = false;
