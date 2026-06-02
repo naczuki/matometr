@@ -182,6 +182,7 @@
     favLoginLaunching = true;
     try {
       const { launch } = await import('@konemono/nostr-login');
+      showFavLoginModal = false;
       showFavNostrModal = false;
       await launch(screen);
     } finally {

@@ -30,6 +30,7 @@
   }
 
   function openNostrModal(): void {
+    showLoginModal = false;
     showNostrModal = true;
   }
 

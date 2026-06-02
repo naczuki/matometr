@@ -40,7 +40,8 @@
   on:click={handleOverlayClick}
   on:keydown={(e) => e.key === 'Escape' && dispatch('close')}
 >
-  <div class="sheet" role="dialog" aria-modal="true" aria-label="ログイン">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="ログイン方法を選択">
+    <button class="modal-close" on:click={() => dispatch('close')} aria-label="閉じる">×</button>
 
     <!-- ブラウザ拡張機能 -->
     <div class="section">
@@ -106,7 +107,7 @@
     <!-- 秘密鍵 -->
     <div class="section">
       <button
-        class="method-btn secondary"
+        class="method-btn nsec"
         on:click={() => dispatch('launch', { screen: 'login-nsec' })}
         disabled={launching || busy}
       >
@@ -117,8 +118,6 @@
         秘密鍵
       </button>
     </div>
-
-    <button class="close-btn" on:click={() => dispatch('close')} aria-label="閉じる">×</button>
   </div>
 </div>
 
@@ -128,24 +127,43 @@
     inset: 0;
     background: rgba(28, 25, 23, 0.6);
     z-index: 10000;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
+    overflow-y: auto;
+    padding: 24px 16px;
+    -webkit-overflow-scrolling: touch;
   }
 
-  .sheet {
+  .modal {
     background: var(--surface);
-    border-radius: 18px 18px 0 0;
+    border-radius: 20px;
+    max-width: 440px;
     width: 100%;
-    max-width: 540px;
-    padding: 24px 20px 16px;
-    box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.18);
+    margin: 20px auto;
+    padding: 48px 22px 24px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    position: relative;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: none;
+    font-size: 18px;
+    color: var(--ink2);
+    cursor: pointer;
     display: flex;
-    flex-direction: column;
-    gap: 0;
-    max-height: 92dvh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  .modal-close:hover {
+    background: var(--accent-mid);
+    color: var(--accent-dark);
   }
 
   .section {
@@ -186,14 +204,26 @@
   }
 
   .method-btn.secondary {
-    background: var(--accent-mid);
+    background: var(--accent-pale);
     color: var(--accent-dark);
     box-shadow: none;
   }
 
   .method-btn.secondary:hover:not(:disabled) {
-    background: var(--accent-pale);
+    background: var(--accent-mid);
+  }
+
+  .method-btn.nsec {
+    background: transparent;
+    color: var(--ink2);
+    border: 1.5px solid var(--border2);
     box-shadow: none;
+  }
+
+  .method-btn.nsec:hover:not(:disabled) {
+    background: var(--bg);
+    color: var(--ink);
+    border-color: var(--ink3);
   }
 
   .btn-icon {
@@ -207,7 +237,7 @@
     align-items: center;
     gap: 10px;
     margin: 14px 0;
-    color: var(--ink3, #9ca3af);
+    color: var(--ink3);
     font-size: 12px;
   }
 
@@ -216,38 +246,6 @@
     content: '';
     flex: 1;
     height: 1px;
-    background: var(--border, #e5e7eb);
-  }
-
-  .close-btn {
-    margin: 16px auto 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: 1.5px solid var(--border, #e5e7eb);
-    background: transparent;
-    font-size: 18px;
-    color: var(--ink2, #4b5563);
-    cursor: pointer;
-    transition: background 0.1s;
-    line-height: 1;
-  }
-
-  .close-btn:hover {
-    background: var(--bg, #f3f4f6);
-  }
-
-  @media (min-width: 541px) {
-    .overlay {
-      align-items: center;
-    }
-
-    .sheet {
-      border-radius: 18px;
-      max-height: 88dvh;
-    }
+    background: var(--border);
   }
 </style>
