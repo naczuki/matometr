@@ -131,7 +131,7 @@ const NOSTR_LOGIN_CSS = `
     --tw-ring-color: var(--accent) !important;
   }
 
-  /* 戻るボタン：ヘッダーアイコンボタンと同サイズ・同スタイル */
+  /* 戻るボタン：オレンジ丸囲み・影付き */
   .nl-back-to-app {
     display: flex !important;
     align-items: center !important;
@@ -140,17 +140,20 @@ const NOSTR_LOGIN_CSS = `
     width: 1.75rem !important;
     height: 1.75rem !important;
     border-radius: 9999px !important;
-    border: 1px solid transparent !important;
-    background: transparent !important;
-    color: inherit !important;
+    border: 1.5px solid var(--accent-mid) !important;
+    background: var(--accent-pale) !important;
+    color: var(--accent) !important;
     font-size: 1rem !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
     cursor: pointer !important;
-    transition: color 0.12s, background-color 0.12s !important;
+    box-shadow: 0 2px 6px rgba(249, 115, 22, 0.18) !important;
+    transition: all 0.15s !important;
   }
   .nl-back-to-app:hover {
+    background: var(--accent-mid) !important;
     color: var(--accent-dark) !important;
-    background-color: var(--accent-pale) !important;
+    box-shadow: 0 3px 10px rgba(249, 115, 22, 0.28) !important;
+    transform: translateY(-1px) !important;
   }
 `;
 
