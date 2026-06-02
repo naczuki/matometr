@@ -66,11 +66,16 @@ const NOSTR_LOGIN_CSS = `
     margin-bottom: 0.5rem !important;
     white-space: normal !important;
     height: auto !important;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.22) !important;
+    transition: all 0.15s !important;
+    transform: translateY(0) !important;
   }
   .nl-button:hover {
     border-color: var(--accent-dark) !important;
     background-color: var(--accent-dark) !important;
     color: #fff !important;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3) !important;
+    transform: translateY(-1px) !important;
   }
 
   .nl-button--nsec {
@@ -78,11 +83,14 @@ const NOSTR_LOGIN_CSS = `
     background-color: #fff !important;
     color: var(--ink2) !important;
     box-shadow: none !important;
+    transform: translateY(0) !important;
   }
   .nl-button--nsec:hover {
     border-color: var(--ink2) !important;
     background-color: var(--bg) !important;
     color: var(--ink) !important;
+    box-shadow: none !important;
+    transform: none !important;
   }
 
   .nl-footer {

@@ -221,21 +221,21 @@
     font-weight: 700;
     font-family: var(--font-ui);
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.22);
     transition: all 0.15s;
     line-height: 1;
   }
 
   .method-btn:hover:not(:disabled) {
     background: var(--accent-dark);
-    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
     transform: translateY(-1px);
   }
 
   .method-btn:disabled {
     opacity: 0.55;
     cursor: default;
-    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.2);
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.12);
     transform: none;
   }
 
@@ -275,14 +275,14 @@
     font-weight: 700;
     font-family: var(--font-ui);
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.12);
+    box-shadow: 0 1px 4px rgba(249, 115, 22, 0.08);
     transition: all 0.15s;
     white-space: nowrap;
   }
 
   .sub-btn:hover:not(:disabled) {
     background: var(--accent-pale);
-    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.18);
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.14);
     transform: translateY(-1px);
   }
 
