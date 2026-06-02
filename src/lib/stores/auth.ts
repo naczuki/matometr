@@ -146,13 +146,13 @@ const NOSTR_LOGIN_CSS = `
     font-size: 1rem !important;
     font-weight: 700 !important;
     cursor: pointer !important;
-    box-shadow: 0 2px 6px rgba(249, 115, 22, 0.18) !important;
+    box-shadow: 0 1px 4px rgba(249, 115, 22, 0.08) !important;
     transition: all 0.15s !important;
   }
   .nl-back-to-app:hover {
     background: var(--accent-mid) !important;
     color: var(--accent-dark) !important;
-    box-shadow: 0 3px 10px rgba(249, 115, 22, 0.28) !important;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.14) !important;
     transform: translateY(-1px) !important;
   }
 `;
