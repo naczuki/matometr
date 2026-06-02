@@ -193,6 +193,9 @@
 
   .group {
     margin-bottom: 24px;
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .group:last-child {
