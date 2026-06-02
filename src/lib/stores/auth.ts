@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { nip19 } from 'nostr-tools';
 import type { Subscription } from 'rxjs';
 import type { UserProfile } from '$lib/types';
@@ -46,9 +46,10 @@ function handleLogin(npub: string): void {
 
 let _nlLogout: (() => Promise<void>) | null = null;
 
-// nostr-login が window.nostr を上書きする前の本物の拡張機能への参照
-let _nostrExtension: { getPublicKey: () => Promise<string> } | null = null;
-export const getNostrExtension = () => _nostrExtension;
+// 本物のブラウザ拡張機能への参照（Svelte ストアで公開してモーダルのボタンを reactive に制御）
+const _extStore = writable<{ getPublicKey: () => Promise<string> } | null>(null);
+export const nostrExtension = { subscribe: _extStore.subscribe };
+export const getNostrExtension = () => get(_extStore);
 
 export function logout(): void {
   _profileSub?.unsubscribe();
@@ -60,11 +61,14 @@ export function logout(): void {
 
 // ページ読み込み時に一度だけ呼ぶ（+layout.svelte の onMount から）
 export async function initAuth(): Promise<void> {
-  // init() が window.nostr を proxy に置き換える前に本物の拡張機能を保存する
-  _nostrExtension = (window as any).nostr ?? null;
+  // init() 実行前に存在するなら捕捉
+  if ((window as any).nostr) _extStore.set((window as any).nostr);
 
   const { init, logout: nlLogout } = await import('@konemono/nostr-login');
   _nlLogout = nlLogout;
+
+  // モジュール読み込み中に拡張が注入された場合も捕捉
+  if ((window as any).nostr && !get(_extStore)) _extStore.set((window as any).nostr);
 
   await init({
     noBanner: true,
@@ -82,4 +86,34 @@ export async function initAuth(): Promise<void> {
       }
     },
   });
+
+  // init() 後 window.nostr はプロキシ。プロキシを誤って保存していたら消す
+  const nlProxy = (window as any).nostr;
+  if (get(_extStore) === nlProxy) _extStore.set(null);
+
+  // init() 後に遅延注入される拡張機能を監視する
+  // nostr-login の startCheckingExtension が拡張を検出して win.nostr を切り替える瞬間を捉える
+  try {
+    let _winNostr: any = nlProxy;
+    Object.defineProperty(window, 'nostr', {
+      configurable: true,
+      enumerable: true,
+      get: () => _winNostr,
+      set: (v: any) => {
+        _winNostr = v;
+        if (v && v !== nlProxy) {
+          // プロキシ以外がセットされた = 本物の拡張機能
+          _extStore.set(v);
+        }
+      },
+    });
+  } catch {
+    // defineProperty が使えない環境ではポーリングにフォールバック
+    let polls = 0;
+    const id = setInterval(() => {
+      const cur = (window as any).nostr;
+      if (cur && cur !== nlProxy) _extStore.set(cur);
+      if (++polls >= 50) clearInterval(id); // 10秒で打ち切り
+    }, 200);
+  }
 }
