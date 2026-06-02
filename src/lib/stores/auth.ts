@@ -26,8 +26,15 @@ const NOSTR_LOGIN_CSS = `
     border-radius: var(--radius-card) !important;
     max-height: 90dvh !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
     margin: 20px auto !important;
     max-width: 440px !important;
+  }
+
+  /* QRコード等の固定幅要素がモバイルでコンテナをはみ出さないように */
+  canvas, img {
+    max-width: 100% !important;
+    height: auto !important;
   }
 
   .nl-title {
