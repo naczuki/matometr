@@ -1,11 +1,10 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { StartScreens } from '@konemono/nostr-login/dist/types';
-  import { getNostrExtension } from '$lib/stores/auth';
+  import { nostrExtension } from '$lib/stores/auth';
 
   export let launching: boolean = false;
 
-  let extensionError = '';
   let busy = false;
 
   const dispatch = createEventDispatcher<{
@@ -18,25 +17,16 @@
   }
 
   async function handleExtension(): Promise<void> {
-    extensionError = '';
+    if (!$nostrExtension) return;
     busy = true;
     try {
-      // nostr-login が window.nostr を上書きする前に保存した本物の拡張機能を使う
-      const ext = getNostrExtension();
-      if (!ext) {
-        extensionError = 'ブラウザ拡張機能が見つかりません';
-        return;
-      }
-      const pubkey: string = await ext.getPublicKey();
-      if (!pubkey) {
-        extensionError = '公開鍵を取得できませんでした';
-        return;
-      }
+      const pubkey: string = await $nostrExtension.getPublicKey();
+      if (!pubkey) return;
       const { setAuth } = await import('@konemono/nostr-login');
       await setAuth({ type: 'login', method: 'extension', pubkey });
       dispatch('close');
-    } catch (e: unknown) {
-      extensionError = e instanceof Error ? e.message : '拡張機能の接続に失敗しました';
+    } catch {
+      // silent — button will remain enabled for retry
     } finally {
       busy = false;
     }
@@ -57,16 +47,13 @@
       <button
         class="method-btn"
         on:click={handleExtension}
-        disabled={launching || busy}
+        disabled={!$nostrExtension || launching || busy}
       >
         <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5A2.5 2.5 0 0 0 10.5 1a2.5 2.5 0 0 0-2.5 2.5V5H4a2 2 0 0 0-2 2v3.8h1.5A2.7 2.7 0 0 1 6.2 13.5 2.7 2.7 0 0 1 3.5 16.2H2V20a2 2 0 0 0 2 2h3.8v-1.5A2.7 2.7 0 0 1 10.5 18a2.7 2.7 0 0 1 2.7 2.5V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 2.5-2.5 2.5 2.5 0 0 0-2.5-2.5z"/>
         </svg>
         ブラウザ拡張機能
       </button>
-      {#if extensionError}
-        <p class="field-error">{extensionError}</p>
-      {/if}
     </div>
 
     <div class="sep"><span>or</span></div>
