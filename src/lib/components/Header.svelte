@@ -3,8 +3,10 @@
   import { currentUser, logout } from '$lib/stores/auth';
   import type { StartScreens } from '@konemono/nostr-login/dist/types';
   import LoginModal from '$lib/components/LoginModal.svelte';
+  import NostrLoginModal from '$lib/components/NostrLoginModal.svelte';
 
   let showLoginModal = false;
+  let showNostrModal = false;
   let dropdownOpen = false;
   let launching = false;
 
@@ -16,9 +18,17 @@
     showLoginModal = false;
   }
 
+  function hideNostrModal(): void {
+    showNostrModal = false;
+  }
+
+  function openNostrModal(): void {
+    showNostrModal = true;
+  }
+
   async function launchNostrLogin(screen: StartScreens): Promise<void> {
     launching = true;
-    hideLoginModal();
+    hideNostrModal();
     try {
       const { launch } = await import('@konemono/nostr-login');
       await launch(screen);
@@ -118,6 +128,14 @@
   <LoginModal
     {launching}
     on:close={hideLoginModal}
+    on:open-nostr={openNostrModal}
+  />
+{/if}
+
+{#if showNostrModal}
+  <NostrLoginModal
+    {launching}
+    on:close={hideNostrModal}
     on:launch={(e) => launchNostrLogin(e.detail.screen)}
   />
 {/if}
