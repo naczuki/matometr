@@ -131,27 +131,26 @@ const NOSTR_LOGIN_CSS = `
     --tw-ring-color: var(--accent) !important;
   }
 
-  /* ログイン方法選択モーダルへ戻るボタン（注入） */
+  /* 戻るボタン：ヘッダーアイコンボタンと同サイズ・同スタイル */
   .nl-back-to-app {
-    display: block !important;
-    width: calc(100% - 2rem) !important;
-    margin: 0.25rem auto 1rem !important;
-    padding: 0.6rem 1rem !important;
-    border: 1.5px solid var(--border2) !important;
-    border-radius: var(--radius-btn) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+    border-radius: 9999px !important;
+    border: 1px solid transparent !important;
     background: transparent !important;
-    color: var(--ink2) !important;
-    font-family: var(--font-ui), sans-serif !important;
-    font-size: 0.85rem !important;
-    font-weight: 700 !important;
-    text-align: center !important;
+    color: inherit !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
     cursor: pointer !important;
-    transition: all 0.15s !important;
+    transition: color 0.12s, background-color 0.12s !important;
   }
   .nl-back-to-app:hover {
-    border-color: var(--ink3) !important;
-    background: var(--bg) !important;
-    color: var(--ink) !important;
+    color: var(--accent-dark) !important;
+    background-color: var(--accent-pale) !important;
   }
 `;
 
@@ -315,14 +314,16 @@ function translateNostrLogin(sr: ShadowRoot): void {
   });
 
   // ログイン方法選択モーダルへ戻るボタンを注入（画面遷移で消えても再注入される）
-  const bg = sr.querySelector('.nl-bg');
-  if (bg && !bg.querySelector('.nl-back-to-app')) {
+  // ヘッダー左側（ロゴの左）に戻るボタンを注入
+  const leftHeader = sr.querySelector('[class*="justify-between"] > [class*="gap-2"]');
+  if (leftHeader && !leftHeader.querySelector('.nl-back-to-app')) {
     const back = document.createElement('button');
     back.className = 'nl-back-to-app';
     back.type = 'button';
-    back.textContent = '← ログイン方法を選ぶ';
+    back.textContent = '←';
+    back.title = 'ログイン方法を選ぶ';
     back.addEventListener('click', backToLoginSelect);
-    bg.appendChild(back);
+    leftHeader.prepend(back);
   }
 }
 
