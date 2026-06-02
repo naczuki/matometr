@@ -69,7 +69,7 @@
     padding: 28px 24px 20px;
     max-width: 360px;
     width: 100%;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    box-shadow: var(--shadow-dialog-sm);
   }
 
   .dialog-title {

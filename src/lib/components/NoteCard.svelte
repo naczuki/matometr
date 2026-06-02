@@ -371,7 +371,7 @@
   }
 
   .note-card:hover {
-    box-shadow: 0 4px 16px rgba(249, 115, 22, 0.08);
+    box-shadow: var(--shadow-card-note);
     border-color: var(--accent-mid);
   }
 
@@ -462,7 +462,7 @@
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: 10px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--shadow-popover);
     overflow: hidden;
     min-width: 160px;
   }

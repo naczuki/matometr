@@ -765,7 +765,7 @@
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--shadow-popover);
     min-width: 160px;
     z-index: 100;
     overflow: hidden;
@@ -1025,7 +1025,7 @@
     padding: 28px 24px 20px;
     max-width: 360px;
     width: 100%;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    box-shadow: var(--shadow-dialog-sm);
   }
 
   .dialog-title {
@@ -1119,7 +1119,7 @@
   :global(nostr-share::part(button):hover) {
     background: var(--accent-dark);
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(249, 115, 22, 0.35);
+    box-shadow: var(--shadow-btn);
   }
 
   .nos-label {
@@ -1146,7 +1146,7 @@
   .share-btn:hover {
     background: var(--accent-dark);
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(249, 115, 22, 0.35);
+    box-shadow: var(--shadow-btn);
   }
 
   /* ⋮ ドロップダウン */
@@ -1161,7 +1161,7 @@
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-popover);
     padding: 4px;
     min-width: 172px;
     z-index: 50;
@@ -1443,7 +1443,7 @@
     max-height: 80vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--shadow-modal);
   }
 
   .json-header {

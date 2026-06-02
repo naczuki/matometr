@@ -76,7 +76,7 @@
     width: 100%;
     margin: 20px auto;
     padding: 24px 22px 20px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--shadow-modal);
     position: relative;
   }
 
@@ -142,13 +142,13 @@
     cursor: pointer;
     margin: 0 0 16px;
     width: 100%;
-    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
+    box-shadow: var(--shadow-btn);
     transition: all 0.15s;
   }
 
   .login-btn:hover {
     background: var(--accent-dark);
-    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45);
+    box-shadow: var(--shadow-btn-hover);
     transform: translateY(-1px);
   }
 
@@ -156,7 +156,7 @@
     opacity: 0.6;
     cursor: default;
     transform: none;
-    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.25);
+    box-shadow: var(--shadow-btn-disabled);
   }
 
   .login-btn-icon {

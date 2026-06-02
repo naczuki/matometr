@@ -27,6 +27,17 @@
   --radius-btn: 9999px;
 
   --note-chevron: #c4b8ac;
+
+  --shadow-btn:          0 3px 10px rgba(249, 115, 22, 0.25);
+  --shadow-btn-hover:    0 5px 14px rgba(249, 115, 22, 0.32);
+  --shadow-btn-disabled: 0 2px 6px  rgba(249, 115, 22, 0.12);
+  --shadow-fab:          0 4px 14px rgba(249, 115, 22, 0.35);
+  --shadow-fab-hover:    0 6px 18px rgba(249, 115, 22, 0.45);
+  --shadow-card-hover:   0 5px 18px rgba(249, 115, 22, 0.10);
+  --shadow-card-note:    0 4px 16px rgba(249, 115, 22, 0.08);
+  --shadow-popover:      0 8px 24px rgba(0, 0, 0, 0.10);
+  --shadow-dialog-sm:    0 8px 32px rgba(0, 0, 0, 0.18);
+  --shadow-modal:        0 20px 60px rgba(0, 0, 0, 0.25);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -44,6 +55,17 @@
     --border2: #57534e;
 
     --note-chevron: #65605c;
+
+    --shadow-btn:          0 3px 10px rgba(249, 115, 22, 0.35);
+    --shadow-btn-hover:    0 5px 14px rgba(249, 115, 22, 0.45);
+    --shadow-btn-disabled: 0 2px 6px  rgba(249, 115, 22, 0.18);
+    --shadow-fab:          0 4px 16px rgba(249, 115, 22, 0.50);
+    --shadow-fab-hover:    0 6px 22px rgba(249, 115, 22, 0.60);
+    --shadow-card-hover:   0 5px 18px rgba(249, 115, 22, 0.18);
+    --shadow-card-note:    0 4px 16px rgba(249, 115, 22, 0.14);
+    --shadow-popover:      0 8px 28px rgba(0, 0, 0, 0.45);
+    --shadow-dialog-sm:    0 8px 36px rgba(0, 0, 0, 0.55);
+    --shadow-modal:        0 20px 70px rgba(0, 0, 0, 0.60);
   }
 }
 

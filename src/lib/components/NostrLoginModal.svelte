@@ -137,7 +137,7 @@
     width: 100%;
     margin: 20px auto;
     padding: 24px 22px 24px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--shadow-modal);
     position: relative;
   }
 
@@ -221,21 +221,21 @@
     font-weight: 700;
     font-family: var(--font-ui);
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.22);
+    box-shadow: var(--shadow-btn);
     transition: all 0.15s;
     line-height: 1;
   }
 
   .method-btn:hover:not(:disabled) {
     background: var(--accent-dark);
-    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+    box-shadow: var(--shadow-btn-hover);
     transform: translateY(-1px);
   }
 
   .method-btn:disabled {
     opacity: 0.55;
     cursor: default;
-    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.12);
+    box-shadow: var(--shadow-btn-disabled);
     transform: none;
   }
 

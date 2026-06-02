@@ -45,7 +45,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 3px 12px rgba(245, 130, 31, 0.45);
+    box-shadow: var(--shadow-fab);
     opacity: 0;
     pointer-events: none;
     transition:
@@ -60,6 +60,7 @@
 
   .scroll-top:hover {
     transform: scale(1.1);
+    box-shadow: var(--shadow-fab-hover);
   }
 
   .scroll-top svg {

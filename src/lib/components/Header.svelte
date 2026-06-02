@@ -155,7 +155,7 @@
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: 0 1px 8px rgba(249, 115, 22, 0.06);
+    box-shadow: var(--shadow-btn-disabled);
   }
 
   .inner {
@@ -290,7 +290,7 @@
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: 14px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-popover);
     padding: 6px;
     min-width: 180px;
     z-index: 200;

@@ -537,7 +537,7 @@
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: 10px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--shadow-popover);
     min-width: 175px;
     overflow: hidden;
   }

@@ -147,7 +147,7 @@
     padding: 24px;
     width: 100%;
     max-width: 480px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
+    box-shadow: var(--shadow-dialog-sm);
   }
 
   .modal-msg {
