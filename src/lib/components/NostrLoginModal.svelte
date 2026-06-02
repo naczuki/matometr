@@ -4,6 +4,7 @@
   import { nostrExtension } from '$lib/stores/auth';
 
   export let launching: boolean = false;
+  export let leadText: string = '☆をつける&まとめを作るには';
 
   let busy = false;
 
@@ -31,7 +32,6 @@
       busy = false;
     }
   }
-
 </script>
 
 <div
@@ -43,8 +43,14 @@
   <div class="modal" role="dialog" aria-modal="true" aria-label="ログイン方法を選択">
     <button class="modal-close" on:click={() => dispatch('close')} aria-label="閉じる">×</button>
 
+    <h2 class="modal-title">まとめたーへようこそ</h2>
+    <p class="modal-lead">
+      {@html leadText.replace(/☆/g, '<span class="modal-lead-star">★</span>')}<br />
+      <b>Nostrアカウント</b>でログインしてください
+    </p>
+
     <!-- ブラウザ拡張機能 -->
-    <div class="section">
+    <div class="group">
       <button
         class="method-btn"
         on:click={handleExtension}
@@ -57,10 +63,8 @@
       </button>
     </div>
 
-    <div class="sep"><span>or</span></div>
-
-    <!-- リモートサイナー（モバイル / NIP-46 同端末起動） -->
-    <div class="section">
+    <!-- リモートサイナー + QR/bunker サブ行 -->
+    <div class="group">
       <button
         class="method-btn"
         on:click={() => dispatch('launch', { screen: 'connect' })}
@@ -71,41 +75,35 @@
         </svg>
         リモートサイナー
       </button>
+      <div class="sub-row">
+        <button
+          class="sub-btn"
+          on:click={() => dispatch('launch', { screen: 'connection-string' })}
+          disabled={launching || busy}
+        >
+          <svg class="btn-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/><rect x="18" y="18" width="3" height="3"/>
+            <rect x="14" y="14" width="3" height="3"/>
+          </svg>
+          QRコード
+        </button>
+        <button
+          class="sub-btn"
+          on:click={() => dispatch('launch', { screen: 'login-bunker-url' })}
+          disabled={launching || busy}
+        >
+          <svg class="btn-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+          bunker://
+        </button>
+      </div>
     </div>
-
-    <div class="sep"><span>or</span></div>
-
-    <!-- QR / bunker:// -->
-    <div class="section">
-      <button
-        class="method-btn secondary"
-        on:click={() => dispatch('launch', { screen: 'connection-string' })}
-        disabled={launching || busy}
-      >
-        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-          <rect x="3" y="14" width="7" height="7"/><rect x="18" y="18" width="3" height="3"/>
-          <rect x="14" y="14" width="3" height="3"/>
-        </svg>
-        QRコードで接続
-      </button>
-      <button
-        class="method-btn secondary"
-        on:click={() => dispatch('launch', { screen: 'login-bunker-url' })}
-        disabled={launching || busy}
-      >
-        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-        </svg>
-        bunker://で接続
-      </button>
-    </div>
-
-    <div class="sep"><span>or</span></div>
 
     <!-- 秘密鍵 -->
-    <div class="section">
+    <div class="group">
       <button
         class="method-btn nsec"
         on:click={() => dispatch('launch', { screen: 'login-nsec' })}
@@ -138,7 +136,7 @@
     max-width: 440px;
     width: 100%;
     margin: 20px auto;
-    padding: 48px 22px 24px;
+    padding: 24px 22px 24px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
     position: relative;
   }
@@ -166,10 +164,39 @@
     color: var(--accent-dark);
   }
 
-  .section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  .modal-title {
+    font-family: var(--font-ui);
+    font-size: 19px;
+    font-weight: 800;
+    color: var(--ink);
+    text-align: center;
+    margin: 28px 0 14px;
+    line-height: 1.4;
+  }
+
+  .modal-lead {
+    font-size: 13px;
+    color: var(--ink2);
+    text-align: center;
+    line-height: 1.7;
+    margin: 0 0 20px;
+  }
+
+  .modal-lead b {
+    color: var(--accent-dark);
+    font-weight: 700;
+  }
+
+  :global(.modal-lead-star) {
+    color: var(--accent);
+  }
+
+  .group {
+    margin-bottom: 12px;
+  }
+
+  .group:last-child {
+    margin-bottom: 0;
   }
 
   .method-btn {
@@ -178,46 +205,32 @@
     justify-content: center;
     gap: 10px;
     width: 100%;
-    padding: 14px 16px;
-    border: none;
-    border-radius: 9999px;
+    padding: 10px 20px;
+    border: 1.5px solid transparent;
+    border-radius: var(--radius-btn);
     background: var(--accent);
     color: #fff;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     font-family: var(--font-ui);
     cursor: pointer;
-    transition: background 0.12s, opacity 0.12s, box-shadow 0.12s;
+    transition: background 0.12s, opacity 0.12s;
     line-height: 1;
-    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
   }
 
   .method-btn:hover:not(:disabled) {
     background: var(--accent-dark);
-    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45);
   }
 
   .method-btn:disabled {
     opacity: 0.55;
     cursor: default;
-    box-shadow: none;
-  }
-
-  .method-btn.secondary {
-    background: var(--accent-pale);
-    color: var(--accent-dark);
-    box-shadow: none;
-  }
-
-  .method-btn.secondary:hover:not(:disabled) {
-    background: var(--accent-mid);
   }
 
   .method-btn.nsec {
     background: transparent;
     color: var(--ink2);
     border: 1.5px solid var(--border2);
-    box-shadow: none;
   }
 
   .method-btn.nsec:hover:not(:disabled) {
@@ -226,26 +239,49 @@
     border-color: var(--ink3);
   }
 
+  .sub-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .sub-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex: 1;
+    padding: 8px 12px;
+    border: 1.5px solid var(--accent-mid);
+    border-radius: 9999px;
+    background: var(--surface);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    transition: background 0.12s;
+    white-space: nowrap;
+  }
+
+  .sub-btn:hover:not(:disabled) {
+    background: var(--accent-pale);
+  }
+
+  .sub-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
   .btn-icon {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
   }
 
-  .sep {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 14px 0;
-    color: var(--ink3);
-    font-size: 12px;
-  }
-
-  .sep::before,
-  .sep::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
+  .btn-icon-sm {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
   }
 </style>

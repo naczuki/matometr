@@ -575,6 +575,7 @@
 {#if showFavNostrModal}
   <NostrLoginModal
     launching={favLoginLaunching}
+    leadText="☆をつけるには"
     on:close={() => (showFavNostrModal = false)}
     on:launch={(e) => launchFavLogin(e.detail.screen)}
   />
