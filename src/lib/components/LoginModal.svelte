@@ -1,14 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { StartScreens } from '@konemono/nostr-login/dist/types';
-  import { nip19, getPublicKey } from 'nostr-tools';
 
   export let launching: boolean = false;
 
   let bunkerUrl = '';
-  let nsecKey = '';
   let extensionError = '';
-  let nsecError = '';
   let busy = false;
 
   const dispatch = createEventDispatcher<{
@@ -44,33 +41,6 @@
     }
   }
 
-  async function handleNsec(): Promise<void> {
-    nsecError = '';
-    const val = nsecKey.trim();
-    if (!val) return;
-    if (!val.startsWith('nsec1')) {
-      nsecError = 'nsec1... 形式で入力してください';
-      return;
-    }
-    busy = true;
-    try {
-      const decoded = nip19.decode(val);
-      if (decoded.type !== 'nsec') {
-        nsecError = '無効な秘密鍵です';
-        return;
-      }
-      const privkeyBytes = decoded.data as Uint8Array;
-      const privkeyHex = Array.from(privkeyBytes, (b) => b.toString(16).padStart(2, '0')).join('');
-      const pubkeyHex = getPublicKey(privkeyBytes);
-      const { setAuth } = await import('@konemono/nostr-login');
-      await setAuth({ type: 'login', method: 'local', pubkey: pubkeyHex, localNsec: privkeyHex });
-      dispatch('close');
-    } catch (e: unknown) {
-      nsecError = e instanceof Error ? e.message : '無効な秘密鍵です';
-    } finally {
-      busy = false;
-    }
-  }
 </script>
 
 <div
@@ -152,33 +122,16 @@
 
     <!-- 秘密鍵 -->
     <div class="section">
-      <div class="section-label">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <button
+        class="method-btn secondary"
+        on:click={() => dispatch('launch', { screen: 'login-nsec' })}
+        disabled={launching || busy}
+      >
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <circle cx="7.5" cy="15.5" r="5.5"/>
           <path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3"/><path d="M18 5l2 2"/>
         </svg>
         秘密鍵
-      </div>
-      <input
-        class="text-input"
-        type="text"
-        placeholder="nsec1..."
-        bind:value={nsecKey}
-        aria-label="秘密鍵"
-        disabled={launching || busy}
-        autocomplete="off"
-        spellcheck="false"
-        on:keydown={(e) => e.key === 'Enter' && handleNsec()}
-      />
-      {#if nsecError}
-        <p class="field-error">{nsecError}</p>
-      {/if}
-      <button
-        class="method-btn"
-        on:click={handleNsec}
-        disabled={launching || busy || !nsecKey.trim()}
-      >
-        {#if busy}読み込み中…{:else}保存{/if}
       </button>
     </div>
 
@@ -278,21 +231,6 @@
     background: var(--border, #e5e7eb);
   }
 
-  .section-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--ink2, #4b5563);
-    font-family: var(--font-ui);
-  }
-
-  .section-label svg {
-    width: 16px;
-    height: 16px;
-  }
-
   .bunker-row {
     display: flex;
     gap: 6px;
@@ -342,13 +280,6 @@
   .bunker-btn:disabled {
     opacity: 0.45;
     cursor: default;
-  }
-
-  .field-error {
-    font-size: 12px;
-    color: #dc2626;
-    margin: 0;
-    padding: 0 2px;
   }
 
   .close-btn {
