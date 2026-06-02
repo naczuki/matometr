@@ -1,11 +1,15 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { StartScreens } from '@konemono/nostr-login/dist/types';
+  import { nip19, getPublicKey } from 'nostr-tools';
 
   export let launching: boolean = false;
 
   let bunkerUrl = '';
   let nsecKey = '';
+  let extensionError = '';
+  let nsecError = '';
+  let busy = false;
 
   const dispatch = createEventDispatcher<{
     close: undefined;
@@ -16,16 +20,56 @@
     if (e.target === e.currentTarget) dispatch('close');
   }
 
-  function launch(screen: StartScreens): void {
-    dispatch('launch', { screen });
+  async function handleExtension(): Promise<void> {
+    extensionError = '';
+    busy = true;
+    try {
+      const nostr = (window as any).nostr;
+      if (!nostr) {
+        extensionError = '拡張機能が見つかりません';
+        return;
+      }
+      const pubkey: string = await nostr.getPublicKey();
+      if (!pubkey) {
+        extensionError = '公開鍵を取得できませんでした';
+        return;
+      }
+      const { setAuth } = await import('@konemono/nostr-login');
+      await setAuth({ type: 'login', method: 'extension', pubkey });
+      dispatch('close');
+    } catch (e: unknown) {
+      extensionError = e instanceof Error ? e.message : '拡張機能の接続に失敗しました';
+    } finally {
+      busy = false;
+    }
   }
 
-  function handleBunkerConnect(): void {
-    dispatch('launch', { screen: 'login-bunker-url' });
-  }
-
-  function handleNsecSave(): void {
-    dispatch('launch', { screen: 'login-nsec' });
+  async function handleNsec(): Promise<void> {
+    nsecError = '';
+    const val = nsecKey.trim();
+    if (!val) return;
+    if (!val.startsWith('nsec1')) {
+      nsecError = 'nsec1... 形式で入力してください';
+      return;
+    }
+    busy = true;
+    try {
+      const decoded = nip19.decode(val);
+      if (decoded.type !== 'nsec') {
+        nsecError = '無効な秘密鍵です';
+        return;
+      }
+      const privkeyBytes = decoded.data as Uint8Array;
+      const privkeyHex = Array.from(privkeyBytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      const pubkeyHex = getPublicKey(privkeyBytes);
+      const { setAuth } = await import('@konemono/nostr-login');
+      await setAuth({ type: 'login', method: 'local', pubkey: pubkeyHex, localNsec: privkeyHex });
+      dispatch('close');
+    } catch (e: unknown) {
+      nsecError = e instanceof Error ? e.message : '無効な秘密鍵です';
+    } finally {
+      busy = false;
+    }
   }
 </script>
 
@@ -37,50 +81,69 @@
 >
   <div class="sheet" role="dialog" aria-modal="true" aria-label="ログイン">
 
-    <!-- 拡張機能 -->
-    <button class="method-btn" on:click={() => launch('login')} disabled={launching}>
-      <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5A2.5 2.5 0 0 0 10.5 1a2.5 2.5 0 0 0-2.5 2.5V5H4a2 2 0 0 0-2 2v3.8h1.5A2.7 2.7 0 0 1 6.2 13.5 2.7 2.7 0 0 1 3.5 16.2H2V20a2 2 0 0 0 2 2h3.8v-1.5A2.7 2.7 0 0 1 10.5 18a2.7 2.7 0 0 1 2.7 2.5V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 2.5-2.5 2.5 2.5 0 0 0-2.5-2.5z"/>
-      </svg>
-      ブラウザ拡張機能
-    </button>
+    <!-- ブラウザ拡張機能 -->
+    <div class="section">
+      <button
+        class="method-btn"
+        on:click={handleExtension}
+        disabled={launching || busy}
+      >
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5A2.5 2.5 0 0 0 10.5 1a2.5 2.5 0 0 0-2.5 2.5V5H4a2 2 0 0 0-2 2v3.8h1.5A2.7 2.7 0 0 1 6.2 13.5 2.7 2.7 0 0 1 3.5 16.2H2V20a2 2 0 0 0 2 2h3.8v-1.5A2.7 2.7 0 0 1 10.5 18a2.7 2.7 0 0 1 2.7 2.5V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 2.5-2.5 2.5 2.5 0 0 0-2.5-2.5z"/>
+        </svg>
+        ブラウザ拡張機能
+      </button>
+      {#if extensionError}
+        <p class="field-error">{extensionError}</p>
+      {/if}
+    </div>
 
     <div class="sep"><span>or</span></div>
 
-    <!-- リモートサイナー（モバイル向け NIP-46） -->
-    <button class="method-btn" on:click={() => launch('connect')} disabled={launching}>
-      <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
-      </svg>
-      リモートサイナー
-    </button>
+    <!-- リモートサイナー（モバイル / NIP-46 同端末起動） -->
+    <div class="section">
+      <button
+        class="method-btn"
+        on:click={() => dispatch('launch', { screen: 'connect' })}
+        disabled={launching || busy}
+      >
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+        </svg>
+        リモートサイナー
+      </button>
+    </div>
 
     <div class="sep"><span>or</span></div>
 
     <!-- QR / bunker:// -->
-    <div class="subsection">
-      <button class="method-btn secondary" on:click={() => launch('connection-string')} disabled={launching}>
+    <div class="section">
+      <button
+        class="method-btn secondary"
+        on:click={() => dispatch('launch', { screen: 'connection-string' })}
+        disabled={launching || busy}
+      >
         <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-          <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/>
-          <rect x="19" y="14" width="2" height="2"/><rect x="14" y="19" width="7" height="2"/>
+          <rect x="3" y="14" width="7" height="7"/><rect x="18" y="18" width="3" height="3"/>
+          <rect x="14" y="14" width="3" height="3"/>
         </svg>
         QRコードで接続
       </button>
 
       <div class="bunker-row">
         <input
-          class="bunker-input"
+          class="text-input"
           type="text"
           placeholder="bunker://"
           bind:value={bunkerUrl}
           aria-label="bunker URL"
-          disabled={launching}
+          disabled={launching || busy}
         />
         <button
           class="bunker-btn"
-          on:click={handleBunkerConnect}
-          disabled={launching || !bunkerUrl.trim()}
+          on:click={() => dispatch('launch', { screen: 'login-bunker-url' })}
+          disabled={launching || busy || !bunkerUrl.trim()}
         >接続</button>
       </div>
     </div>
@@ -88,28 +151,35 @@
     <div class="sep"><span>or</span></div>
 
     <!-- 秘密鍵 -->
-    <div class="subsection">
-      <div class="subsection-label">
+    <div class="section">
+      <div class="section-label">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3"/><path d="M18 5l2 2"/>
+          <circle cx="7.5" cy="15.5" r="5.5"/>
+          <path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3"/><path d="M18 5l2 2"/>
         </svg>
         秘密鍵
       </div>
       <input
-        class="nsec-input"
+        class="text-input"
         type="text"
         placeholder="nsec1..."
         bind:value={nsecKey}
         aria-label="秘密鍵"
-        disabled={launching}
+        disabled={launching || busy}
         autocomplete="off"
         spellcheck="false"
+        on:keydown={(e) => e.key === 'Enter' && handleNsec()}
       />
+      {#if nsecError}
+        <p class="field-error">{nsecError}</p>
+      {/if}
       <button
         class="method-btn"
-        on:click={handleNsecSave}
-        disabled={launching || !nsecKey.trim()}
-      >保存</button>
+        on:click={handleNsec}
+        disabled={launching || busy || !nsecKey.trim()}
+      >
+        {#if busy}読み込み中…{:else}保存{/if}
+      </button>
     </div>
 
     <button class="close-btn" on:click={() => dispatch('close')} aria-label="閉じる">×</button>
@@ -125,7 +195,6 @@
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    padding: 0;
   }
 
   .sheet {
@@ -140,6 +209,13 @@
     gap: 0;
     max-height: 92dvh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .method-btn {
@@ -202,13 +278,7 @@
     background: var(--border, #e5e7eb);
   }
 
-  .subsection {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .subsection-label {
+  .section-label {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -218,7 +288,7 @@
     font-family: var(--font-ui);
   }
 
-  .subsection-label svg {
+  .section-label svg {
     width: 16px;
     height: 16px;
   }
@@ -228,8 +298,7 @@
     gap: 6px;
   }
 
-  .bunker-input,
-  .nsec-input {
+  .text-input {
     width: 100%;
     padding: 11px 12px;
     border: 1.5px solid var(--border, #e5e7eb);
@@ -240,15 +309,15 @@
     color: var(--ink, #111827);
     outline: none;
     transition: border-color 0.12s;
+    box-sizing: border-box;
   }
 
-  .bunker-input {
-    min-width: 0;
-  }
-
-  .bunker-input:focus,
-  .nsec-input:focus {
+  .text-input:focus {
     border-color: #10b981;
+  }
+
+  .bunker-row .text-input {
+    min-width: 0;
   }
 
   .bunker-btn {
@@ -273,6 +342,13 @@
   .bunker-btn:disabled {
     opacity: 0.45;
     cursor: default;
+  }
+
+  .field-error {
+    font-size: 12px;
+    color: #dc2626;
+    margin: 0;
+    padding: 0 2px;
   }
 
   .close-btn {
