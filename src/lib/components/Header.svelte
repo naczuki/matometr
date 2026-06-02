@@ -1,6 +1,7 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import { currentUser, logout } from '$lib/stores/auth';
+  import { onMount } from 'svelte';
+  import { currentUser, logout, reopenLoginModal } from '$lib/stores/auth';
   import type { StartScreens } from '@konemono/nostr-login/dist/types';
   import LoginModal from '$lib/components/LoginModal.svelte';
   import NostrLoginModal from '$lib/components/NostrLoginModal.svelte';
@@ -9,6 +10,13 @@
   let showNostrModal = false;
   let dropdownOpen = false;
   let launching = false;
+
+  // nostr-login モーダル内の「戻る」ボタンが押されたら方法選択モーダルを再表示
+  onMount(() =>
+    reopenLoginModal.subscribe((n) => {
+      if (n > 0) showNostrModal = true;
+    })
+  );
 
   function handleLoginClick(): void {
     showLoginModal = true;

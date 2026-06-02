@@ -21,12 +21,13 @@ const NOSTR_LOGIN_CSS = `
     padding-top: 24px !important;
   }
 
-  /* ダイアログ外枠の角丸・スクロール */
+  /* ダイアログ外枠の角丸・スクロール・幅（自作モーダルと統一） */
   .nl-bg {
     border-radius: var(--radius-card) !important;
     max-height: 90dvh !important;
     overflow-y: auto !important;
     margin: 20px auto !important;
+    max-width: 440px !important;
   }
 
   .nl-title {
@@ -122,6 +123,29 @@ const NOSTR_LOGIN_CSS = `
     border-color: var(--accent) !important;
     --tw-ring-color: var(--accent) !important;
   }
+
+  /* ログイン方法選択モーダルへ戻るボタン（注入） */
+  .nl-back-to-app {
+    display: block !important;
+    width: calc(100% - 2rem) !important;
+    margin: 0.25rem auto 1rem !important;
+    padding: 0.6rem 1rem !important;
+    border: 1.5px solid var(--border2) !important;
+    border-radius: var(--radius-btn) !important;
+    background: transparent !important;
+    color: var(--ink2) !important;
+    font-family: var(--font-ui), sans-serif !important;
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+    cursor: pointer !important;
+    transition: all 0.15s !important;
+  }
+  .nl-back-to-app:hover {
+    border-color: var(--ink3) !important;
+    background: var(--bg) !important;
+    color: var(--ink) !important;
+  }
 `;
 
 const _origAttachShadow = Element.prototype.attachShadow;
@@ -202,6 +226,17 @@ const NOSTR_LOGIN_PLACEHOLDERS: Record<string, string> = {
   'Name': '名前',
 };
 
+// nostr-login モーダルから「ログイン方法選択モーダル」へ戻すための通知ストア
+// （注入した戻るボタンが increment し、Header が購読して自作モーダルを再表示する）
+const _reopenLogin = writable(0);
+export const reopenLoginModal = { subscribe: _reopenLogin.subscribe };
+
+function backToLoginSelect(): void {
+  // nostr-login モーダルを閉じる（X ボタンと同じ閉じ処理）
+  document.querySelector('nl-auth')?.dispatchEvent(new Event('nlCloseModal'));
+  _reopenLogin.update((n) => n + 1);
+}
+
 function translateNostrLogin(sr: ShadowRoot): void {
   const walker = document.createTreeWalker(sr, NodeFilter.SHOW_TEXT);
   let node: Node | null;
@@ -271,6 +306,17 @@ function translateNostrLogin(sr: ShadowRoot): void {
       a.after(sep, fox);
     }
   });
+
+  // ログイン方法選択モーダルへ戻るボタンを注入（画面遷移で消えても再注入される）
+  const bg = sr.querySelector('.nl-bg');
+  if (bg && !bg.querySelector('.nl-back-to-app')) {
+    const back = document.createElement('button');
+    back.className = 'nl-back-to-app';
+    back.type = 'button';
+    back.textContent = '← ログイン方法を選ぶ';
+    back.addEventListener('click', backToLoginSelect);
+    bg.appendChild(back);
+  }
 }
 
 function observeNostrLogin(root: ShadowRoot): void {
