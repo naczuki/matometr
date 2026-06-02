@@ -14,8 +14,15 @@
     showLoginModal = true;
   }
 
+  // ログイン成功時に全モーダルを自動クローズ
+  $: if ($currentUser) {
+    showLoginModal = false;
+    showNostrModal = false;
+  }
+
   function hideLoginModal(): void {
     showLoginModal = false;
+    showNostrModal = false;
   }
 
   function hideNostrModal(): void {
