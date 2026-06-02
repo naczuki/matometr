@@ -193,7 +193,7 @@
 
   .group {
     margin-bottom: 24px;
-    max-width: 260px;
+    max-width: 280px;
     margin-left: auto;
     margin-right: auto;
   }
@@ -212,7 +212,7 @@
     justify-content: center;
     gap: 10px;
     width: 100%;
-    padding: 10px 20px;
+    padding: 12px 20px;
     border: 1.5px solid transparent;
     border-radius: var(--radius-btn);
     background: var(--accent);
@@ -221,29 +221,37 @@
     font-weight: 700;
     font-family: var(--font-ui);
     cursor: pointer;
-    transition: background 0.12s, opacity 0.12s;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
+    transition: all 0.15s;
     line-height: 1;
   }
 
   .method-btn:hover:not(:disabled) {
     background: var(--accent-dark);
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45);
+    transform: translateY(-1px);
   }
 
   .method-btn:disabled {
     opacity: 0.55;
     cursor: default;
+    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.2);
+    transform: none;
   }
 
   .method-btn.nsec {
     background: transparent;
     color: var(--ink2);
     border: 1.5px solid var(--border2);
+    box-shadow: none;
   }
 
   .method-btn.nsec:hover:not(:disabled) {
     background: var(--bg);
     color: var(--ink);
     border-color: var(--ink3);
+    box-shadow: none;
+    transform: none;
   }
 
   .sub-row {
@@ -258,7 +266,7 @@
     justify-content: center;
     gap: 6px;
     flex: 1;
-    padding: 8px 12px;
+    padding: 9px 12px;
     border: 1.5px solid var(--accent-mid);
     border-radius: 9999px;
     background: var(--surface);
@@ -267,17 +275,22 @@
     font-weight: 700;
     font-family: var(--font-ui);
     cursor: pointer;
-    transition: background 0.12s;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.12);
+    transition: all 0.15s;
     white-space: nowrap;
   }
 
   .sub-btn:hover:not(:disabled) {
     background: var(--accent-pale);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.18);
+    transform: translateY(-1px);
   }
 
   .sub-btn:disabled {
     opacity: 0.55;
     cursor: default;
+    box-shadow: none;
+    transform: none;
   }
 
   .btn-icon {
