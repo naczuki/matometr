@@ -2,7 +2,7 @@
  * OGP 動的注入。SSR は使わない（ssr=false の SPA）ため、ここではコンポーネントの
  * サーバーレンダリングはせず、SPA シェル HTML の <head> メタタグだけを差し替える。
  *
- * /matome/<naddr>・/user/<npub>（未prerenderの動的ルート）は Worker 上で handle が走る。
+ * /<naddr>・/<npub>（未prerenderの動的ルート）は Worker 上で handle が走る。
  * リレーからまとめ／プロフィールを取得できたら og:* / twitter:* / <title> を注入する。
  * 取得不可・対象外はそのまま（汎用 OGP）。クローラーは注入後の <head> を読む。
  */

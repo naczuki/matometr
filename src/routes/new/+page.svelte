@@ -152,7 +152,7 @@
   async function onAnnounceDone(): Promise<void> {
     showAnnounceModal = false;
     allowNavigate = true;
-    await goto(`${base}/matome/${pendingNaddr}`);
+    await goto(`${base}/${pendingNaddr}`);
   }
 </script>
 

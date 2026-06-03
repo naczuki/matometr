@@ -132,7 +132,7 @@
               <div class="dropdown-divider" />
               <a
                 class="dropdown-item"
-                href="{base}/user/{$currentUser.npub}"
+                href="{base}/{$currentUser.npub}"
                 on:click={closeDropdown}
               >
                 <svg

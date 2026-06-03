@@ -40,7 +40,7 @@
   }
 </script>
 
-<a href="{base}/matome/{matome.naddr}" class="card">
+<a href="{base}/{matome.naddr}" class="card">
   <div class="author">
     <Avatar pubkey={matome.pubkey} {picture} name={displayName} size={28} />
     <span class="author-name">{displayName}</span>

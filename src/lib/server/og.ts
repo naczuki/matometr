@@ -1,7 +1,7 @@
 /**
  * OGP 動的注入のロジック（hooks.server.ts から使用）。
  *
- * /matome/<naddr>・/user/<npub> のとき、リレーからまとめ／プロフィールを取得して
+ * /<naddr>・/<npub> のとき、リレーからまとめ／プロフィールを取得して
  * OgData を組み立て、SPA シェル（app.html 由来の <head>）の og:* / twitter:* / <title> を
  * 文字列置換で書き換える。HTMLRewriter は使わず（Cloudflare 固有型を避けるため）、
  * 置換対象は app.html の固定タグなので確実に当たる。
@@ -38,10 +38,10 @@ function esc(s: string): string {
 
 /** URL から OGP 対象を判定し、リレー取得して OgData を返す（対象外・取得失敗は null）。 */
 export async function ogForUrl(url: URL): Promise<OgData | null> {
-  const matome = url.pathname.match(/^\/matome\/(naddr1[0-9a-z]+)\/?$/);
+  const matome = url.pathname.match(/^\/(naddr1[0-9a-z]+)\/?$/);
   if (matome) return buildMatomeOg(matome[1], url);
 
-  const user = url.pathname.match(/^\/user\/(npub1[0-9a-z]+)\/?$/);
+  const user = url.pathname.match(/^\/(npub1[0-9a-z]+)\/?$/);
   if (user) return buildUserOg(user[1], url);
 
   return null;

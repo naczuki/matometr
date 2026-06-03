@@ -98,9 +98,7 @@
 
   $: initForNaddr(naddr);
 
-  // シェア用URLはパス形式 /matome/<naddr> で組み立てる。
-  // Cloudflare Workers が /matome/<naddr> を200＋動的OGPで返すため、クローラでもカードが出る。
-  $: shareUrl = matome && browser ? `${$page.url.origin}${base}/matome/${matome.naddr}` : '';
+  $: shareUrl = matome && browser ? `${$page.url.origin}${base}/${matome.naddr}` : '';
 
   $: isMine = !!$currentUser && matome?.pubkey === $currentUser.pubkey;
 
@@ -520,7 +518,7 @@
 
       <div class="detail-meta">
         <a
-          href={authorNpub ? `${base}/user/${authorNpub}` : undefined}
+          href={authorNpub ? `${base}/${authorNpub}` : undefined}
           class="detail-author-link"
           aria-label="{authorName} のユーザーページ"
         >
@@ -691,7 +689,7 @@
           <NaddrCard ref={'nostr:' + block.naddr} />
         {:else if block.type === 'mention'}
           {@const mp = $profiles.get(block.pubkey)}
-          <a class="block-mention" href="{base}/user/{block.npub}">
+          <a class="block-mention" href="{base}/{block.npub}">
             @{mp?.displayName ?? mp?.name ?? shortNpubStr(block.npub)}
           </a>
         {:else if block.type === 'comment'}
