@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { nip19 } from 'nostr-tools';
 import type { Subscription } from 'rxjs';
 import type { UserProfile } from '$lib/types';
@@ -15,11 +15,26 @@ const NOSTR_LOGIN_CSS = `
     font-size: 1rem !important;
   }
 
-  /* ダイアログ外枠の角丸・スクロール */
+  /* 他のモーダルと同じ位置・余白で表示 */
+  [role=dialog] {
+    align-items: flex-start !important;
+    padding: 24px 16px !important;
+  }
+
+  /* ダイアログ外枠の角丸・スクロール・幅（自作モーダルと統一） */
   .nl-bg {
     border-radius: var(--radius-card) !important;
     max-height: 90dvh !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
+    margin: 20px auto !important;
+    max-width: 440px !important;
+  }
+
+  /* QRコード等の固定幅要素がモバイルでコンテナをはみ出さないように */
+  canvas, img {
+    max-width: 100% !important;
+    height: auto !important;
   }
 
   .nl-title {
@@ -61,11 +76,35 @@ const NOSTR_LOGIN_CSS = `
     margin-bottom: 0.5rem !important;
     white-space: normal !important;
     height: auto !important;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.22) !important;
+    transition: all 0.15s !important;
+    transform: translateY(0) !important;
   }
   .nl-button:hover {
     border-color: var(--accent-dark) !important;
     background-color: var(--accent-dark) !important;
     color: #fff !important;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3) !important;
+    transform: translateY(-1px) !important;
+  }
+
+  .nl-button--nsec {
+    border: 1.5px solid var(--border2) !important;
+    background-color: #fff !important;
+    color: var(--ink2) !important;
+    box-shadow: none !important;
+    transform: translateY(0) !important;
+  }
+  .nl-button--nsec:hover {
+    border-color: var(--ink2) !important;
+    background-color: var(--bg) !important;
+    color: var(--ink) !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  .nl-footer {
+    display: none !important;
   }
 
   .nl-action-button,
@@ -94,6 +133,31 @@ const NOSTR_LOGIN_CSS = `
     border-color: var(--accent) !important;
     --tw-ring-color: var(--accent) !important;
   }
+
+  /* 戻るボタン：オレンジ丸囲み・影付き */
+  .nl-back-to-app {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+    border-radius: 9999px !important;
+    border: 1.5px solid var(--accent-mid) !important;
+    background: var(--accent-pale) !important;
+    color: var(--accent) !important;
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    box-shadow: 0 1px 4px rgba(249, 115, 22, 0.08) !important;
+    transition: all 0.15s !important;
+  }
+  .nl-back-to-app:hover {
+    background: var(--accent-mid) !important;
+    color: var(--accent-dark) !important;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.14) !important;
+    transform: translateY(-1px) !important;
+  }
 `;
 
 const _origAttachShadow = Element.prototype.attachShadow;
@@ -113,7 +177,6 @@ function setupNostrLoginStyles(): void {
         style.textContent = NOSTR_LOGIN_CSS;
         root.appendChild(style);
 
-        
         // 各 NL-* のルートを個別に監視（子コンポーネントの画面も翻訳する）
         observeNostrLogin(root);
       }
@@ -179,6 +242,17 @@ const NOSTR_LOGIN_PLACEHOLDERS: Record<string, string> = {
   'Name': '名前',
 };
 
+// nostr-login モーダルから「ログイン方法選択モーダル」へ戻すための通知ストア
+// （注入した戻るボタンが increment し、Header が購読して自作モーダルを再表示する）
+const _reopenLogin = writable(0);
+export const reopenLoginModal = { subscribe: _reopenLogin.subscribe };
+
+function backToLoginSelect(): void {
+  // nostr-login モーダルを閉じる（X ボタンと同じ閉じ処理）
+  document.querySelector('nl-auth')?.dispatchEvent(new Event('nlCloseModal'));
+  _reopenLogin.update((n) => n + 1);
+}
+
 function translateNostrLogin(sr: ShadowRoot): void {
   const walker = document.createTreeWalker(sr, NodeFilter.SHOW_TEXT);
   let node: Node | null;
@@ -200,6 +274,15 @@ function translateNostrLogin(sr: ShadowRoot): void {
         summary.textContent = text.replace(en, ja);
         break;
       }
+    }
+  });
+
+  sr.querySelectorAll<HTMLElement>('.nl-button').forEach((btn) => {
+    const text = btn.textContent ?? '';
+    if (text.includes('nsec') || text.includes('秘密鍵')) {
+      btn.classList.add('nl-button--nsec');
+    } else {
+      btn.classList.remove('nl-button--nsec');
     }
   });
 
@@ -245,6 +328,19 @@ function translateNostrLogin(sr: ShadowRoot): void {
       a.after(sep, fox);
     }
   });
+
+  // ログイン方法選択モーダルへ戻るボタンを注入（画面遷移で消えても再注入される）
+  // ヘッダー左側（ロゴの左）に戻るボタンを注入
+  const leftHeader = sr.querySelector('[class*="justify-between"] > [class*="gap-2"]');
+  if (leftHeader && !leftHeader.querySelector('.nl-back-to-app')) {
+    const back = document.createElement('button');
+    back.className = 'nl-back-to-app';
+    back.type = 'button';
+    back.textContent = '←';
+    back.title = 'ログイン方法を選ぶ';
+    back.addEventListener('click', backToLoginSelect);
+    leftHeader.prepend(back);
+  }
 }
 
 // nl-auth のルートを監視して画面遷移のたびに翻訳する。
@@ -306,6 +402,11 @@ function handleLogin(npub: string): void {
 
 let _nlLogout: (() => Promise<void>) | null = null;
 
+// 本物のブラウザ拡張機能への参照（Svelte ストアで公開してモーダルのボタンを reactive に制御）
+const _extStore = writable<{ getPublicKey: () => Promise<string> } | null>(null);
+export const nostrExtension = { subscribe: _extStore.subscribe };
+export const getNostrExtension = () => get(_extStore);
+
 export function logout(): void {
   _profileSub?.unsubscribe();
   _profileSub = null;
@@ -317,13 +418,20 @@ export function logout(): void {
 // ページ読み込み時に一度だけ呼ぶ（+layout.svelte の onMount から）
 export async function initAuth(): Promise<void> {
   setupNostrLoginStyles();
+
+  // init() 実行前に存在するなら捕捉
+  if ((window as any).nostr) _extStore.set((window as any).nostr);
+
   const { init, logout: nlLogout } = await import('@konemono/nostr-login');
   _nlLogout = nlLogout;
+
+  // モジュール読み込み中に拡張が注入された場合も捕捉
+  if ((window as any).nostr && !get(_extStore)) _extStore.set((window as any).nostr);
 
   await init({
     noBanner: true,
     perms: 'sign_event:30023,sign_event:5,sign_event:1,sign_event:7',
-    bunkers: 'nsec.app',
+    methods: ['connect', 'extension', 'nsec'],
     theme: 'default',
     title: 'まとめたーにログイン',
     description: '無料・メールアドレス不要でアカウントを作れます',
@@ -337,4 +445,34 @@ export async function initAuth(): Promise<void> {
       }
     },
   });
+
+  // init() 後 window.nostr はプロキシ。プロキシを誤って保存していたら消す
+  const nlProxy = (window as any).nostr;
+  if (get(_extStore) === nlProxy) _extStore.set(null);
+
+  // init() 後に遅延注入される拡張機能を監視する
+  // nostr-login の startCheckingExtension が拡張を検出して win.nostr を切り替える瞬間を捉える
+  try {
+    let _winNostr: any = nlProxy;
+    Object.defineProperty(window, 'nostr', {
+      configurable: true,
+      enumerable: true,
+      get: () => _winNostr,
+      set: (v: any) => {
+        _winNostr = v;
+        if (v && v !== nlProxy) {
+          // プロキシ以外がセットされた = 本物の拡張機能
+          _extStore.set(v);
+        }
+      },
+    });
+  } catch {
+    // defineProperty が使えない環境ではポーリングにフォールバック
+    let polls = 0;
+    const id = setInterval(() => {
+      const cur = (window as any).nostr;
+      if (cur && cur !== nlProxy) _extStore.set(cur);
+      if (++polls >= 50) clearInterval(id); // 10秒で打ち切り
+    }, 200);
+  }
 }

@@ -20,6 +20,9 @@
   import NaddrCard from '$lib/components/NaddrCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import LoginModal from '$lib/components/LoginModal.svelte';
+  import NostrLoginModal from '$lib/components/NostrLoginModal.svelte';
+  import type { StartScreens } from '@konemono/nostr-login/dist/types';
   import { parseMarkdownContent, renderInlineMarkdown } from '$lib/utils/markdown';
   import type { ContentSegment } from '$lib/utils/markdown';
 
@@ -152,6 +155,11 @@
   let favCount = 0;
   let favSending = false;
   let favSub: Subscription | null = null;
+  let showFavLoginModal = false;
+  let showFavNostrModal = false;
+  let favLoginLaunching = false;
+
+  $: if ($currentUser) { showFavLoginModal = false; showFavNostrModal = false; }
 
   let _favFetchedPk: string | null = null;
 
@@ -169,9 +177,21 @@
 
   $: if (matome) fetchFavState(matome, $currentUser?.pubkey ?? null);
 
+  async function launchFavLogin(screen: StartScreens): Promise<void> {
+    favLoginLaunching = true;
+    try {
+      const { launch } = await import('@konemono/nostr-login');
+      showFavLoginModal = false;
+      showFavNostrModal = false;
+      await launch(screen);
+    } finally {
+      favLoginLaunching = false;
+    }
+  }
+
   async function sendFav(): Promise<void> {
     if (!matome || faved || favSending) return;
-    if (!$currentUser) return;
+    if (!$currentUser) { showFavLoginModal = true; return; }
     favSending = true;
     try {
       await publishReaction({
@@ -435,7 +455,7 @@
           title={faved ? 'ふぁぼ済み' : 'ふぁぼ'}
           aria-label={faved ? 'ふぁぼ済み' : 'ふぁぼ'}
           aria-pressed={faved}
-          disabled={faved || favSending || !$currentUser}
+          disabled={faved || favSending}
           on:click={sendFav}
         >
           <svg class="fav-star" width="14" height="14" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
@@ -541,6 +561,24 @@
     {/if}
   {/if}
 </div>
+
+{#if showFavLoginModal}
+  <LoginModal
+    launching={favLoginLaunching}
+    leadText="☆をつけるには"
+    on:close={() => (showFavLoginModal = false)}
+    on:open-nostr={() => (showFavNostrModal = true)}
+  />
+{/if}
+
+{#if showFavNostrModal}
+  <NostrLoginModal
+    launching={favLoginLaunching}
+    leadText="☆をつけるには"
+    on:close={() => (showFavNostrModal = false)}
+    on:launch={(e) => launchFavLogin(e.detail.screen)}
+  />
+{/if}
 
 <!-- nosli インポート確認ダイアログ -->
 <ConfirmDialog
@@ -726,7 +764,7 @@
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--shadow-popover);
     min-width: 160px;
     z-index: 100;
     overflow: hidden;
@@ -986,7 +1024,7 @@
     padding: 28px 24px 20px;
     max-width: 360px;
     width: 100%;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    box-shadow: var(--shadow-dialog-sm);
   }
 
   .dialog-title {
@@ -1080,7 +1118,7 @@
   :global(nostr-share::part(button):hover) {
     background: var(--accent-dark);
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(249, 115, 22, 0.35);
+    box-shadow: var(--shadow-btn);
   }
 
   .nos-label {
@@ -1107,7 +1145,7 @@
   .share-btn:hover {
     background: var(--accent-dark);
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(249, 115, 22, 0.35);
+    box-shadow: var(--shadow-btn);
   }
 
   /* ⋮ ドロップダウン */
@@ -1122,7 +1160,7 @@
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-popover);
     padding: 4px;
     min-width: 172px;
     z-index: 50;
@@ -1404,7 +1442,7 @@
     max-height: 80vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--shadow-modal);
   }
 
   .json-header {

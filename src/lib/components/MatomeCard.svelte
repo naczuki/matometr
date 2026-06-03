@@ -89,7 +89,7 @@
   }
 
   .card:hover {
-    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.1);
+    box-shadow: var(--shadow-card-hover);
     border-color: var(--accent-mid);
   }
 

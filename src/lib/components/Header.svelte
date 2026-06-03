@@ -1,26 +1,52 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import { currentUser, logout } from '$lib/stores/auth';
+  import { onMount } from 'svelte';
+  import { currentUser, logout, reopenLoginModal } from '$lib/stores/auth';
   import type { StartScreens } from '@konemono/nostr-login/dist/types';
   import LoginModal from '$lib/components/LoginModal.svelte';
+  import NostrLoginModal from '$lib/components/NostrLoginModal.svelte';
 
   let showLoginModal = false;
+  let showNostrModal = false;
   let dropdownOpen = false;
   let launching = false;
+
+  // nostr-login モーダル内の「戻る」ボタンが押されたら方法選択モーダルを再表示
+  onMount(() =>
+    reopenLoginModal.subscribe((n) => {
+      if (n > 0) showNostrModal = true;
+    })
+  );
 
   function handleLoginClick(): void {
     showLoginModal = true;
   }
 
+  // ログイン成功時に全モーダルを自動クローズ
+  $: if ($currentUser) {
+    showLoginModal = false;
+    showNostrModal = false;
+  }
+
   function hideLoginModal(): void {
     showLoginModal = false;
+    showNostrModal = false;
+  }
+
+  function hideNostrModal(): void {
+    showNostrModal = false;
+  }
+
+  function openNostrModal(): void {
+    showLoginModal = false;
+    showNostrModal = true;
   }
 
   async function launchNostrLogin(screen: StartScreens): Promise<void> {
     launching = true;
-    hideLoginModal();
     try {
       const { launch } = await import('@konemono/nostr-login');
+      hideNostrModal();
       await launch(screen);
     } finally {
       launching = false;
@@ -118,6 +144,14 @@
   <LoginModal
     {launching}
     on:close={hideLoginModal}
+    on:open-nostr={openNostrModal}
+  />
+{/if}
+
+{#if showNostrModal}
+  <NostrLoginModal
+    {launching}
+    on:close={hideNostrModal}
     on:launch={(e) => launchNostrLogin(e.detail.screen)}
   />
 {/if}
@@ -129,7 +163,7 @@
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: 0 1px 8px rgba(249, 115, 22, 0.06);
+    box-shadow: var(--shadow-header);
   }
 
   .inner {
@@ -264,7 +298,7 @@
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: 14px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-popover);
     padding: 6px;
     min-width: 180px;
     z-index: 200;
