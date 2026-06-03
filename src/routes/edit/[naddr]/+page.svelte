@@ -7,6 +7,7 @@
   import type { AddressPointer } from 'nostr-tools/nip19';
   import { fetchMatomeByAddress, updateMatome } from '$lib/services/NostrClient';
   import { currentUser } from '$lib/stores/auth';
+  import { requestListReload } from '$lib/stores/listReload';
   import BlockEditor from '$lib/components/BlockEditor.svelte';
   import AnnounceModal from '$lib/components/AnnounceModal.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
@@ -173,6 +174,8 @@
   async function onAnnounceDone(): Promise<void> {
     showAnnounceModal = false;
     allowNavigate = true;
+    // 一覧へ戻ったとき更新結果を確認できるようリロードさせる
+    requestListReload();
     await goto(`${base}/${pendingNaddr}`);
   }
 </script>

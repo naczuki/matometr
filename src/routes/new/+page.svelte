@@ -6,6 +6,7 @@
   import { nip19 } from 'nostr-tools';
   import type { AddressPointer } from 'nostr-tools/nip19';
   import { currentUser } from '$lib/stores/auth';
+  import { requestListReload } from '$lib/stores/listReload';
   import { publishMatome, fetchMatomeByAddress } from '$lib/services/NostrClient';
   import BlockEditor from '$lib/components/BlockEditor.svelte';
   import AnnounceModal from '$lib/components/AnnounceModal.svelte';
@@ -152,6 +153,8 @@
   async function onAnnounceDone(): Promise<void> {
     showAnnounceModal = false;
     allowNavigate = true;
+    // 一覧へ戻ったとき作成結果を確認できるようリロードさせる
+    requestListReload();
     await goto(`${base}/${pendingNaddr}`);
   }
 </script>

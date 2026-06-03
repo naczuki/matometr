@@ -28,6 +28,7 @@
   import { DEFAULT_RELAYS } from '$lib/stores/relays';
   import { deletedMatomeIds } from '$lib/stores/deletedMatomes';
   import { clearFavDeltas } from '$lib/stores/favs';
+  import { consumeListReload } from '$lib/stores/listReload';
 
   // rx-nostr の EventPacket.from はスラッシュなしで返るため正規化
   const RELAYS: string[] = DEFAULT_RELAYS.map((r) => r.replace(/\/$/, ''));
@@ -205,7 +206,9 @@
   }
 
   onMount(() => {
-    if (listCache) {
+    // 作成・更新直後はスクロール位置を復元せず、最新の状態を再取得する
+    const forceReload = consumeListReload();
+    if (listCache && !forceReload) {
       const savedScrollY = listCache.scrollY;
       restoreFromCache(listCache);
       listCache = null;
@@ -213,6 +216,7 @@
         window.scrollTo(0, savedScrollY);
       });
     } else {
+      listCache = null;
       initialLoad();
     }
   });
