@@ -116,7 +116,7 @@
 
   function handleCancelClick(e: MouseEvent): void {
     e.preventDefault();
-    const target = `${base}/matome/?id=${naddr}`;
+    const target = `${base}/matome/${naddr}`;
     if (checkDirty() && !publishing) {
       pendingNavUrl = new URL(target, window.location.origin);
       showLeaveConfirm = true;
@@ -157,7 +157,7 @@
   async function onAnnounceDone(): Promise<void> {
     showAnnounceModal = false;
     allowNavigate = true;
-    await goto(`${base}/matome/?id=${pendingNaddr}`);
+    await goto(`${base}/matome/${pendingNaddr}`);
   }
 </script>
 
@@ -215,7 +215,7 @@
       <p class="publish-error">{publishError}</p>
     {/if}
     <div class="action-bar">
-      <a href="{base}/matome/?id={naddr}" class="btn-cancel" on:click={handleCancelClick}>キャンセル</a>
+      <a href="{base}/matome/{naddr}" class="btn-cancel" on:click={handleCancelClick}>キャンセル</a>
       <button
         class="btn-publish"
         disabled={!canPublish || publishing}

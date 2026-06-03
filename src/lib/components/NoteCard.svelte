@@ -231,14 +231,14 @@
               {@const mp = $profiles.get(segment.pubkey)}
               <a
                 class="mention-link"
-                href="{base}/user/?id={nip19.npubEncode(segment.pubkey)}"
+                href="{base}/user/{nip19.npubEncode(segment.pubkey)}"
               >@{truncateName(mp?.displayName ?? mp?.name ?? shortNpubFromPubkey(segment.pubkey))}</a>
             {:else if segment.type === 'quote'}
               <QuotedNote eventId={segment.eventId} />
             {:else if segment.type === 'naddr'}
               <a
                 class="naddr-link"
-                href="{base}/matome/?id={segment.naddr}"
+                href="{base}/matome/{segment.naddr}"
               >nostr:{shortenNaddr(segment.naddr)}</a>
             {:else if segment.type === 'url'}
               <a

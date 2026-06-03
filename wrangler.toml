@@ -1,0 +1,14 @@
+# Cloudflare Workers (Static Assets) 設定。
+# `npm run build` で生成した build/ を静的アセットとして配信し、
+# /matome/<naddr> ・ /user/<npub> のみ Worker が横取りして OGP を動的注入する。
+name = "matometr"
+main = "worker/index.ts"
+compatibility_date = "2025-06-01"
+
+[assets]
+directory = "./build"
+binding = "ASSETS"
+# 静的アセットに無いパス（/matome/<naddr> 等）は Worker に渡る。
+# Worker が処理しないパス（/edit/<naddr> 等）は env.ASSETS.fetch() 経由で
+# この SPA フォールバック（index.html を200）に着地する。
+not_found_handling = "single-page-application"
