@@ -1,0 +1,44 @@
+name: Deploy redirector to GitHub Pages
+
+# 旧 GitHub Pages（naczuki.github.io/matometr）を、新オリジン（Cloudflare Workers）への
+# リダイレクタとして配信する。旧 ?id= リンクの延命用。
+# repo 変数 WORKERS_ORIGIN（例: https://matometr.<account>.workers.dev）が
+# 設定されているときだけ動く。Pages の Source は "GitHub Actions" のままでよい。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # WORKERS_ORIGIN 未設定なら何もしない（CI を赤くしない）。
+    if: ${{ vars.WORKERS_ORIGIN != '' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build redirector site
+        env:
+          ORIGIN: ${{ vars.WORKERS_ORIGIN }}
+        run: |
+          mkdir -p _site
+          sed "s#__WORKERS_ORIGIN__#${ORIGIN}#g" redirector/404.html > _site/404.html
+          cp _site/404.html _site/index.html
+      - uses: actions/configure-pages@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - uses: actions/deploy-pages@v4
+        id: deployment
