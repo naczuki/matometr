@@ -43,6 +43,7 @@ const NOSTR_LOGIN_CSS = `
     margin-bottom: 0.5rem !important;
     color: var(--ink) !important;
   }
+  /* nl-title はリスト項目（div）や警告文（p）にも使われるため抑制 */
   div.nl-title {
     font-size: 1rem !important;
   }
@@ -53,6 +54,7 @@ const NOSTR_LOGIN_CSS = `
     font-size: 1rem !important;
   }
 
+  /* 太字テキストのジャギー対策（本サイトと同設定） */
   button,
   h1, h2, h3, h4,
   .nl-title, .nl-button,
@@ -115,6 +117,7 @@ const NOSTR_LOGIN_CSS = `
     background-color: var(--accent-pale) !important;
   }
 
+  /* Add ボタンなど bg-blue-* をオレンジに */
   [class*='bg-blue'] {
     background-color: var(--accent) !important;
   }
@@ -169,9 +172,12 @@ function setupNostrLoginStyles(): void {
     value(this: Element, init: ShadowRootInit): ShadowRoot {
       const root = _origAttachShadow.call(this, init);
       if (this.tagName.startsWith('NL-')) {
+        // CSS は shadow 境界を越えないため各 NL-* ルートに注入する
         const style = document.createElement('style');
         style.textContent = NOSTR_LOGIN_CSS;
         root.appendChild(style);
+
+        // 各 NL-* のルートを個別に監視（子コンポーネントの画面も翻訳する）
         observeNostrLogin(root);
       }
       return root;
@@ -186,6 +192,7 @@ const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Read only': '見るだけログイン（npub）',
   'With extension': '拡張機能でログイン',
   'With nsec': '秘密鍵でログイン（nsec）',
+  // 文末は「テキスト + <a>リンク</a> + .」に分割されるため断片ごとに登録
   "If you don't have a profile please": 'アカウントをお持ちでない方は',
   'If you already have a profile please': 'すでにアカウントをお持ちの方は',
   'sign up': '新規登録',
@@ -259,6 +266,7 @@ function translateNostrLogin(sr: ShadowRoot): void {
     const translated = NOSTR_LOGIN_PLACEHOLDERS[el.placeholder.trim()];
     if (translated) el.placeholder = translated;
   });
+  // <summary> は ▶ 記号が混入するため contains-match で翻訳
   sr.querySelectorAll('summary').forEach((summary) => {
     const text = summary.textContent ?? '';
     for (const [en, ja] of Object.entries(NOSTR_LOGIN_DICT)) {
@@ -278,11 +286,13 @@ function translateNostrLogin(sr: ShadowRoot): void {
     }
   });
 
+  // 「見るだけ」ボタンのアイコンを両目 SVG に差し替え（Heroicons スタイルに統一）
   sr.querySelectorAll<HTMLElement>('.nl-button').forEach((btn) => {
     if (btn.textContent?.includes('見るだけ') || btn.textContent?.includes('Read only')) {
       const svg = btn.querySelector('svg');
       if (svg) {
         svg.setAttribute('viewBox', '0 0 24 24');
+        // 縦長の楕円（8×10.5）x=12 で両目をくっつけ、瞳を左寄せでキョロ目に
         svg.innerHTML =
           '<path stroke-linecap="round" stroke-linejoin="round" d="M12 12C12 9.1 10.2 6.75 8 6.75C5.8 6.75 4 9.1 4 12C4 14.9 5.8 17.25 8 17.25C10.2 17.25 12 14.9 12 12Z"/>' +
           '<circle cx="6.5" cy="12.5" r="2" fill="currentColor" stroke="none"/>' +
@@ -292,17 +302,20 @@ function translateNostrLogin(sr: ShadowRoot): void {
     }
   });
 
+  // Nostore は廃止済み → 後継の Nostash に差し替え＋OS注釈
   sr.querySelectorAll<HTMLAnchorElement>('a[href*="nostore"]').forEach((a) => {
     a.href = 'https://apps.apple.com/jp/app/nostash/id6744309333';
     a.textContent = 'Nostash（iOS）';
   });
 
+  // Alby はアカウント登録が必要なため削除（前後のテキストノードも整理）
   sr.querySelectorAll<HTMLAnchorElement>('a[href*="alby"]').forEach((a) => {
     const next = a.nextSibling;
     if (next?.nodeType === Node.TEXT_NODE) next.textContent = '';
     a.remove();
   });
 
+  // nos2x に Chrome 注釈を追加し、Firefox 版 nos2x-fox を隣に挿入（冪等）
   sr.querySelectorAll<HTMLAnchorElement>('a[href*="nos2x"]:not([href*="nos2x-fox"])').forEach((a) => {
     a.textContent = 'nos2x（Chrome）';
     if (!sr.querySelector('a[href*="nos2x-fox"]')) {
@@ -330,6 +343,8 @@ function translateNostrLogin(sr: ShadowRoot): void {
   }
 }
 
+// nl-auth のルートを監視して画面遷移のたびに翻訳する。
+// 書き換え中は observer を止め、自身の変更で再発火しないようにする。
 function observeNostrLogin(root: ShadowRoot): void {
   const options: MutationObserverInit = {
     childList: true,

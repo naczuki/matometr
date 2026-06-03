@@ -1,0 +1,16 @@
+{
+  // Cloudflare Workers + Static Assets（@sveltejs/adapter-cloudflare の出力）。
+  // この設定ファイルがあることで wrangler deploy のフレームワーク自動設定は走らない。
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "matometr",
+  "compatibility_date": "2025-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": ".svelte-kit/cloudflare/_worker.js",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".svelte-kit/cloudflare"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

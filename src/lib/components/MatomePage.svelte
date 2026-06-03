@@ -86,10 +86,9 @@
 
   $: initForNaddr(naddr);
 
-  // シェア用URLは常に新URL形式（?id=）で組み立てる。
-  // 旧URL /matome/<naddr>/ で開いた人がコピー/Xシェアしたとき、
-  // 旧URLをばら撒くとクローラで404・カード出ずになるため。
-  $: shareUrl = matome && browser ? `${$page.url.origin}${base}/matome/?id=${matome.naddr}` : '';
+  // シェア用URLはパス形式 /matome/<naddr> で組み立てる。
+  // Cloudflare Workers が /matome/<naddr> を200＋動的OGPで返すため、クローラでもカードが出る。
+  $: shareUrl = matome && browser ? `${$page.url.origin}${base}/matome/${matome.naddr}` : '';
 
   $: isMine = !!$currentUser && matome?.pubkey === $currentUser.pubkey;
 
@@ -419,7 +418,7 @@
 
       <div class="detail-meta">
         <a
-          href={authorNpub ? `${base}/user/?id=${authorNpub}` : undefined}
+          href={authorNpub ? `${base}/user/${authorNpub}` : undefined}
           class="detail-author-link"
           aria-label="{authorName} のユーザーページ"
         >
