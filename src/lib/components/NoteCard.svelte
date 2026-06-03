@@ -443,10 +443,14 @@
     flex: 1;
     text-decoration: none;
     color: inherit;
+    border-radius: 8px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+    transition: background 0.12s;
   }
 
-  .note-author-link:hover .note-name {
-    text-decoration: underline;
+  .note-author-link:hover {
+    background: var(--accent-pale);
   }
 
   .note-meta {
