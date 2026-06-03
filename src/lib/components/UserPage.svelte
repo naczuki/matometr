@@ -314,7 +314,7 @@
                 <span class="bio-text">{seg.content}</span>
               {:else if seg.type === 'mention'}
                 {@const mp = $profiles.get(seg.pubkey)}
-                <a class="bio-mention" href="{base}/user/?id={nip19.npubEncode(seg.pubkey)}">@{mp?.displayName ?? mp?.name ?? seg.pubkey.slice(0, 8) + '…'}</a>
+                <a class="bio-mention" href="{base}/user/{nip19.npubEncode(seg.pubkey)}">@{mp?.displayName ?? mp?.name ?? seg.pubkey.slice(0, 8) + '…'}</a>
               {:else if seg.type === 'quote'}
                 <QuotedNote eventId={seg.eventId} />
               {:else if seg.type === 'url'}
@@ -324,7 +324,7 @@
                 {:else}<img src={seg.url} alt=":{seg.shortcode}:" class="emoji-img" loading="lazy" on:error={() => onEmojiError(seg.shortcode)} />
                 {/if}
               {:else if seg.type === 'naddr'}
-                <a class="bio-url" href="{base}/matome/?id={seg.naddr}">nostr:{seg.naddr.slice(0, 12)}…</a>
+                <a class="bio-url" href="{base}/matome/{seg.naddr}">nostr:{seg.naddr.slice(0, 12)}…</a>
               {/if}
             {/each}
             {#if aboutContent.urls.length > 0}

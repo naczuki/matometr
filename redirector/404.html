@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>まとめたー は移転しました</title>
+    <script>
+      // GitHub Pages 旧サイト用リダイレクタ。
+      // 旧 URL（/matometr/matome/?id=<naddr>, /matometr/user/?id=<npub>, 旧パス形式,
+      // その他のルート）を、新オリジン（Cloudflare Workers）のパス形式へ 1:1 で転送する。
+      //
+      // このサイトには実ファイルが index.html / 404.html しか無いため、/matome/... 等の
+      // リクエストはすべて 404.html に着地する（ブラウザの URL とクエリは保持される）。
+      (function () {
+        // CI（pages-redirector.yml）が repo 変数 WORKERS_ORIGIN で置換する。
+        var NEW_ORIGIN = '__WORKERS_ORIGIN__';
+        var BASE = '/matometr';
+
+        var path = location.pathname;
+        if (path.indexOf(BASE) === 0) path = path.slice(BASE.length); // /matometr を剥がす
+        if (path === '') path = '/';
+
+        var id = new URLSearchParams(location.search).get('id');
+        var target;
+        if (/^\/matome\/?$/.test(path) && id) {
+          target = '/matome/' + id; // 旧 /matome/?id=<naddr>
+        } else if (/^\/user\/?$/.test(path) && id) {
+          target = '/user/' + id; // 旧 /user/?id=<npub>
+        } else {
+          // 旧パス形式 /matome/<naddr>・/user/<npub> や /new 等はそのまま転送。
+          location.replace(NEW_ORIGIN + path + location.search);
+          return;
+        }
+        location.replace(NEW_ORIGIN + target);
+      })();
+    </script>
+  </head>
+  <body>
+    新しい URL へ移動しています…
+  </body>
+</html>
