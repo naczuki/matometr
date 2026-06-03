@@ -33,12 +33,14 @@
 
   let repostSub: { unsubscribe(): void } | null = null;
   let repostTimer: ReturnType<typeof setTimeout> | null = null;
+  let destroyed = false;
 
   function handleFetchedNote(n: Note, relay: string): void {
     const repost = resolveRepostTarget(n);
     if (repost) {
       repostSub = fetchNoteByIdWithRelay(repost.eventId).subscribe({
         next: ({ note: original, relay: r }) => {
+          if (destroyed) return;
           note = original;
           fetchedFrom = r;
           requestProfile(original.pubkey);
@@ -48,14 +50,14 @@
           }
         },
         error: () => {
-          loadError = true;
+          if (!destroyed) loadError = true;
         },
         complete: () => {
-          if (!note) loadError = true;
+          if (!destroyed && !note) loadError = true;
         }
       });
       repostTimer = setTimeout(() => {
-        if (!note) loadError = true;
+        if (!destroyed && !note) loadError = true;
       }, 10_000);
       return;
     }
@@ -101,6 +103,7 @@
       if (!note) loadError = true;
     }, 10_000);
     return () => {
+      destroyed = true;
       sub.unsubscribe();
       repostSub?.unsubscribe();
       if (timer) clearTimeout(timer);

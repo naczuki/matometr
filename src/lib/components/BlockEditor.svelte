@@ -13,6 +13,7 @@
 
   let showAddModal = false;
   let sortLoading = false;
+  let sortError = '';
   let createdAtCache = new Map<string, number>();
   let pendingInsertIndex: number | null = null;
   let openGapId: string | null = null;
@@ -133,11 +134,15 @@
     const uncachedIds = allIds.filter((id) => !createdAtCache.has(id));
     if (uncachedIds.length > 0) {
       sortLoading = true;
+      sortError = '';
       await new Promise<void>((resolve) => {
         fetchNotesByIds(uncachedIds).subscribe({
           next: (n) => createdAtCache.set(n.id, n.createdAt),
           complete: resolve,
-          error: resolve
+          error: () => {
+            sortError = '一部の投稿の日時を取得できませんでした。';
+            resolve();
+          }
         });
         setTimeout(resolve, 10_000);
       });
@@ -185,6 +190,9 @@
       </button>
     {/if}
   </div>
+  {#if sortError}
+    <p class="sort-error">{sortError}</p>
+  {/if}
 
   {#if blocks.length === 0}
     <div class="empty-state">下のボタンで投稿・コメント・見出しを追加できます</div>
@@ -339,6 +347,13 @@
   .btn-sort-time:disabled {
     opacity: 0.5;
     cursor: wait;
+  }
+
+  .sort-error {
+    font-size: 12px;
+    color: #dc2626;
+    margin: 0 0 8px;
+    font-family: var(--font-ui);
   }
 
   .empty-state {
