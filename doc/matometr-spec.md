@@ -47,16 +47,16 @@ Nostrのキュレーションサイト。投稿を集めて、コメント・見
 
 ### カラー
 
-| 用途 | ライト | ダーク |
-|---|---|---|
-| アクセント | `#f97316` | `#fb923c` |
-| アクセント濃 | `#ea580c` | `#f97316` |
-| 背景 | `#fff8f4` | `#1c1917` |
+| 用途                 | ライト    | ダーク    |
+| -------------------- | --------- | --------- |
+| アクセント           | `#f97316` | `#fb923c` |
+| アクセント濃         | `#ea580c` | `#f97316` |
+| 背景                 | `#fff8f4` | `#1c1917` |
 | サーフェス（カード） | `#ffffff` | `#292524` |
-| 文字 | `#1c1917` | `#fafaf9` |
-| 文字（薄） | `#57534e` | `#d6d3d1` |
-| 文字（一番薄） | `#a8a29e` | `#78716c` |
-| ボーダー | `#f0e8e0` | `#44403c` |
+| 文字                 | `#1c1917` | `#fafaf9` |
+| 文字（薄）           | `#57534e` | `#d6d3d1` |
+| 文字（一番薄）       | `#a8a29e` | `#78716c` |
+| ボーダー             | `#f0e8e0` | `#44403c` |
 
 ### フォント
 
@@ -79,16 +79,16 @@ Nostrのキュレーションサイト。投稿を集めて、コメント・見
 
 ## URL設計
 
-| ページ | パス |
-|---|---|
-| トップ（まとめ一覧） | `/` |
-| まとめ詳細 | `/matome/{naddr1}` |
-| ユーザーページ | `/user/{npub}` |
-| 新規作成 | `/new` |
-| まとめ編集 | `/edit/{naddr1}` |
-| ログイン | `/login` |
-| 設定 | `/settings` |
-| 使い方ガイド | `/guide` |
+| ページ               | パス               |
+| -------------------- | ------------------ |
+| トップ（まとめ一覧） | `/`                |
+| まとめ詳細           | `/matome/{naddr1}` |
+| ユーザーページ       | `/user/{npub}`     |
+| 新規作成             | `/new`             |
+| まとめ編集           | `/edit/{naddr1}`   |
+| ログイン             | `/login`           |
+| 設定                 | `/settings`        |
+| 使い方ガイド         | `/guide`           |
 
 ---
 
@@ -117,19 +117,19 @@ Nostrのキュレーションサイト。投稿を集めて、コメント・見
 
 ### 仕様詳細
 
-| 項目 | 仕様 |
-|---|---|
-| kind | `30023`（NIP-23 Long-form Content） |
-| 必須タグ | `d`, `title`, `summary`, `published_at`, `t: matometr` |
-| qタグ | `["q", eventId, relayHint, authorPubkey]`（引用投稿ごとに1件・重複除去） |
-| pタグ | `["p", pubkey, relayHint]`（引用先著者ごとに1件・重複除去、NIP-27） |
+| 項目        | 仕様                                                                        |
+| ----------- | --------------------------------------------------------------------------- |
+| kind        | `30023`（NIP-23 Long-form Content）                                         |
+| 必須タグ    | `d`, `title`, `summary`, `published_at`, `t: matometr`                      |
+| qタグ       | `["q", eventId, relayHint, authorPubkey]`（引用投稿ごとに1件・重複除去）    |
+| pタグ       | `["p", pubkey, relayHint]`（引用先著者ごとに1件・重複除去、NIP-27）         |
 | t:nosliタグ | **なし**（nosliの取得フィルタが `#t:nosli` のため、付けなければ干渉しない） |
-| 投稿引用 | content内に `nostr:nevent1...` 単独行で記述 |
-| コメント | content内に `> ` で始まる引用ブロック |
-| 見出し | content内に `## ` |
-| d-tag | `matometr-{ULID}` |
-| clientタグ | `["client", "matometr"]`（NIP-89） |
-| 削除 | NIP-09（kind:5、`["e", id], ["k", "30023"]`） |
+| 投稿引用    | content内に `nostr:nevent1...` 単独行で記述                                 |
+| コメント    | content内に `> ` で始まる引用ブロック                                       |
+| 見出し      | content内に `## `                                                           |
+| d-tag       | `matometr-{ULID}`                                                           |
+| clientタグ  | `["client", "matometr"]`（NIP-89）                                          |
+| 削除        | NIP-09（kind:5、`["e", id], ["k", "30023"]`）                               |
 
 ### コンテンツ記法（マークダウン）
 
@@ -181,7 +181,8 @@ NIP-65（kind:10002）を読み込み、ユーザーのread/writeリレーを使
 ### nostr-login（[nostrband/nostr-login](https://github.com/nostrband/nostr-login)）
 
 ```html
-<script src="https://www.unpkg.com/nostr-login@latest/dist/unpkg.js"
+<script
+  src="https://www.unpkg.com/nostr-login@latest/dist/unpkg.js"
   data-no-banner="true"
   data-theme="default"
 ></script>
@@ -198,9 +199,11 @@ nostr-loginのモーダルは英語UI。初心者向けに、自前の日本語�
 3. 選択後、`nlLaunch` イベントを発火してnostr-loginを起動
 
 ```js
-document.dispatchEvent(new CustomEvent('nlLaunch', { 
-  detail: 'welcome-login'  // または 'welcome-signup'
-}));
+document.dispatchEvent(
+  new CustomEvent('nlLaunch', {
+    detail: 'welcome-login' // または 'welcome-signup'
+  })
+);
 ```
 
 ---
@@ -209,12 +212,12 @@ document.dispatchEvent(new CustomEvent('nlLaunch', {
 
 詳細画面の統計欄に4つのボタンを配置：
 
-| ボタン | アイコン | 機能 |
-|---|---|---|
-| Nos | "Nos" (Mochiy Pop One) | nostr-share-componentでNostrクライアント選択 |
-| X | Xロゴ | X（旧Twitter）の投稿画面を開く |
-| コピー | コピーアイコン | タイトル＋URLをクリップボードへ |
-| 縦3点メニュー | ⋮ | サブメニュー展開 |
+| ボタン        | アイコン               | 機能                                         |
+| ------------- | ---------------------- | -------------------------------------------- |
+| Nos           | "Nos" (Mochiy Pop One) | nostr-share-componentでNostrクライアント選択 |
+| X             | Xロゴ                  | X（旧Twitter）の投稿画面を開く               |
+| コピー        | コピーアイコン         | タイトル＋URLをクリップボードへ              |
+| 縦3点メニュー | ⋮                      | サブメニュー展開                             |
 
 全部 **オレンジ背景＋白アイコン** で統一。Xロゴは白塗りで規約クリア。
 
@@ -233,8 +236,10 @@ document.dispatchEvent(new CustomEvent('nlLaunch', {
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/@konemono/nostr-share-component@latest/dist/nostr-share-component.min.js"></script>
-<nostr-share data-text="まとめタイトル #まとめたー
-nostr:naddr1...">
+<nostr-share
+  data-text="まとめタイトル #まとめたー
+nostr:naddr1..."
+>
   <span style="font-family:'Mochiy Pop One';color:white;">Nos</span>
 </nostr-share>
 ```
@@ -247,9 +252,15 @@ MVPはlocalStorage：
 
 ```js
 const draftKey = 'matometr-draft-{ULID}';
-localStorage.setItem(draftKey, JSON.stringify({
-  title, summary, blocks, updated_at
-}));
+localStorage.setItem(
+  draftKey,
+  JSON.stringify({
+    title,
+    summary,
+    blocks,
+    updated_at
+  })
+);
 ```
 
 将来的にNIP-37（kind:31234、NIP-44暗号化）対応を検討。

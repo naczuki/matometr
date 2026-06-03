@@ -5,7 +5,11 @@
   import { nip19 } from 'nostr-tools';
   import type { Subscription } from 'rxjs';
   import { Matome } from '$lib/entities/Matome';
-  import { fetchUserMatomes, fetchReactionCounts, fetchUserFavedMatomes } from '$lib/services/NostrClient';
+  import {
+    fetchUserMatomes,
+    fetchReactionCounts,
+    fetchUserFavedMatomes
+  } from '$lib/services/NostrClient';
   import { clearFavDeltas } from '$lib/stores/favs';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
@@ -73,7 +77,11 @@
     activeTab = 'matomes';
     npubMenuOpen = false;
 
-    if (!n) { error = '無効なユーザーIDです'; loading = false; return; }
+    if (!n) {
+      error = '無効なユーザーIDです';
+      loading = false;
+      return;
+    }
     try {
       const decoded = nip19.decode(n) as { type: string; data: unknown };
       if (decoded.type !== 'npub') {
@@ -90,7 +98,10 @@
           loading = false;
           applyReactionCounts();
         },
-        error: () => { error = '取得に失敗しました'; loading = false; }
+        error: () => {
+          error = '取得に失敗しました';
+          loading = false;
+        }
       });
     } catch {
       error = '無効なユーザーIDです';
@@ -163,7 +174,10 @@
         for (const m of targets) {
           const key = `30023:${m.pubkey}:${m.dTag}`;
           const c = counts.get(key) ?? 0;
-          if (m.favCount !== c) { m.favCount = c; changed = true; }
+          if (m.favCount !== c) {
+            m.favCount = c;
+            changed = true;
+          }
           updatedKeys.push(key);
         }
         clearFavDeltas(updatedKeys);
@@ -199,7 +213,11 @@
 
   $: aboutContent = profile?.about ? extractImages(profile.about) : { text: '', urls: [] };
   $: aboutSegments = parseNostrRefs(aboutContent.text, profileEmojiMap);
-  $: { for (const seg of aboutSegments) { if (seg.type === 'mention') requestProfile(seg.pubkey); } }
+  $: {
+    for (const seg of aboutSegments) {
+      if (seg.type === 'mention') requestProfile(seg.pubkey);
+    }
+  }
 
   let failedEmojis: Set<string> = new Set();
   function onEmojiError(shortcode: string): void {
@@ -222,7 +240,10 @@
     npubMenuX = x;
     npubMenuY = rect.bottom + 6;
     npubMenuOpen = true;
-    const handler = (): void => { npubMenuOpen = false; removeNpubDocListener = null; };
+    const handler = (): void => {
+      npubMenuOpen = false;
+      removeNpubDocListener = null;
+    };
     document.addEventListener('click', handler, { once: true });
     removeNpubDocListener = () => document.removeEventListener('click', handler);
   }
@@ -234,15 +255,17 @@
       await navigator.clipboard.writeText(nip19.npubEncode(pubkey));
       copyToast = true;
       if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => { copyToast = false; }, 2000);
-    } catch { /* clipboard API 利用不可 */ }
+      toastTimer = setTimeout(() => {
+        copyToast = false;
+      }, 2000);
+    } catch {
+      /* clipboard API 利用不可 */
+    }
   }
 
   function hideBioImg(e: Event): void {
     (e.currentTarget as HTMLImageElement).style.display = 'none';
   }
-
-
 </script>
 
 <svelte:head>
@@ -268,75 +291,112 @@
       <div class="profile-main">
         <Avatar {pubkey} {picture} name={displayName} size={72} />
 
-      <div class="profile-info">
-        <div class="profile-name">
-          <span class="name-wrapper">
-            {#each displayNameSegments as seg}
-              {#if seg.type === 'text'}{seg.content}
-              {:else if seg.type === 'emoji'}
-                {#if failedEmojis.has(seg.shortcode)}:{seg.shortcode}:
-                {:else}<img src={seg.url} alt=":{seg.shortcode}:" class="emoji-img" loading="lazy" on:error={() => onEmojiError(seg.shortcode)} />
+        <div class="profile-info">
+          <div class="profile-name">
+            <span class="name-wrapper">
+              {#each displayNameSegments as seg}
+                {#if seg.type === 'text'}{seg.content}
+                {:else if seg.type === 'emoji'}
+                  {#if failedEmojis.has(seg.shortcode)}:{seg.shortcode}:
+                  {:else}<img
+                      src={seg.url}
+                      alt=":{seg.shortcode}:"
+                      class="emoji-img"
+                      loading="lazy"
+                      on:error={() => onEmojiError(seg.shortcode)}
+                    />
+                  {/if}
                 {/if}
+              {/each}
+              {#if pubkey}
+                <a
+                  class="name-ext-link"
+                  href="https://nostter.app/{npubParam}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="nostterで開く"
+                >
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                </a>
               {/if}
-            {/each}
-            {#if pubkey}
-              <a
-                class="name-ext-link"
-                href="https://nostter.app/{npubParam}"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="nostterで開く"
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                  <polyline points="15 3 21 3 21 9"/>
-                  <line x1="10" y1="14" x2="21" y2="3"/>
-                </svg>
-              </a>
-            {/if}
-          </span>
-        </div>
-        {#if profile?.nip05}
-          <div class="profile-nip05">{profile.nip05}</div>
-        {/if}
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <!-- svelte-ignore a11y-no-static-element-interactions -->
-        <div class="profile-npub" on:click={openNpubMenu}>
-          {shortNpub(npubParam)}
-          <svg class="npub-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </div>
-        {#if profile?.about}
-          <div class="profile-bio">
-            {#each aboutSegments as seg}
-              {#if seg.type === 'text'}
-                <span class="bio-text">{seg.content}</span>
-              {:else if seg.type === 'mention'}
-                {@const mp = $profiles.get(seg.pubkey)}
-                <a class="bio-mention" href="{base}/user/{nip19.npubEncode(seg.pubkey)}">@{mp?.displayName ?? mp?.name ?? seg.pubkey.slice(0, 8) + '…'}</a>
-              {:else if seg.type === 'quote'}
-                <QuotedNote eventId={seg.eventId} />
-              {:else if seg.type === 'url'}
-                <a class="bio-url" href={seg.url} target="_blank" rel="noopener noreferrer">{seg.url}</a>
-              {:else if seg.type === 'emoji'}
-                {#if failedEmojis.has(seg.shortcode)}:{seg.shortcode}:
-                {:else}<img src={seg.url} alt=":{seg.shortcode}:" class="emoji-img" loading="lazy" on:error={() => onEmojiError(seg.shortcode)} />
-                {/if}
-              {:else if seg.type === 'naddr'}
-                <a class="bio-url" href="{base}/matome/{seg.naddr}">nostr:{seg.naddr.slice(0, 12)}…</a>
-              {/if}
-            {/each}
-            {#if aboutContent.urls.length > 0}
-              <div class="bio-images">
-                {#each aboutContent.urls as url}
-                  <img src={url} alt="" class="bio-img" loading="lazy" on:error={hideBioImg} />
-                {/each}
-              </div>
-            {/if}
+            </span>
           </div>
-        {/if}
-      </div>
+          {#if profile?.nip05}
+            <div class="profile-nip05">{profile.nip05}</div>
+          {/if}
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <!-- svelte-ignore a11y-no-static-element-interactions -->
+          <div class="profile-npub" on:click={openNpubMenu}>
+            {shortNpub(npubParam)}
+            <svg
+              class="npub-chevron"
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          {#if profile?.about}
+            <div class="profile-bio">
+              {#each aboutSegments as seg}
+                {#if seg.type === 'text'}
+                  <span class="bio-text">{seg.content}</span>
+                {:else if seg.type === 'mention'}
+                  {@const mp = $profiles.get(seg.pubkey)}
+                  <a class="bio-mention" href="{base}/user/{nip19.npubEncode(seg.pubkey)}"
+                    >@{mp?.displayName ?? mp?.name ?? seg.pubkey.slice(0, 8) + '…'}</a
+                  >
+                {:else if seg.type === 'quote'}
+                  <QuotedNote eventId={seg.eventId} />
+                {:else if seg.type === 'url'}
+                  <a class="bio-url" href={seg.url} target="_blank" rel="noopener noreferrer"
+                    >{seg.url}</a
+                  >
+                {:else if seg.type === 'emoji'}
+                  {#if failedEmojis.has(seg.shortcode)}:{seg.shortcode}:
+                  {:else}<img
+                      src={seg.url}
+                      alt=":{seg.shortcode}:"
+                      class="emoji-img"
+                      loading="lazy"
+                      on:error={() => onEmojiError(seg.shortcode)}
+                    />
+                  {/if}
+                {:else if seg.type === 'naddr'}
+                  <a class="bio-url" href="{base}/matome/{seg.naddr}"
+                    >nostr:{seg.naddr.slice(0, 12)}…</a
+                  >
+                {/if}
+              {/each}
+              {#if aboutContent.urls.length > 0}
+                <div class="bio-images">
+                  {#each aboutContent.urls as url}
+                    <img src={url} alt="" class="bio-img" loading="lazy" on:error={hideBioImg} />
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/if}
+        </div>
       </div>
     </div>
 
@@ -347,7 +407,16 @@
         class:active={activeTab === 'matomes'}
         on:click={() => switchTab('matomes')}
       >
-        <svg class="doc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <svg
+          class="doc-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
           <polyline points="14 2 14 8 20 8" />
         </svg>
@@ -358,8 +427,18 @@
         class:active={activeTab === 'reactions'}
         on:click={() => switchTab('reactions')}
       >
-        <svg class="star-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 17.75l-6.172 3.245 1.179-6.873-4.993-4.867 6.9-1.002L12 2.5l3.086 6.253 6.9 1.002-4.993 4.867 1.179 6.873z" />
+        <svg
+          class="star-icon"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 17.75l-6.172 3.245 1.179-6.873-4.993-4.867 6.9-1.002L12 2.5l3.086 6.253 6.9 1.002-4.993 4.867 1.179 6.873z"
+          />
         </svg>
         リアクション
       </button>
@@ -385,25 +464,23 @@
         </div>
       {/if}
 
-    <!-- リアクションタブ -->
+      <!-- リアクションタブ -->
+    {:else if reactLoading}
+      <div class="state-wrap">
+        <Spinner />
+        <div class="state-text">読み込み中…</div>
+      </div>
+    {:else if reactMatomes.length === 0}
+      <div class="state-wrap">
+        <div class="state-icon">☆</div>
+        <div class="state-text">まだリアクションがありません</div>
+      </div>
     {:else}
-      {#if reactLoading}
-        <div class="state-wrap">
-          <Spinner />
-          <div class="state-text">読み込み中…</div>
-        </div>
-      {:else if reactMatomes.length === 0}
-        <div class="state-wrap">
-          <div class="state-icon">☆</div>
-          <div class="state-text">まだリアクションがありません</div>
-        </div>
-      {:else}
-        <div class="grid">
-          {#each reactMatomes as matome (matome.id)}
-            <MatomeCard {matome} />
-          {/each}
-        </div>
-      {/if}
+      <div class="grid">
+        {#each reactMatomes as matome (matome.id)}
+          <MatomeCard {matome} />
+        {/each}
+      </div>
     {/if}
   {/if}
 </div>
@@ -411,17 +488,13 @@
 {#if npubMenuOpen && pubkey}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div
-    class="npub-menu"
-    style="left:{npubMenuX}px;top:{npubMenuY}px;"
-    on:click|stopPropagation
-  >
+  <div class="npub-menu" style="left:{npubMenuX}px;top:{npubMenuY}px;" on:click|stopPropagation>
     <a
       class="npub-menu-item"
       href="https://nostter.app/{npubParam}"
       target="_blank"
-      rel="noopener noreferrer"
-    >nostterで開く</a>
+      rel="noopener noreferrer">nostterで開く</a
+    >
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div class="npub-menu-item" on:click={copyNpub}>npubをコピー</div>
@@ -499,7 +572,9 @@
     color: var(--ink3);
     border-radius: 4px;
     text-decoration: none;
-    transition: background 0.1s, color 0.1s;
+    transition:
+      background 0.1s,
+      color 0.1s;
   }
 
   .name-ext-link:hover {
@@ -661,7 +736,9 @@
     border-bottom: 2.5px solid transparent;
     margin-bottom: -1.5px;
     cursor: pointer;
-    transition: color 0.12s, border-color 0.12s;
+    transition:
+      color 0.12s,
+      border-color 0.12s;
   }
 
   .tab-btn:hover {

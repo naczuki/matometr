@@ -19,8 +19,8 @@ export interface OgData {
 /** メタタグに入れる文字列を無害化（制御文字除去・空白圧縮・長さ制限）。 */
 function sanitize(input: string | undefined, max: number): string {
   if (!input) return '';
-  // eslint-disable-next-line no-control-regex
   const cleaned = input
+    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

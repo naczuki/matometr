@@ -8,12 +8,14 @@
 
   $: style = avatarStyle(pubkey, name);
   let imgFailed = false;
-  $: picture, (imgFailed = false);
+  $: (picture, (imgFailed = false));
 </script>
 
 <div
   class="avatar"
-  style="width:{size}px;height:{size}px;font-size:{Math.round(size * 0.4)}px;background:{style.bg};color:{style.fg};"
+  style="width:{size}px;height:{size}px;font-size:{Math.round(
+    size * 0.4
+  )}px;background:{style.bg};color:{style.fg};"
 >
   {#if picture && !imgFailed}
     <img src={picture} alt="" on:error={() => (imgFailed = true)} />

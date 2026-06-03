@@ -40,10 +40,18 @@
   onMount(() => {
     try {
       const naddrParam = $page.params.naddr;
-      if (!naddrParam) { error = '無効なアドレスです'; loading = false; return; }
+      if (!naddrParam) {
+        error = '無効なアドレスです';
+        loading = false;
+        return;
+      }
 
       const decoded = nip19.decode(naddrParam) as { type: string; data: unknown };
-      if (decoded.type !== 'naddr') { error = '無効なアドレスです'; loading = false; return; }
+      if (decoded.type !== 'naddr') {
+        error = '無効なアドレスです';
+        loading = false;
+        return;
+      }
 
       const pointer = decoded.data as AddressPointer;
       const sub = fetchMatomeByAddress(pointer).subscribe({
@@ -64,15 +72,23 @@
           origPublishedAt = m.publishedAt;
           const converted: EditorBlock[] = [];
           for (const b of m.blocks) {
-            if (b.type === 'nevent') converted.push({ id: crypto.randomUUID(), type: 'nevent', nevent: b.content });
-            else if (b.type === 'comment') converted.push({ id: crypto.randomUUID(), type: 'comment', text: b.content });
-            else if (b.type === 'heading') converted.push({ id: crypto.randomUUID(), type: 'heading', text: b.content });
+            if (b.type === 'nevent')
+              converted.push({ id: crypto.randomUUID(), type: 'nevent', nevent: b.content });
+            else if (b.type === 'comment')
+              converted.push({ id: crypto.randomUUID(), type: 'comment', text: b.content });
+            else if (b.type === 'heading')
+              converted.push({ id: crypto.randomUUID(), type: 'heading', text: b.content });
           }
           blocks = converted;
           initialSnapshot = computeSnapshot();
         },
-        complete: () => { loading = false; },
-        error: () => { error = '取得に失敗しました'; loading = false; }
+        complete: () => {
+          loading = false;
+        },
+        error: () => {
+          error = '取得に失敗しました';
+          loading = false;
+        }
       });
 
       return () => sub.unsubscribe();
@@ -144,7 +160,7 @@
         publishedAt: origPublishedAt,
         title: title.trim(),
         summary: summary.trim(),
-        blocks,
+        blocks
       });
       pendingNaddr = result;
       showAnnounceModal = true;
@@ -216,11 +232,7 @@
     {/if}
     <div class="action-bar">
       <a href="{base}/matome/{naddr}" class="btn-cancel" on:click={handleCancelClick}>キャンセル</a>
-      <button
-        class="btn-publish"
-        disabled={!canPublish || publishing}
-        on:click={handlePublish}
-      >
+      <button class="btn-publish" disabled={!canPublish || publishing} on:click={handlePublish}>
         {publishing ? '更新中…' : '更新する'}
       </button>
     </div>

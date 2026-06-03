@@ -17,17 +17,30 @@
   onMount(() => {
     try {
       const m = ref.match(/nostr:(naddr1[a-z0-9]+)/);
-      if (!m) { failed = true; loading = false; return; }
+      if (!m) {
+        failed = true;
+        loading = false;
+        return;
+      }
       naddrStr = m[1];
       const decoded = nip19.decode(naddrStr);
       if (decoded.type !== 'naddr' || decoded.data.kind !== 30023) {
-        failed = true; loading = false; return;
+        failed = true;
+        loading = false;
+        return;
       }
       const pointer = decoded.data as AddressPointer;
       const sub = fetchMatomeByAddress(pointer).subscribe({
-        next: (a) => { matome = a; },
-        complete: () => { loading = false; },
-        error: () => { failed = true; loading = false; }
+        next: (a) => {
+          matome = a;
+        },
+        complete: () => {
+          loading = false;
+        },
+        error: () => {
+          failed = true;
+          loading = false;
+        }
       });
       return () => sub.unsubscribe();
     } catch {
@@ -70,7 +83,9 @@
     text-decoration: none;
     color: inherit;
     margin: 12px 0;
-    transition: border-color 0.12s, background 0.12s;
+    transition:
+      border-color 0.12s,
+      background 0.12s;
   }
 
   a.naddr-card:hover {

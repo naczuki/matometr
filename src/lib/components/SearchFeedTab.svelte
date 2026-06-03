@@ -63,7 +63,10 @@
           if (batch.length === 0 || added === 0) reachedEnd = true;
           resolve(added);
         },
-        error: () => { reachedEnd = true; resolve(0); }
+        error: () => {
+          reachedEnd = true;
+          resolve(0);
+        }
       });
     });
   }
@@ -105,7 +108,12 @@
       class="search-input"
       type="text"
       bind:value={keyword}
-      on:keydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearch(); } }}
+      on:keydown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleSearch();
+        }
+      }}
       placeholder="#タグ または キーワード"
     />
     <button class="search-btn" type="button" on:click={handleSearch} disabled={searchLoading}>
@@ -123,7 +131,9 @@
   error=""
   empty={!hasSearched || notes.length === 0}
   {reachedEnd}
-  emptyMessage={!hasSearched ? 'キーワードを入力して検索してください' : '投稿が見つかりませんでした'}
+  emptyMessage={!hasSearched
+    ? 'キーワードを入力して検索してください'
+    : '投稿が見つかりませんでした'}
   loadingMessage="検索中…"
   onLoadMore={loadMore}
 >
@@ -191,5 +201,4 @@
     font-size: 12px;
     color: #dc2626;
   }
-
 </style>

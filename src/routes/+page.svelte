@@ -6,7 +6,10 @@
 
 <svelte:head>
   <title>まとめたー - matometr</title>
-  <meta name="description" content="Nostrの投稿を集めて、コメントを添えて公開できるキュレーションサイト" />
+  <meta
+    name="description"
+    content="Nostrの投稿を集めて、コメントを添えて公開できるキュレーションサイト"
+  />
 </svelte:head>
 
 <div class="tab-bar">
@@ -19,8 +22,8 @@
     class="btn-create"
     class:invisible={!$currentUser}
     aria-hidden={!$currentUser || undefined}
-    tabindex={$currentUser ? 0 : -1}
-  >＋ まとめを作る</a>
+    tabindex={$currentUser ? 0 : -1}>＋ まとめを作る</a
+  >
 </div>
 
 <MatomeList tab="recent" />

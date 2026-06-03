@@ -62,8 +62,12 @@
           blocks = matomeBlocksToEditorBlocks(m.blocks);
           initialSnapshot = computeSnapshot();
         },
-        complete: () => { importing = false; },
-        error: () => { importing = false; }
+        complete: () => {
+          importing = false;
+        },
+        error: () => {
+          importing = false;
+        }
       });
       return () => sub.unsubscribe();
     } catch {
@@ -202,11 +206,7 @@
     {/if}
     <div class="action-bar">
       <a href="{base}/" class="btn-cancel" on:click={handleCancelClick}>キャンセル</a>
-      <button
-        class="btn-publish"
-        disabled={!canPublish || publishing}
-        on:click={handlePublish}
-      >
+      <button class="btn-publish" disabled={!canPublish || publishing} on:click={handlePublish}>
         {publishing ? '公開中…' : '公開する'}
       </button>
     </div>

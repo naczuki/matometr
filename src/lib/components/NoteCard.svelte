@@ -6,7 +6,12 @@
   import { fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { timeAgo } from '$lib/utils/time';
-  import { parseNostrRefs, extractImages, resolveTagRefs, buildEmojiMap } from '$lib/utils/nostrContent';
+  import {
+    parseNostrRefs,
+    extractImages,
+    resolveTagRefs,
+    buildEmojiMap
+  } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey, resolveRepostTarget } from '$lib/utils/nostr';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import Avatar from '$lib/components/Avatar.svelte';
@@ -37,12 +42,21 @@
           note = original;
           fetchedFrom = r;
           requestProfile(original.pubkey);
-          if (repostTimer) { clearTimeout(repostTimer); repostTimer = null; }
+          if (repostTimer) {
+            clearTimeout(repostTimer);
+            repostTimer = null;
+          }
         },
-        error: () => { loadError = true; },
-        complete: () => { if (!note) loadError = true; }
+        error: () => {
+          loadError = true;
+        },
+        complete: () => {
+          if (!note) loadError = true;
+        }
       });
-      repostTimer = setTimeout(() => { if (!note) loadError = true; }, 10_000);
+      repostTimer = setTimeout(() => {
+        if (!note) loadError = true;
+      }, 10_000);
       return;
     }
     if (n.kind === 1111) {
@@ -61,7 +75,10 @@
       const decoded = nip19.decode(str);
       if (decoded.type === 'nevent') eventId = decoded.data.id;
       else if (decoded.type === 'note') eventId = decoded.data;
-      else { loadError = true; return; }
+      else {
+        loadError = true;
+        return;
+      }
     } catch {
       loadError = true;
       return;
@@ -71,11 +88,18 @@
     const sub = fetchNoteByIdWithRelay(eventId).subscribe({
       next: ({ note: n, relay }) => {
         handleFetchedNote(n, relay);
-        if (timer) { clearTimeout(timer); timer = null; }
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
       },
-      error: () => { loadError = true; }
+      error: () => {
+        loadError = true;
+      }
     });
-    timer = setTimeout(() => { if (!note) loadError = true; }, 10_000);
+    timer = setTimeout(() => {
+      if (!note) loadError = true;
+    }, 10_000);
     return () => {
       sub.unsubscribe();
       repostSub?.unsubscribe();
@@ -94,7 +118,9 @@
 
   $: emojiMap = note ? buildEmojiMap(note.tags) : new Map<string, string>();
 
-  $: parsedContent = note ? extractImages(resolveTagRefs(note.content, note.tags)) : { text: '', urls: [], videoUrls: [] };
+  $: parsedContent = note
+    ? extractImages(resolveTagRefs(note.content, note.tags))
+    : { text: '', urls: [], videoUrls: [] };
   $: segments = parseNostrRefs(parsedContent.text, emojiMap);
 
   type ImetaInfo = { poster?: string; w?: number; h?: number };
@@ -117,7 +143,10 @@
           const [wStr, hStr] = val.split('x');
           const w = parseInt(wStr ?? '', 10);
           const h = parseInt(hStr ?? '', 10);
-          if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) { info.w = w; info.h = h; }
+          if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
+            info.w = w;
+            info.h = h;
+          }
         }
       }
       if (url) map.set(url, info);
@@ -132,7 +161,7 @@
 
   $: cwReason = (() => {
     if (!note) return null;
-    const tag = note.tags.find(t => t[0] === 'content-warning');
+    const tag = note.tags.find((t) => t[0] === 'content-warning');
     if (!tag) return null;
     return tag[1] ?? '';
   })();
@@ -163,7 +192,9 @@
     if (!note) return '';
     try {
       return nip19.neventEncode({ id: note.id, relays: fetchedFrom ? [fetchedFrom] : [] });
-    } catch { return ''; }
+    } catch {
+      return '';
+    }
   })();
 
   function openMenu(e: MouseEvent): void {
@@ -175,7 +206,10 @@
     menuX = x;
     menuY = rect.bottom + 6;
     menuOpen = true;
-    const handler = (): void => { menuOpen = false; removeDocListener = null; };
+    const handler = (): void => {
+      menuOpen = false;
+      removeDocListener = null;
+    };
     document.addEventListener('click', handler, { once: true });
     removeDocListener = () => document.removeEventListener('click', handler);
   }
@@ -187,8 +221,12 @@
       await navigator.clipboard.writeText(menuNevent);
       copyToast = true;
       if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => { copyToast = false; }, 2000);
-    } catch { /* clipboard API 利用不可 */ }
+      toastTimer = setTimeout(() => {
+        copyToast = false;
+      }, 2000);
+    } catch {
+      /* clipboard API 利用不可 */
+    }
   }
 
   function seekToThumbnail(e: Event, poster: string | undefined): void {
@@ -220,7 +258,16 @@
       <!-- svelte-ignore a11y-interactive-supports-focus -->
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <span class="note-time" role="button" on:click={openMenu}>
-        {timeAgo(note.createdAt)}<svg class="note-time-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        {timeAgo(note.createdAt)}<svg
+          class="note-time-chevron"
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg
+        >
       </span>
     </div>
     <div class="cw-wrap">
@@ -231,24 +278,21 @@
               <span class="text-seg">{segment.content}</span>
             {:else if segment.type === 'mention'}
               {@const mp = $profiles.get(segment.pubkey)}
-              <a
-                class="mention-link"
-                href="{base}/user/{nip19.npubEncode(segment.pubkey)}"
-              >@{truncateName(mp?.displayName ?? mp?.name ?? shortNpubFromPubkey(segment.pubkey))}</a>
+              <a class="mention-link" href="{base}/user/{nip19.npubEncode(segment.pubkey)}"
+                >@{truncateName(
+                  mp?.displayName ?? mp?.name ?? shortNpubFromPubkey(segment.pubkey)
+                )}</a
+              >
             {:else if segment.type === 'quote'}
               <QuotedNote eventId={segment.eventId} />
             {:else if segment.type === 'naddr'}
-              <a
-                class="naddr-link"
-                href="{base}/matome/{segment.naddr}"
-              >nostr:{shortenNaddr(segment.naddr)}</a>
+              <a class="naddr-link" href="{base}/matome/{segment.naddr}"
+                >nostr:{shortenNaddr(segment.naddr)}</a
+              >
             {:else if segment.type === 'url'}
-              <a
-                class="url-link"
-                href={segment.url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >{segment.url}</a>
+              <a class="url-link" href={segment.url} target="_blank" rel="noopener noreferrer"
+                >{segment.url}</a
+              >
             {:else if segment.type === 'emoji'}
               {#if failedEmojis.has(segment.shortcode)}
                 :{segment.shortcode}:
@@ -322,7 +366,9 @@
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div class="cw-overlay" on:click={() => (cwRevealed = true)}>
-          <div class="cw-pill"><span class="cw-pill-text">⚠️{cwReason ? ' ' + cwReason : ''}</span></div>
+          <div class="cw-pill">
+            <span class="cw-pill-text">⚠️{cwReason ? ' ' + cwReason : ''}</span>
+          </div>
           <div class="cw-hint">タップして表示</div>
         </div>
       {/if}
@@ -339,19 +385,14 @@
 {#if menuOpen && menuNevent}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-interactive-supports-focus -->
-  <div
-    class="note-menu"
-    style="left:{menuX}px;top:{menuY}px"
-    role="menu"
-    on:click|stopPropagation
-  >
+  <div class="note-menu" style="left:{menuX}px;top:{menuY}px" role="menu" on:click|stopPropagation>
     <a
       class="note-menu-item"
       href="https://nostter.app/{menuNevent}"
       target="_blank"
       rel="noopener noreferrer"
-      on:click={() => (menuOpen = false)}
-    >nostterで開く</a>
+      on:click={() => (menuOpen = false)}>nostterで開く</a
+    >
     <div class="note-menu-item" role="menuitem" on:click={copyNevent}>neventをコピー</div>
   </div>
 {/if}
@@ -596,7 +637,6 @@
     margin: 0 auto;
   }
 
-
   .url-link {
     color: var(--accent);
     text-decoration: none;
@@ -734,7 +774,6 @@
   .img-error a:hover {
     text-decoration: underline;
   }
-
 
   .load-placeholder {
     font-size: 13px;

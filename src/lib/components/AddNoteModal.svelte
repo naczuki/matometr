@@ -72,11 +72,33 @@
       const note = await new Promise<import('$lib/types').Note | null>((resolve) => {
         let done = false;
         const sub = fetchNoteById(parsed.eventId).subscribe({
-          next: (n) => { if (!done) { done = true; sub.unsubscribe(); resolve(n); } },
-          error: () => { if (!done) { done = true; resolve(null); } },
-          complete: () => { if (!done) { done = true; resolve(null); } }
+          next: (n) => {
+            if (!done) {
+              done = true;
+              sub.unsubscribe();
+              resolve(n);
+            }
+          },
+          error: () => {
+            if (!done) {
+              done = true;
+              resolve(null);
+            }
+          },
+          complete: () => {
+            if (!done) {
+              done = true;
+              resolve(null);
+            }
+          }
         });
-        setTimeout(() => { if (!done) { done = true; sub.unsubscribe(); resolve(null); } }, 8_000);
+        setTimeout(() => {
+          if (!done) {
+            done = true;
+            sub.unsubscribe();
+            resolve(null);
+          }
+        }, 8_000);
       });
 
       if (note) {
@@ -123,12 +145,7 @@
 </script>
 
 {#if open}
-  <div
-    class="overlay"
-    role="presentation"
-    on:click={handleOverlay}
-    on:keydown={handleKeydown}
-  >
+  <div class="overlay" role="presentation" on:click={handleOverlay} on:keydown={handleKeydown}>
     <div class="modal" role="dialog" aria-modal="true" aria-label="投稿を追加">
       <header class="head">
         <h2 class="title">投稿を追加</h2>
@@ -142,48 +159,60 @@
           role="tab"
           aria-selected={activeTab === 'paste'}
           on:click={() => (activeTab = 'paste')}
-          type="button"
-        >ID</button>
+          type="button">ID</button
+        >
         <button
           class="tab"
           class:active={activeTab === 'following'}
           role="tab"
           aria-selected={activeTab === 'following'}
           on:click={() => (activeTab = 'following')}
-          type="button"
-        >フォロー</button>
+          type="button">フォロー</button
+        >
         <button
           class="tab"
           class:active={activeTab === 'favorites'}
           role="tab"
           aria-selected={activeTab === 'favorites'}
           on:click={() => (activeTab = 'favorites')}
-          type="button"
-        >お気に入り</button>
+          type="button">お気に入り</button
+        >
         <button
           class="tab"
           class:active={activeTab === 'search'}
           role="tab"
           aria-selected={activeTab === 'search'}
           on:click={() => (activeTab = 'search')}
-          type="button"
-        >検索</button>
+          type="button">検索</button
+        >
       </div>
 
       <div class="body">
         {#if activeTab === 'paste'}
           <div class="paste-area">
-            <label class="paste-label" for="paste-input">投稿の URL / nevent1 / note1 を貼り付け</label>
+            <label class="paste-label" for="paste-input"
+              >投稿の URL / nevent1 / note1 を貼り付け</label
+            >
             <div class="paste-row">
               <input
                 id="paste-input"
                 class="paste-input"
                 type="text"
                 bind:value={pasteInput}
-                on:keydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPaste(); } }}
+                on:keydown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addPaste();
+                  }
+                }}
                 placeholder="nostr:nevent1… または note1…"
               />
-              <button class="add-paste-btn" type="button" disabled={pasteLoading} on:click={addPaste}>{pasteLoading ? '確認中…' : '追加'}</button>
+              <button
+                class="add-paste-btn"
+                type="button"
+                disabled={pasteLoading}
+                on:click={addPaste}>{pasteLoading ? '確認中…' : '追加'}</button
+              >
             </div>
             {#if pasteError}
               <p class="paste-error">{pasteError}</p>
@@ -205,7 +234,12 @@
             {#each pending as item (item.eventId)}
               <div class="pending-card">
                 <QuotedNote eventId={item.eventId} />
-                <button class="pending-remove" on:click={() => removePending(item.eventId)} type="button" aria-label="削除">×</button>
+                <button
+                  class="pending-remove"
+                  on:click={() => removePending(item.eventId)}
+                  type="button"
+                  aria-label="削除">×</button
+                >
               </div>
             {/each}
           </div>
@@ -299,7 +333,9 @@
     cursor: pointer;
     border-bottom: 3px solid transparent;
     margin-bottom: -1px;
-    transition: color 0.12s, border-color 0.12s;
+    transition:
+      color 0.12s,
+      border-color 0.12s;
     white-space: nowrap;
   }
 

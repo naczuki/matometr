@@ -30,14 +30,24 @@ export function buildEmojiMap(tags: string[][]): Map<string, string> {
 const IMAGE_RE = /https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:[?#][^\s]*)?/gi;
 const VIDEO_RE = /https?:\/\/[^\s]+\.(?:mp4|webm|mov|m4v)(?:[?#][^\s]*)?/gi;
 
-export function extractImages(content: string): { text: string; urls: string[]; videoUrls: string[] } {
+export function extractImages(content: string): {
+  text: string;
+  urls: string[];
+  videoUrls: string[];
+} {
   const videoUrls: string[] = [];
   const urls: string[] = [];
   VIDEO_RE.lastIndex = 0;
   IMAGE_RE.lastIndex = 0;
   const text = content
-    .replace(VIDEO_RE, (url) => { videoUrls.push(url); return ''; })
-    .replace(IMAGE_RE, (url) => { urls.push(url); return ''; })
+    .replace(VIDEO_RE, (url) => {
+      videoUrls.push(url);
+      return '';
+    })
+    .replace(IMAGE_RE, (url) => {
+      urls.push(url);
+      return '';
+    })
     .replace(/\n{3,}/g, '\n\n')
     .trim();
   return { text, urls, videoUrls };
@@ -55,10 +65,18 @@ export function resolveTagRefs(content: string, tags: string[][]): string {
     const tag = tags[idx];
     if (!tag || tag.length < 2) return '';
     if (tag[0] === 'e' && tag[1]) {
-      try { return `nostr:${nip19.neventEncode({ id: tag[1] })}`; } catch { return ''; }
+      try {
+        return `nostr:${nip19.neventEncode({ id: tag[1] })}`;
+      } catch {
+        return '';
+      }
     }
     if (tag[0] === 'p' && tag[1]) {
-      try { return `nostr:${nip19.npubEncode(tag[1])}`; } catch { return ''; }
+      try {
+        return `nostr:${nip19.npubEncode(tag[1])}`;
+      } catch {
+        return '';
+      }
     }
     return '';
   });
@@ -68,10 +86,7 @@ export function resolveTagRefs(content: string, tags: string[][]): string {
 const CONTENT_RE =
   /nostr:(npub1[a-z0-9]+|nprofile1[a-z0-9]+|nevent1[a-z0-9]+|note1[a-z0-9]+|naddr1[a-z0-9]+)|(https?:\/\/[^\s<>"]+)|:([a-zA-Z0-9_]+):/gi;
 
-export function parseNostrRefs(
-  text: string,
-  emojiMap?: Map<string, string>
-): ContentSegment[] {
+export function parseNostrRefs(text: string, emojiMap?: Map<string, string>): ContentSegment[] {
   const segments: ContentSegment[] = [];
   let lastIndex = 0;
 

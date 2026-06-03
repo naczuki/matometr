@@ -5,7 +5,12 @@
   import type { Note } from '$lib/types';
   import { fetchNoteById } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
-  import { parseNostrRefs, extractImages, resolveTagRefs, buildEmojiMap } from '$lib/utils/nostrContent';
+  import {
+    parseNostrRefs,
+    extractImages,
+    resolveTagRefs,
+    buildEmojiMap
+  } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey, resolveRepostTarget, externalNoteUrl } from '$lib/utils/nostr';
   import { timeAgo } from '$lib/utils/time';
   import Avatar from '$lib/components/Avatar.svelte';
@@ -27,17 +32,29 @@
         const repost = resolveRepostTarget(n);
         if (repost) {
           resolvingRepost = true;
-          if (timer) { clearTimeout(timer); timer = null; }
+          if (timer) {
+            clearTimeout(timer);
+            timer = null;
+          }
           repostSub = fetchNoteById(repost.eventId).subscribe({
             next: (original) => {
               note = original;
               requestProfile(original.pubkey);
-              if (repostTimer) { clearTimeout(repostTimer); repostTimer = null; }
+              if (repostTimer) {
+                clearTimeout(repostTimer);
+                repostTimer = null;
+              }
             },
-            error: () => { failed = true; },
-            complete: () => { if (!note) failed = true; }
+            error: () => {
+              failed = true;
+            },
+            complete: () => {
+              if (!note) failed = true;
+            }
           });
-          repostTimer = setTimeout(() => { if (!note) failed = true; }, 10_000);
+          repostTimer = setTimeout(() => {
+            if (!note) failed = true;
+          }, 10_000);
           return;
         }
         if (n.kind === 1111) {
@@ -49,10 +66,16 @@
         requestProfile(n.pubkey);
         if (timer) clearTimeout(timer);
       },
-      error: () => { failed = true; },
-      complete: () => { if (!note && !resolvingRepost) failed = true; }
+      error: () => {
+        failed = true;
+      },
+      complete: () => {
+        if (!note && !resolvingRepost) failed = true;
+      }
     });
-    timer = setTimeout(() => { if (!note && !resolvingRepost) failed = true; }, 10_000);
+    timer = setTimeout(() => {
+      if (!note && !resolvingRepost) failed = true;
+    }, 10_000);
     return () => {
       sub.unsubscribe();
       repostSub?.unsubscribe();
@@ -72,7 +95,11 @@
     failedEmojis = new Set([...failedEmojis, shortcode]);
   }
 
-  $: ({ text: parsedText, urls: imageUrls, videoUrls } = note
+  $: ({
+    text: parsedText,
+    urls: imageUrls,
+    videoUrls
+  } = note
     ? extractImages(resolveTagRefs(note.content, note.tags))
     : { text: '', urls: [], videoUrls: [] });
   $: segments = parseNostrRefs(parsedText, emojiMap);
@@ -97,7 +124,11 @@
   }
 
   function safeNeventEncode(id: string): string {
-    try { return nip19.neventEncode({ id }); } catch { return ''; }
+    try {
+      return nip19.neventEncode({ id });
+    } catch {
+      return '';
+    }
   }
 </script>
 
@@ -126,7 +157,12 @@
         {:else if segment.type === 'quote'}
           {@const ne = safeNeventEncode(segment.eventId)}
           {#if ne}
-            <a class="quote-ref-link" href={externalNoteUrl(ne)} target="_blank" rel="noopener noreferrer">
+            <a
+              class="quote-ref-link"
+              href={externalNoteUrl(ne)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               nostr:{shortRef(ne)}
             </a>
           {/if}
@@ -147,7 +183,9 @@
             />
           {/if}
         {:else if segment.type === 'url'}
-          <a class="naddr-link" href={segment.url} target="_blank" rel="noopener noreferrer">{segment.url}</a>
+          <a class="naddr-link" href={segment.url} target="_blank" rel="noopener noreferrer"
+            >{segment.url}</a
+          >
         {/if}
       {/each}
     </div>

@@ -13,9 +13,18 @@ export function collectObservable<T>(
     let value: T = fallback;
     const sub = obs.subscribe({
       next: (v) => (value = v),
-      complete: () => { sub.unsubscribe(); resolve(value); },
-      error: () => { sub.unsubscribe(); resolve(value); }
+      complete: () => {
+        sub.unsubscribe();
+        resolve(value);
+      },
+      error: () => {
+        sub.unsubscribe();
+        resolve(value);
+      }
     });
-    setTimeout(() => { sub.unsubscribe(); resolve(value); }, timeoutMs);
+    setTimeout(() => {
+      sub.unsubscribe();
+      resolve(value);
+    }, timeoutMs);
   });
 }
