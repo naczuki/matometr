@@ -163,7 +163,7 @@
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: var(--shadow-btn-disabled);
+    box-shadow: var(--shadow-header);
   }
 
   .inner {
