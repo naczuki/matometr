@@ -17,6 +17,7 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
   import { markDeleted } from '$lib/stores/deletedMatomes';
+  import { requestListReload } from '$lib/stores/listReload';
   import { markFaved } from '$lib/stores/favs';
   import { avatarStyle } from '$lib/utils/avatar';
   import { shortNpubFromPubkey, shortNpub as shortNpubStr } from '$lib/utils/nostr';
@@ -320,6 +321,8 @@
     try {
       await deleteMatome(matome.id);
       markDeleted(matome.id);
+      // 一覧へ戻ったとき削除結果を確認できるようリロードさせる
+      requestListReload();
       await goto(`${base}/`);
     } catch (e) {
       deleteError = e instanceof Error ? e.message : '削除に失敗しました';
