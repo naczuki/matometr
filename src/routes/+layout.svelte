@@ -17,8 +17,8 @@
     <slot />
   </main>
   <Footer />
-  <ScrollToTop />
 </div>
+<ScrollToTop />
 
 <style>
   .app-wrapper {
