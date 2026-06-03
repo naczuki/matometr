@@ -65,3 +65,19 @@ body {
   min-height: 100vh;
   max-width: 100%;
 }
+
+/* Windows ClearType による太字テキストのギザギザ対策。
+   微小な transform で描画をグレースケールAAに切り替え輪郭を滑らかにする。
+   ボタン・見出し・ユーザー名など太字UIテキストをまとめて対象にする。 */
+button,
+input,
+h1, h2, h3, h4,
+.tab,
+.label-text,
+.dropdown-item,
+.count,
+[class*='btn'],
+[class*='title'],
+[class*='name'] {
+  transform: rotate(0.04deg);
+}
