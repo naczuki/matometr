@@ -105,7 +105,7 @@ export class Matome {
       dTag,
       title,
       summary,
-      publishedAt: publishedAtStr ? parseInt(publishedAtStr, 10) : event.created_at,
+      publishedAt: publishedAtStr ? (parseInt(publishedAtStr, 10) || event.created_at) : event.created_at,
       createdAt: event.created_at,
       content: event.content,
       blocks: Matome.parseContent(event.content, event.tags),

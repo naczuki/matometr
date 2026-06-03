@@ -298,11 +298,32 @@ function translateNostrLogin(sr: ShadowRoot): void {
       if (svg) {
         svg.setAttribute('viewBox', '0 0 24 24');
         // 縦長の楕円（8×10.5）x=12 で両目をくっつけ、瞳を左寄せでキョロ目に
-        svg.innerHTML =
-          '<path stroke-linecap="round" stroke-linejoin="round" d="M12 12C12 9.1 10.2 6.75 8 6.75C5.8 6.75 4 9.1 4 12C4 14.9 5.8 17.25 8 17.25C10.2 17.25 12 14.9 12 12Z"/>' +
-          '<circle cx="6.5" cy="12.5" r="2" fill="currentColor" stroke="none"/>' +
-          '<path stroke-linecap="round" stroke-linejoin="round" d="M12 12C12 9.1 13.8 6.75 16 6.75C18.2 6.75 20 9.1 20 12C20 14.9 18.2 17.25 16 17.25C13.8 17.25 12 14.9 12 12Z"/>' +
-          '<circle cx="14.5" cy="12.5" r="2" fill="currentColor" stroke="none"/>';
+        const NS = 'http://www.w3.org/2000/svg';
+        svg.replaceChildren();
+        const path1 = document.createElementNS(NS, 'path');
+        path1.setAttribute('stroke-linecap', 'round');
+        path1.setAttribute('stroke-linejoin', 'round');
+        path1.setAttribute('d', 'M12 12C12 9.1 10.2 6.75 8 6.75C5.8 6.75 4 9.1 4 12C4 14.9 5.8 17.25 8 17.25C10.2 17.25 12 14.9 12 12Z');
+        svg.appendChild(path1);
+        const circle1 = document.createElementNS(NS, 'circle');
+        circle1.setAttribute('cx', '6.5');
+        circle1.setAttribute('cy', '12.5');
+        circle1.setAttribute('r', '2');
+        circle1.setAttribute('fill', 'currentColor');
+        circle1.setAttribute('stroke', 'none');
+        svg.appendChild(circle1);
+        const path2 = document.createElementNS(NS, 'path');
+        path2.setAttribute('stroke-linecap', 'round');
+        path2.setAttribute('stroke-linejoin', 'round');
+        path2.setAttribute('d', 'M12 12C12 9.1 13.8 6.75 16 6.75C18.2 6.75 20 9.1 20 12C20 14.9 18.2 17.25 16 17.25C13.8 17.25 12 14.9 12 12Z');
+        svg.appendChild(path2);
+        const circle2 = document.createElementNS(NS, 'circle');
+        circle2.setAttribute('cx', '14.5');
+        circle2.setAttribute('cy', '12.5');
+        circle2.setAttribute('r', '2');
+        circle2.setAttribute('fill', 'currentColor');
+        circle2.setAttribute('stroke', 'none');
+        svg.appendChild(circle2);
       }
     }
   });

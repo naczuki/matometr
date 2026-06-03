@@ -431,10 +431,10 @@ export function fetchUserMatomes(pubkey: string, limit = 50): Observable<Matome>
   return merge(makeObs('matometr'), makeObs('nosli'));
 }
 
-export function fetchUserFavedMatomes(pubkey: string): Observable<Matome> {
+export function fetchUserFavedMatomes(pubkey: string, limit = 500): Observable<Matome> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
-    filters: { kinds: [7], authors: [pubkey], '#k': ['30023'] }
+    filters: { kinds: [7], authors: [pubkey], '#k': ['30023'], limit }
   });
 
   // 1 REQ に詰め込む filter 数の上限。著者が多くても、リレーに大量の
