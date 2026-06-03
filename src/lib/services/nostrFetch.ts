@@ -22,9 +22,7 @@ export function fetchMatomeListWithRelay(
   };
   const rxReq = createRxOneshotReq({ filters: f });
   const useOpts =
-    relays && relays.length > 0
-      ? { on: { relays, defaultReadRelays: false } }
-      : undefined;
+    relays && relays.length > 0 ? { on: { relays, defaultReadRelays: false } } : undefined;
   return client.use(rxReq, useOpts).pipe(
     map(({ event, from }) => {
       const matome = Matome.fromEvent(event);
@@ -111,9 +109,7 @@ export function fetchNotesFromAuthors(
   if (authors.length === 0) return EMPTY;
   const client = getClient();
   const { until, limit = 30, relays } = options;
-  const f = until
-    ? { kinds: [1], authors, limit, until }
-    : { kinds: [1], authors, limit };
+  const f = until ? { kinds: [1], authors, limit, until } : { kinds: [1], authors, limit };
   const rxReq = createRxOneshotReq({ filters: f });
 
   return client.use(rxReq, withRelays(relays)).pipe(
@@ -129,14 +125,10 @@ export function fetchNotesFromAuthorsWithRelay(
   if (authors.length === 0) return EMPTY;
   const client = getClient();
   const { until, limit = 30, relays } = options;
-  const f = until
-    ? { kinds: [1], authors, limit, until }
-    : { kinds: [1], authors, limit };
+  const f = until ? { kinds: [1], authors, limit, until } : { kinds: [1], authors, limit };
   const rxReq = createRxOneshotReq({ filters: f });
   const useOpts =
-    relays && relays.length > 0
-      ? { on: { relays, defaultReadRelays: false } }
-      : undefined;
+    relays && relays.length > 0 ? { on: { relays, defaultReadRelays: false } } : undefined;
   return client.use(rxReq, useOpts).pipe(
     uniq(),
     map(({ event, from }) => ({ note: toNote(event), relay: from }))
@@ -178,9 +170,7 @@ export function fetchFavoriteReactionsWithRelay(
     : { kinds: [7], authors: [pubkey], limit };
   const rxReq = createRxOneshotReq({ filters: reactionFilter });
   const useOpts =
-    relays && relays.length > 0
-      ? { on: { relays, defaultReadRelays: false } }
-      : undefined;
+    relays && relays.length > 0 ? { on: { relays, defaultReadRelays: false } } : undefined;
 
   return client.use(rxReq, useOpts).pipe(
     uniq(),
@@ -191,9 +181,7 @@ export function fetchFavoriteReactionsWithRelay(
       }
       return eventId ? { eventId, reactedAt: event.created_at, relay: from } : null;
     }),
-    filter(
-      (r): r is { eventId: string; reactedAt: number; relay: string } => r !== null
-    )
+    filter((r): r is { eventId: string; reactedAt: number; relay: string } => r !== null)
   );
 }
 
@@ -230,9 +218,14 @@ export function fetchTagSearch(
     ...(until != null ? { until } : {})
   };
   const tagReq = createRxOneshotReq({ filters: tagFilter });
-  const tagObs = client.use(tagReq, {
-    on: { relays: DEFAULT_RELAYS, defaultReadRelays: false }
-  }).pipe(uniq(), map(({ event }) => toNote(event)));
+  const tagObs = client
+    .use(tagReq, {
+      on: { relays: DEFAULT_RELAYS, defaultReadRelays: false }
+    })
+    .pipe(
+      uniq(),
+      map(({ event }) => toNote(event))
+    );
 
   const searchFilter = {
     kinds: [1],
@@ -242,9 +235,14 @@ export function fetchTagSearch(
     ...(until != null ? { until } : {})
   };
   const searchReq = createRxOneshotReq({ filters: searchFilter });
-  const searchObs = client.use(searchReq, {
-    on: { relays: [...SEARCH_RELAYS], defaultReadRelays: false }
-  }).pipe(uniq(), map(({ event }) => toNote(event)));
+  const searchObs = client
+    .use(searchReq, {
+      on: { relays: [...SEARCH_RELAYS], defaultReadRelays: false }
+    })
+    .pipe(
+      uniq(),
+      map(({ event }) => toNote(event))
+    );
 
   return merge(tagObs, searchObs);
 }
@@ -277,8 +275,7 @@ export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
             typeof meta.display_name === 'string' && meta.display_name
               ? meta.display_name
               : undefined,
-          picture:
-            typeof meta.picture === 'string' && meta.picture ? meta.picture : undefined,
+          picture: typeof meta.picture === 'string' && meta.picture ? meta.picture : undefined,
           about: typeof meta.about === 'string' ? meta.about : undefined,
           nip05: typeof meta.nip05 === 'string' ? meta.nip05 : undefined,
           emojis: Object.keys(emojis).length > 0 ? emojis : undefined
@@ -295,7 +292,11 @@ export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
 export function fetchReactionCounts(
   matomes: { pubkey: string; dTag: string }[]
 ): Observable<Map<string, number>> {
-  if (matomes.length === 0) return new Observable((s) => { s.next(new Map()); s.complete(); });
+  if (matomes.length === 0)
+    return new Observable((s) => {
+      s.next(new Map());
+      s.complete();
+    });
   const client = getClient();
   const aValues = matomes.map((m) => `30023:${m.pubkey}:${m.dTag}`);
   const rxReq = createRxOneshotReq({
@@ -306,21 +307,26 @@ export function fetchReactionCounts(
     const counts = new Map<string, number>();
     const seen = new Set<string>();
 
-    const sub = client.use(rxReq).pipe(uniq()).subscribe({
-      next({ event }) {
-        if (seen.has(event.id)) return;
-        seen.add(event.id);
-        const aTag = event.tags.find(([k]) => k === 'a');
-        if (aTag?.[1]) {
-          counts.set(aTag[1], (counts.get(aTag[1]) ?? 0) + 1);
+    const sub = client
+      .use(rxReq)
+      .pipe(uniq())
+      .subscribe({
+        next({ event }) {
+          if (seen.has(event.id)) return;
+          seen.add(event.id);
+          const aTag = event.tags.find(([k]) => k === 'a');
+          if (aTag?.[1]) {
+            counts.set(aTag[1], (counts.get(aTag[1]) ?? 0) + 1);
+          }
+        },
+        error(err) {
+          subscriber.error(err);
+        },
+        complete() {
+          subscriber.next(counts);
+          subscriber.complete();
         }
-      },
-      error(err) { subscriber.error(err); },
-      complete() {
-        subscriber.next(counts);
-        subscriber.complete();
-      }
-    });
+      });
     return () => sub.unsubscribe();
   });
 }
@@ -336,11 +342,22 @@ export function fetchReactionsForMatome(
   const count$ = new Observable<number>((subscriber) => {
     const seen = new Set<string>();
     const rxReq = createRxOneshotReq({ filters: { kinds: [7], '#a': [aTagValue] } });
-    const sub = client.use(rxReq).pipe(uniq()).subscribe({
-      next({ event }) { seen.add(event.id); },
-      complete() { subscriber.next(seen.size); subscriber.complete(); },
-      error() { subscriber.next(0); subscriber.complete(); }
-    });
+    const sub = client
+      .use(rxReq)
+      .pipe(uniq())
+      .subscribe({
+        next({ event }) {
+          seen.add(event.id);
+        },
+        complete() {
+          subscriber.next(seen.size);
+          subscriber.complete();
+        },
+        error() {
+          subscriber.next(0);
+          subscriber.complete();
+        }
+      });
     return () => sub.unsubscribe();
   });
 
@@ -351,17 +368,26 @@ export function fetchReactionsForMatome(
         });
         let found = false;
         const sub = client.use(rxReq).subscribe({
-          next() { found = true; },
-          complete() { subscriber.next(found); subscriber.complete(); },
-          error() { subscriber.next(false); subscriber.complete(); }
+          next() {
+            found = true;
+          },
+          complete() {
+            subscriber.next(found);
+            subscriber.complete();
+          },
+          error() {
+            subscriber.next(false);
+            subscriber.complete();
+          }
         });
         return () => sub.unsubscribe();
       })
-    : new Observable<boolean>((s) => { s.next(false); s.complete(); });
+    : new Observable<boolean>((s) => {
+        s.next(false);
+        s.complete();
+      });
 
-  return forkJoin([count$, faved$]).pipe(
-    map(([count, myFaved]) => ({ count, myFaved }))
-  );
+  return forkJoin([count$, faved$]).pipe(map(([count, myFaved]) => ({ count, myFaved })));
 }
 
 export function fetchNosliListWithRelay(
@@ -378,9 +404,7 @@ export function fetchNosliListWithRelay(
   };
   const rxReq = createRxOneshotReq({ filters: f });
   const useOpts =
-    relays && relays.length > 0
-      ? { on: { relays, defaultReadRelays: false } }
-      : undefined;
+    relays && relays.length > 0 ? { on: { relays, defaultReadRelays: false } } : undefined;
   return client.use(rxReq, useOpts).pipe(
     map(({ event, from }) => {
       const matome = Matome.fromEvent(event);
@@ -407,9 +431,7 @@ export function fetchUserMatomes(pubkey: string, limit = 50): Observable<Matome>
   return merge(makeObs('matometr'), makeObs('nosli'));
 }
 
-export function fetchUserFavedMatomes(
-  pubkey: string
-): Observable<Matome> {
+export function fetchUserFavedMatomes(pubkey: string): Observable<Matome> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
     filters: { kinds: [7], authors: [pubkey], '#k': ['30023'] }
@@ -423,54 +445,71 @@ export function fetchUserFavedMatomes(
     const aTagValues = new Set<string>();
     const innerSubs: Subscription[] = [];
 
-    const sub = client.use(rxReq).pipe(uniq()).subscribe({
-      next({ event }) {
-        const aTag = event.tags.find(([k]) => k === 'a');
-        if (aTag?.[1]?.startsWith('30023:')) {
-          aTagValues.add(aTag[1]);
-        }
-      },
-      error(err) { subscriber.error(err); },
-      complete() {
-        // 著者ごとに dtag を集約する。同一著者内の #d 配列は OR 評価なので
-        // クロスプロダクト誤マッチが起きず、filter 数を「ふぁぼ件数」から
-        // 「ふぁぼった著者数」まで減らせる。
-        const dTagsByAuthor = new Map<string, string[]>();
-        for (const aVal of aTagValues) {
-          const parts = aVal.split(':');
-          if (parts.length < 3) continue;
-          const author = parts[1];
-          const dTag = parts.slice(2).join(':');
-          const list = dTagsByAuthor.get(author);
-          if (list) list.push(dTag);
-          else dTagsByAuthor.set(author, [dTag]);
-        }
+    const sub = client
+      .use(rxReq)
+      .pipe(uniq())
+      .subscribe({
+        next({ event }) {
+          const aTag = event.tags.find(([k]) => k === 'a');
+          if (aTag?.[1]?.startsWith('30023:')) {
+            aTagValues.add(aTag[1]);
+          }
+        },
+        error(err) {
+          subscriber.error(err);
+        },
+        complete() {
+          // 著者ごとに dtag を集約する。同一著者内の #d 配列は OR 評価なので
+          // クロスプロダクト誤マッチが起きず、filter 数を「ふぁぼ件数」から
+          // 「ふぁぼった著者数」まで減らせる。
+          const dTagsByAuthor = new Map<string, string[]>();
+          for (const aVal of aTagValues) {
+            const parts = aVal.split(':');
+            if (parts.length < 3) continue;
+            const author = parts[1];
+            const dTag = parts.slice(2).join(':');
+            const list = dTagsByAuthor.get(author);
+            if (list) list.push(dTag);
+            else dTagsByAuthor.set(author, [dTag]);
+          }
 
-        const filters = [...dTagsByAuthor].map(([author, dTags]) => ({
-          kinds: [30023],
-          authors: [author],
-          '#d': dTags
-        }));
-        if (filters.length === 0) { subscriber.complete(); return; }
+          const filters = [...dTagsByAuthor].map(([author, dTags]) => ({
+            kinds: [30023],
+            authors: [author],
+            '#d': dTags
+          }));
+          if (filters.length === 0) {
+            subscriber.complete();
+            return;
+          }
 
-        let remaining = 0;
-        for (let i = 0; i < filters.length; i += MAX_FILTERS_PER_REQ) {
-          const chunk = filters.slice(i, i + MAX_FILTERS_PER_REQ);
-          remaining++;
-          const mSub = client.use(createRxOneshotReq({ filters: chunk })).pipe(
-            uniq(),
-            map(({ event: ev }) => Matome.fromEvent(ev)),
-            filter((m): m is Matome => m !== null),
-            filter((m) => m.isMatometr || m.isNosli)
-          ).subscribe({
-            next(m) { subscriber.next(m); },
-            complete() { if (--remaining === 0) subscriber.complete(); },
-            error() { if (--remaining === 0) subscriber.complete(); }
-          });
-          innerSubs.push(mSub);
+          let remaining = 0;
+          for (let i = 0; i < filters.length; i += MAX_FILTERS_PER_REQ) {
+            const chunk = filters.slice(i, i + MAX_FILTERS_PER_REQ);
+            remaining++;
+            const mSub = client
+              .use(createRxOneshotReq({ filters: chunk }))
+              .pipe(
+                uniq(),
+                map(({ event: ev }) => Matome.fromEvent(ev)),
+                filter((m): m is Matome => m !== null),
+                filter((m) => m.isMatometr || m.isNosli)
+              )
+              .subscribe({
+                next(m) {
+                  subscriber.next(m);
+                },
+                complete() {
+                  if (--remaining === 0) subscriber.complete();
+                },
+                error() {
+                  if (--remaining === 0) subscriber.complete();
+                }
+              });
+            innerSubs.push(mSub);
+          }
         }
-      }
-    });
+      });
     return () => {
       sub.unsubscribe();
       for (const s of innerSubs) s.unsubscribe();

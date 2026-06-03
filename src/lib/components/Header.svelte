@@ -75,7 +75,6 @@
 
 <svelte:window on:click={handleWindowClick} />
 
-
 <header>
   <div class="inner">
     <a href="{base}/" class="logo">
@@ -97,9 +96,19 @@
               {/if}
             </div>
             <span class="user-name">
-              {$currentUser.displayName ?? $currentUser.name ?? $currentUser.npub.slice(0, 10) + '…'}
+              {$currentUser.displayName ??
+                $currentUser.name ??
+                $currentUser.npub.slice(0, 10) + '…'}
             </span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="chevron">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              class="chevron"
+            >
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </button>
@@ -107,15 +116,33 @@
           {#if dropdownOpen}
             <div class="dropdown">
               <a class="dropdown-item" href="{base}/new" on:click={closeDropdown}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
                 ＋ まとめを作る
               </a>
               <div class="dropdown-divider" />
-              <a class="dropdown-item" href="{base}/user/{$currentUser.npub}" on:click={closeDropdown}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <a
+                class="dropdown-item"
+                href="{base}/user/{$currentUser.npub}"
+                on:click={closeDropdown}
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
@@ -123,7 +150,14 @@
               </a>
               <div class="dropdown-divider" />
               <button class="dropdown-item danger" on:click={handleLogout}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
@@ -141,11 +175,7 @@
 </header>
 
 {#if showLoginModal}
-  <LoginModal
-    {launching}
-    on:close={hideLoginModal}
-    on:open-nostr={openNostrModal}
-  />
+  <LoginModal {launching} on:close={hideLoginModal} on:open-nostr={openNostrModal} />
 {/if}
 
 {#if showNostrModal}

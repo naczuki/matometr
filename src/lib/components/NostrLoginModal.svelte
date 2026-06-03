@@ -45,6 +45,7 @@
 
     <h2 class="modal-title">まとめたーへようこそ</h2>
     <p class="modal-lead">
+      <!-- eslint-disable-next-line svelte/no-at-html-tags -- 静的な内部文字列（☆→★ の装飾置換）のみ -->
       {@html leadText.replace(/☆/g, '<span class="modal-lead-star">★</span>')}<br />
       <b>Nostrアカウント</b>でログインしてください
     </p>
@@ -57,7 +58,9 @@
         disabled={!$nostrExtension || launching || busy}
       >
         <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5A2.5 2.5 0 0 0 10.5 1a2.5 2.5 0 0 0-2.5 2.5V5H4a2 2 0 0 0-2 2v3.8h1.5A2.7 2.7 0 0 1 6.2 13.5 2.7 2.7 0 0 1 3.5 16.2H2V20a2 2 0 0 0 2 2h3.8v-1.5A2.7 2.7 0 0 1 10.5 18a2.7 2.7 0 0 1 2.7 2.5V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 2.5-2.5 2.5 2.5 0 0 0-2.5-2.5z"/>
+          <path
+            d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5A2.5 2.5 0 0 0 10.5 1a2.5 2.5 0 0 0-2.5 2.5V5H4a2 2 0 0 0-2 2v3.8h1.5A2.7 2.7 0 0 1 6.2 13.5 2.7 2.7 0 0 1 3.5 16.2H2V20a2 2 0 0 0 2 2h3.8v-1.5A2.7 2.7 0 0 1 10.5 18a2.7 2.7 0 0 1 2.7 2.5V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 2.5-2.5 2.5 2.5 0 0 0-2.5-2.5z"
+          />
         </svg>
         ブラウザ拡張機能
       </button>
@@ -71,7 +74,7 @@
         disabled={launching || busy}
       >
         <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
         </svg>
         リモートサイナー
       </button>
@@ -81,10 +84,17 @@
           on:click={() => dispatch('launch', { screen: 'connection-string' })}
           disabled={launching || busy}
         >
-          <svg class="btn-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-            <rect x="3" y="14" width="7" height="7"/><rect x="18" y="18" width="3" height="3"/>
-            <rect x="14" y="14" width="3" height="3"/>
+          <svg
+            class="btn-icon-sm"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" /><rect x="18" y="18" width="3" height="3" />
+            <rect x="14" y="14" width="3" height="3" />
           </svg>
           QRコード
         </button>
@@ -93,9 +103,16 @@
           on:click={() => dispatch('launch', { screen: 'login-bunker-url' })}
           disabled={launching || busy}
         >
-          <svg class="btn-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          <svg
+            class="btn-icon-sm"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
           </svg>
           bunker://
         </button>
@@ -109,9 +126,16 @@
         on:click={() => dispatch('launch', { screen: 'login-nsec' })}
         disabled={launching || busy}
       >
-        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <circle cx="7.5" cy="15.5" r="5.5"/>
-          <path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3"/><path d="M18 5l2 2"/>
+        <svg
+          class="btn-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <circle cx="7.5" cy="15.5" r="5.5" />
+          <path d="M21 2l-9.6 9.6" /><path d="M15.5 7.5l3 3" /><path d="M18 5l2 2" />
         </svg>
         秘密鍵
       </button>

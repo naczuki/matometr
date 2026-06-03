@@ -20,7 +20,10 @@ export function clearFavDeltas(keys: string[]): void {
   _faved.update((m) => {
     let changed = false;
     for (const key of keys) {
-      if (m.has(key)) { m.delete(key); changed = true; }
+      if (m.has(key)) {
+        m.delete(key);
+        changed = true;
+      }
     }
     return changed ? new Map(m) : m;
   });

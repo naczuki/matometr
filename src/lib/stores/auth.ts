@@ -181,14 +181,14 @@ function setupNostrLoginStyles(): void {
         observeNostrLogin(root);
       }
       return root;
-    },
+    }
   });
 }
 
 const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Log in': 'ログイン',
   'Sign up': '新規登録',
-  'Connect': 'アプリでログイン',
+  Connect: 'アプリでログイン',
   'Read only': '見るだけログイン（npub）',
   'With extension': '拡張機能でログイン',
   'With nsec': '秘密鍵でログイン（nsec）',
@@ -200,14 +200,15 @@ const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Connect to key store': '鍵ストアでログイン',
   'Select key store:': '鍵ストアを選択：',
   'Other key stores': 'その他の鍵ストア',
-  'offline': 'オフライン',
+  offline: 'オフライン',
   'Advanced: Relay Settings': '詳細設定：リレー設定',
-  'Advanced': '詳細設定',
+  Advanced: '詳細設定',
   'User name': 'ユーザー名',
   'Connection string': '接続文字列',
   'Bunker URL': 'Bunker URL',
   'Log in to read only': '見るだけでログイン',
-  'Please enter the user name or npub of any Nostr user.': 'Nostrユーザーの名前かnpubを入れてください。',
+  'Please enter the user name or npub of any Nostr user.':
+    'Nostrユーザーの名前かnpubを入れてください。',
   'Login with nsec': '秘密鍵（nsec）でログイン',
   'Enter your private key (nsec) to log in.': '秘密鍵（nsec）を入れてログインします。',
   'Use at your own risk': '自己責任でご利用ください',
@@ -216,30 +217,34 @@ const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Connecting...': 'つないでいます…',
   'Establishing connection to your key storage.': '鍵ストアにつないでいます。',
   'Press Cancel to abort': '中止するにはキャンセルを押してください',
-  'Cancel': 'キャンセル',
+  Cancel: 'キャンセル',
   'Signing in...': 'ログインしています…',
   'Nostr profiles are based on cryptographic keys. You can create keys right here, or with a key storage app.':
     'Nostrのプロフィールは暗号鍵に基づいています。ここで鍵を作成するか、鍵管理アプリを使用できます。',
   'Create keys': '鍵を作成',
   'With key store': '鍵ストアで',
   'Create Nostr profile': 'Nostrプロフィールを作成',
-  'Choose any username, you can always change it later.': 'ユーザー名はあとでいつでも変更できます。',
+  'Choose any username, you can always change it later.':
+    'ユーザー名はあとでいつでも変更できます。',
   'Enter username': 'ユーザー名を入力',
   'Create profile': 'プロフィールを作成',
   'Error: Please enter some nickname': 'エラー：ニックネームを入力してください',
   'Create keys with key store': '鍵ストアで鍵を作成',
-  'Choose some username and a key store service.': 'ユーザー名と鍵ストアサービスを選択してください。',
-  'Name': '名前',
+  'Choose some username and a key store service.':
+    'ユーザー名と鍵ストアサービスを選択してください。',
+  Name: '名前',
   'Install browser extension!': 'ブラウザ拡張機能をインストール！',
-  'Try Alby, nos2x or Nostore': 'nos2x（Chrome）、nos2x-fox（Firefox）、Nostash（iOS）をお試しください',
-  'Scan or copy the connection string with key store app': '鍵ストアアプリで接続文字列をスキャンまたはコピーしてください',
-  'Nip46 Relays:': 'NIP-46 リレー：',
+  'Try Alby, nos2x or Nostore':
+    'nos2x（Chrome）、nos2x-fox（Firefox）、Nostash（iOS）をお試しください',
+  'Scan or copy the connection string with key store app':
+    '鍵ストアアプリで接続文字列をスキャンまたはコピーしてください',
+  'Nip46 Relays:': 'NIP-46 リレー：'
 };
 
 const NOSTR_LOGIN_PLACEHOLDERS: Record<string, string> = {
   'npub or name@domain': 'npub または name@domain',
   'Enter username': 'ユーザー名を入力',
-  'Name': '名前',
+  Name: '名前'
 };
 
 // nostr-login モーダルから「ログイン方法選択モーダル」へ戻すための通知ストア
@@ -316,18 +321,20 @@ function translateNostrLogin(sr: ShadowRoot): void {
   });
 
   // nos2x に Chrome 注釈を追加し、Firefox 版 nos2x-fox を隣に挿入（冪等）
-  sr.querySelectorAll<HTMLAnchorElement>('a[href*="nos2x"]:not([href*="nos2x-fox"])').forEach((a) => {
-    a.textContent = 'nos2x（Chrome）';
-    if (!sr.querySelector('a[href*="nos2x-fox"]')) {
-      const sep = document.createTextNode('、');
-      const fox = document.createElement('a');
-      fox.href = 'https://addons.mozilla.org/ja/firefox/addon/nos2x-fox/';
-      fox.target = '_blank';
-      fox.rel = 'noopener noreferrer';
-      fox.textContent = 'nos2x-fox（Firefox）';
-      a.after(sep, fox);
+  sr.querySelectorAll<HTMLAnchorElement>('a[href*="nos2x"]:not([href*="nos2x-fox"])').forEach(
+    (a) => {
+      a.textContent = 'nos2x（Chrome）';
+      if (!sr.querySelector('a[href*="nos2x-fox"]')) {
+        const sep = document.createTextNode('、');
+        const fox = document.createElement('a');
+        fox.href = 'https://addons.mozilla.org/ja/firefox/addon/nos2x-fox/';
+        fox.target = '_blank';
+        fox.rel = 'noopener noreferrer';
+        fox.textContent = 'nos2x-fox（Firefox）';
+        a.after(sep, fox);
+      }
     }
-  });
+  );
 
   // ログイン方法選択モーダルへ戻るボタンを注入（画面遷移で消えても再注入される）
   // ヘッダー左側（ロゴの左）に戻るボタンを注入
@@ -349,7 +356,7 @@ function observeNostrLogin(root: ShadowRoot): void {
   const options: MutationObserverInit = {
     childList: true,
     subtree: true,
-    characterData: true,
+    characterData: true
   };
   const observer = new MutationObserver(() => {
     observer.disconnect();
@@ -390,9 +397,7 @@ function handleLogin(npub: string): void {
     _profileSub = fetchProfiles([pk]).subscribe((profile) => {
       // 複数リレーから kind:0 が届いた場合、created_at が最も新しいものを採用する
       _profile.update((existing) =>
-        !existing || (profile.createdAt ?? 0) >= (existing.createdAt ?? 0)
-          ? profile
-          : existing
+        !existing || (profile.createdAt ?? 0) >= (existing.createdAt ?? 0) ? profile : existing
       );
     });
   } catch {
@@ -403,7 +408,11 @@ function handleLogin(npub: string): void {
 let _nlLogout: (() => Promise<void>) | null = null;
 
 // 本物のブラウザ拡張機能への参照（Svelte ストアで公開してモーダルのボタンを reactive に制御）
-const _extStore = writable<{ getPublicKey: () => Promise<string> } | null>(null);
+type NostrProvider = { getPublicKey: () => Promise<string> };
+function winNostr(): NostrProvider | null {
+  return (window as Window & { nostr?: NostrProvider }).nostr ?? null;
+}
+const _extStore = writable<NostrProvider | null>(null);
 export const nostrExtension = { subscribe: _extStore.subscribe };
 export const getNostrExtension = () => get(_extStore);
 
@@ -420,13 +429,15 @@ export async function initAuth(): Promise<void> {
   setupNostrLoginStyles();
 
   // init() 実行前に存在するなら捕捉
-  if ((window as any).nostr) _extStore.set((window as any).nostr);
+  const earlyExt = winNostr();
+  if (earlyExt) _extStore.set(earlyExt);
 
   const { init, logout: nlLogout } = await import('@konemono/nostr-login');
   _nlLogout = nlLogout;
 
   // モジュール読み込み中に拡張が注入された場合も捕捉
-  if ((window as any).nostr && !get(_extStore)) _extStore.set((window as any).nostr);
+  const lateExt = winNostr();
+  if (lateExt && !get(_extStore)) _extStore.set(lateExt);
 
   await init({
     noBanner: true,
@@ -443,34 +454,34 @@ export async function initAuth(): Promise<void> {
         _pubkey.set(null);
         _profile.set(null);
       }
-    },
+    }
   });
 
   // init() 後 window.nostr はプロキシ。プロキシを誤って保存していたら消す
-  const nlProxy = (window as any).nostr;
+  const nlProxy = winNostr();
   if (get(_extStore) === nlProxy) _extStore.set(null);
 
   // init() 後に遅延注入される拡張機能を監視する
   // nostr-login の startCheckingExtension が拡張を検出して win.nostr を切り替える瞬間を捉える
   try {
-    let _winNostr: any = nlProxy;
+    let _winNostr: NostrProvider | null = nlProxy;
     Object.defineProperty(window, 'nostr', {
       configurable: true,
       enumerable: true,
       get: () => _winNostr,
-      set: (v: any) => {
+      set: (v: NostrProvider | null) => {
         _winNostr = v;
         if (v && v !== nlProxy) {
           // プロキシ以外がセットされた = 本物の拡張機能
           _extStore.set(v);
         }
-      },
+      }
     });
   } catch {
     // defineProperty が使えない環境ではポーリングにフォールバック
     let polls = 0;
     const id = setInterval(() => {
-      const cur = (window as any).nostr;
+      const cur = winNostr();
       if (cur && cur !== nlProxy) _extStore.set(cur);
       if (++polls >= 50) clearInterval(id); // 10秒で打ち切り
     }, 200);

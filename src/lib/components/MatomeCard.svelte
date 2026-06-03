@@ -52,7 +52,17 @@
   {/if}
   <div class="footer">
     <span class="count">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
       </svg>{matome.postCount}件
@@ -65,8 +75,19 @@
     {/if}
     {#if displayFavCount > 0}
       <span class="fav-stat">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 17.75l-6.172 3.245 1.179-6.873-4.993-4.867 6.9-1.002L12 2.5l3.086 6.253 6.9 1.002-4.993 4.867 1.179 6.873z" />
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 17.75l-6.172 3.245 1.179-6.873-4.993-4.867 6.9-1.002L12 2.5l3.086 6.253 6.9 1.002-4.993 4.867 1.179 6.873z"
+          />
         </svg>{displayFavCount}
       </span>
     {/if}

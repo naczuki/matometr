@@ -8,7 +8,13 @@ export type MentionBlock = { type: 'mention'; content: string; pubkey: string };
 export type CommentBlock = { type: 'comment'; content: string };
 export type HeadingBlock = { type: 'heading'; content: string };
 export type ParagraphBlock = { type: 'paragraph'; content: string };
-export type MatomeBlock = NeventBlock | NaddrBlock | MentionBlock | CommentBlock | HeadingBlock | ParagraphBlock;
+export type MatomeBlock =
+  | NeventBlock
+  | NaddrBlock
+  | MentionBlock
+  | CommentBlock
+  | HeadingBlock
+  | ParagraphBlock;
 
 const NEVENT_LINE = /^nostr:nevent1[a-z0-9]+$/;
 const NOSTR_REF_SOLO = /^nostr:(nevent1|note1|naddr1|npub1|nprofile1)[a-z0-9]+$/;
@@ -130,11 +136,17 @@ export class Matome {
       if (decoded.type === 'nprofile') {
         return { type: 'mention', content: chunk, pubkey: decoded.data.pubkey };
       }
-    } catch { /* treat as nevent */ }
+    } catch {
+      /* treat as nevent */
+    }
     return { type: 'nevent', content: chunk };
   }
 
-  private static parseContentWithLayout(content: string, eventTags: string[][], layoutJson: string): MatomeBlock[] {
+  private static parseContentWithLayout(
+    content: string,
+    eventTags: string[][],
+    layoutJson: string
+  ): MatomeBlock[] {
     let runs: number[][];
     try {
       runs = JSON.parse(layoutJson) as number[][];
@@ -143,7 +155,10 @@ export class Matome {
       return Matome.parseContentLegacy(content, eventTags);
     }
 
-    const chunks = content.split(/\n\s*\n/).map((c) => c.trim()).filter((c) => c.length > 0);
+    const chunks = content
+      .split(/\n\s*\n/)
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0);
     const blocks: MatomeBlock[] = [];
     let runIndex = 0;
     let textRunChunks: string[] = [];

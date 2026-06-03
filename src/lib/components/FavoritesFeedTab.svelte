@@ -54,10 +54,7 @@
 
   type Reaction = { eventId: string; reactedAt: number };
 
-  function collectCandidatesAtOrAbove(
-    T: number,
-    displayedIds: Set<string>
-  ): Reaction[] {
+  function collectCandidatesAtOrAbove(T: number, displayedIds: Set<string>): Reaction[] {
     const out: Reaction[] = [];
     for (const [eventId, reactedAt] of reactedAtMap) {
       if (displayedIds.has(eventId)) continue;
@@ -66,10 +63,7 @@
     return out;
   }
 
-  function fetchOneRelay(
-    pubkey: string,
-    relay: string
-  ): Promise<Reaction[]> {
+  function fetchOneRelay(pubkey: string, relay: string): Promise<Reaction[]> {
     const cursor = cursors.get(relay);
     const until = cursor !== undefined ? cursor - 1 : undefined;
     return new Promise((resolve) => {
@@ -132,9 +126,7 @@
     const user = $currentUser;
     if (!user) return;
 
-    await Promise.all(
-      readRelays.map((relay) => fetchOneRelay(user.pubkey, relay))
-    );
+    await Promise.all(readRelays.map((relay) => fetchOneRelay(user.pubkey, relay)));
 
     const T = computeT();
     if (T !== null) {
@@ -166,9 +158,9 @@
       return;
     }
 
-    readRelays = (
-      await collectObservable<string[]>(fetchUserReadRelays(user.pubkey), [])
-    ).map(normalizeRelay);
+    readRelays = (await collectObservable<string[]>(fetchUserReadRelays(user.pubkey), [])).map(
+      normalizeRelay
+    );
     if (readRelays.length === 0) {
       readRelays = DEFAULT_RELAYS.map(normalizeRelay);
     }

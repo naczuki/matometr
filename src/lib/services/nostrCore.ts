@@ -6,11 +6,27 @@ import type { Note } from '$lib/types';
 
 export const HEX_64 = /^[0-9a-f]{64}$/;
 
-export function toNote(event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][]; kind: number }): Note {
-  return { id: event.id, pubkey: event.pubkey, content: event.content, createdAt: event.created_at, tags: event.tags, kind: event.kind };
+export function toNote(event: {
+  id: string;
+  pubkey: string;
+  content: string;
+  created_at: number;
+  tags: string[][];
+  kind: number;
+}): Note {
+  return {
+    id: event.id,
+    pubkey: event.pubkey,
+    content: event.content,
+    createdAt: event.created_at,
+    tags: event.tags,
+    kind: event.kind
+  };
 }
 
-export function withRelays(relays?: string[]): { on: { relays: string[]; defaultReadRelays: boolean } } | undefined {
+export function withRelays(
+  relays?: string[]
+): { on: { relays: string[]; defaultReadRelays: boolean } } | undefined {
   return relays && relays.length > 0 ? { on: { relays, defaultReadRelays: true } } : undefined;
 }
 
@@ -54,7 +70,7 @@ export async function sendToRelays(eventParams: {
         error: reject,
         complete() {
           if (!published) reject(new Error('リレーに公開できませんでした'));
-        },
+        }
       });
 
     setTimeout(() => {

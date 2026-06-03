@@ -16,7 +16,9 @@
       if (decoded.type === 'naddr') {
         return nip19.naddrEncode({ ...decoded.data, relays: [DEFAULT_RELAYS[0]] });
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return naddr;
   })();
 
@@ -86,7 +88,6 @@
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
-<!-- svelte-ignore a11y-interactive-supports-focus -->
 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 <div class="overlay" role="dialog" aria-modal="true" on:click|self={handleNo}>
   <div class="modal">

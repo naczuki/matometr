@@ -26,12 +26,7 @@
   }
 </script>
 
-<button
-  class="post"
-  class:selected
-  on:click={() => onClick(note)}
-  type="button"
->
+<button class="post" class:selected on:click={() => onClick(note)} type="button">
   <div class="check" aria-hidden="true">{selected ? '✓' : ''}</div>
   <div class="post-body">
     <div class="post-header">
@@ -44,7 +39,12 @@
         {#if seg.type === 'text'}<span class="text-seg">{seg.content}</span>
         {:else if seg.type === 'mention'}@{shortNpubFromPubkey(seg.pubkey)}
         {:else if seg.type === 'url'}<span class="url">{seg.url}</span>
-        {:else if seg.type === 'emoji'}<img src={seg.url} alt=":{seg.shortcode}:" class="emoji" loading="lazy" />
+        {:else if seg.type === 'emoji'}<img
+            src={seg.url}
+            alt=":{seg.shortcode}:"
+            class="emoji"
+            loading="lazy"
+          />
         {:else if seg.type === 'quote'}<span class="ref">nostr:nevent…</span>
         {:else if seg.type === 'naddr'}<span class="ref">nostr:naddr…</span>
         {/if}
@@ -93,7 +93,9 @@
     cursor: pointer;
     font: inherit;
     color: inherit;
-    transition: border-color 0.12s, background 0.12s;
+    transition:
+      border-color 0.12s,
+      background 0.12s;
   }
 
   .post:hover {

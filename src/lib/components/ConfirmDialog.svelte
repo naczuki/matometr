@@ -32,7 +32,9 @@
     aria-modal="true"
     aria-label={title}
     on:click|self={handleCancel}
-    on:keydown={(e) => { if (e.key === 'Escape') handleCancel(); }}
+    on:keydown={(e) => {
+      if (e.key === 'Escape') handleCancel();
+    }}
   >
     <div class="dialog-box">
       <p class="dialog-title">{title}</p>
@@ -41,11 +43,9 @@
       {/if}
       <div class="dialog-actions">
         <button class="dialog-btn-cancel" on:click={handleCancel}>{cancelText}</button>
-        <button
-          class="dialog-btn-confirm"
-          bind:this={confirmBtn}
-          on:click={handleConfirm}
-        >{confirmText}</button>
+        <button class="dialog-btn-confirm" bind:this={confirmBtn} on:click={handleConfirm}
+          >{confirmText}</button
+        >
       </div>
     </div>
   </div>

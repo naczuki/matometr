@@ -239,16 +239,20 @@
                     rows={3}
                   ></textarea>
                 {:else}
-                  <!-- svelte-ignore a11y-no-static-element-interactions -->
                   <div
                     class="comment-preview"
                     on:click={() => startEditingComment(block.id)}
-                    on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') startEditingComment(block.id); }}
+                    on:keydown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') startEditingComment(block.id);
+                    }}
                     role="button"
                     tabindex="0"
                     title="クリックで編集"
                   >
-                    <div class="comment-preview-body block-comment-md">{@html renderInlineMarkdown(block.text)}</div>
+                    <div class="comment-preview-body block-comment-md">
+                      <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized via DOMPurify in renderInlineMarkdown -->
+                      {@html renderInlineMarkdown(block.text)}
+                    </div>
                     <span class="comment-preview-hint">クリックで編集</span>
                   </div>
                 {/if}
@@ -551,10 +555,26 @@
     margin: 0.5em 0 0.3em;
   }
 
-  :global(.comment-preview-body h1) { font-size: 16px; font-weight: 800; color: var(--ink); }
-  :global(.comment-preview-body h2) { font-size: 14px; font-weight: 800; color: var(--ink); }
-  :global(.comment-preview-body h3) { font-size: 14px; font-weight: 700; color: var(--ink); }
-  :global(.comment-preview-body h4) { font-size: 14px; font-weight: 700; color: var(--ink2); }
+  :global(.comment-preview-body h1) {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+  :global(.comment-preview-body h2) {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+  :global(.comment-preview-body h3) {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  :global(.comment-preview-body h4) {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink2);
+  }
 
   :global(.comment-preview-body blockquote) {
     margin: 6px 0;

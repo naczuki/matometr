@@ -28,7 +28,9 @@ export function parseNostrInput(raw: string): string | null {
       const nevent = nip19.neventEncode({ id: decoded.data, relays: [DEFAULT_RELAYS_JP[0]] });
       return `nostr:${nevent}`;
     }
-  } catch { /* invalid bech32 */ }
+  } catch {
+    /* invalid bech32 */
+  }
   return null;
 }
 
@@ -38,7 +40,9 @@ export function eventIdFromNevent(neventStr: string): string | null {
   try {
     const decoded = nip19.decode(m[1]);
     if (decoded.type === 'nevent') return decoded.data.id;
-  } catch { /* invalid */ }
+  } catch {
+    /* invalid */
+  }
   return null;
 }
 

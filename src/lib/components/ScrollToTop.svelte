@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
 
   let visible = false;
 
@@ -25,7 +25,13 @@
   tabindex={visible ? 0 : -1}
 >
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+    <path
+      d="M12 19V5M5 12l7-7 7 7"
+      stroke="currentColor"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
   </svg>
 </button>
 

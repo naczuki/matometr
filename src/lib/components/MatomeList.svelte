@@ -17,7 +17,11 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
   import type { Subscription } from 'rxjs';
-  import { fetchMatomeListWithRelay, fetchNosliListWithRelay, fetchReactionCounts } from '$lib/services/NostrClient';
+  import {
+    fetchMatomeListWithRelay,
+    fetchNosliListWithRelay,
+    fetchReactionCounts
+  } from '$lib/services/NostrClient';
   import MatomeCard from '$lib/components/MatomeCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import type { Tab } from '$lib/types';
@@ -58,7 +62,10 @@
     let splitIdx = desc.length - 1;
     for (let i = 0; i < desc.length - 1; i++) {
       const gap = desc[i] - desc[i + 1];
-      if (gap > maxGap) { maxGap = gap; splitIdx = i; }
+      if (gap > maxGap) {
+        maxGap = gap;
+        splitIdx = i;
+      }
     }
     return maxGap > GAP_THRESHOLD_S ? desc[splitIdx] : desc[desc.length - 1];
   }
@@ -73,8 +80,7 @@
 
   function computeHasMore(): boolean {
     return (
-      RELAYS.some((r) => !exhaustedNosli.has(r)) ||
-      RELAYS.some((r) => !exhaustedMatometr.has(r))
+      RELAYS.some((r) => !exhaustedNosli.has(r)) || RELAYS.some((r) => !exhaustedMatometr.has(r))
     );
   }
 
@@ -144,7 +150,12 @@
         const adoptedKeys = new Set(adopted.map((m) => `${m.pubkey}:${m.dTag}`));
 
         updateCursorsAndExhaustion(nosliBuckets, nosliCursors, exhaustedNosli, adoptedKeys);
-        updateCursorsAndExhaustion(matometrBuckets, matometrCursors, exhaustedMatometr, adoptedKeys);
+        updateCursorsAndExhaustion(
+          matometrBuckets,
+          matometrCursors,
+          exhaustedMatometr,
+          adoptedKeys
+        );
 
         matomes = adopted;
         loading = false;

@@ -3,10 +3,11 @@ import { ulid } from 'ulid';
 import type { EditorBlock } from '$lib/types';
 import { sendToRelays } from './nostrCore';
 
-const NOSTR_REF_SOLO = /^nostr:(nevent1|note1|naddr1|npub1|nprofile1)[a-z0-9]+$/;
-
 function splitTextToChunks(text: string): string[] {
-  return text.split(/\n\s*\n/).map((c) => c.trim()).filter((c) => c.length > 0);
+  return text
+    .split(/\n\s*\n/)
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
 }
 
 function blocksToContent(blocks: EditorBlock[]): string {
@@ -93,12 +94,20 @@ function extractHashtags(text: string): string[] {
   const result: string[] = [];
   for (const m of text.matchAll(/#(\S+)/g)) {
     const tag = m[1].toLowerCase();
-    if (!seen.has(tag)) { seen.add(tag); result.push(tag); }
+    if (!seen.has(tag)) {
+      seen.add(tag);
+      result.push(tag);
+    }
   }
   return result;
 }
 
-const CLIENT_TAG = ['client', 'matometr', '31990:82b30d30444170e6a8c819e8406e362a3695454a4617894ce2706f3840c6c003:matometr', 'wss://yabu.me'];
+const CLIENT_TAG = [
+  'client',
+  'matometr',
+  '31990:82b30d30444170e6a8c819e8406e362a3695454a4617894ce2706f3840c6c003:matometr',
+  'wss://yabu.me'
+];
 
 export async function publishMatome(params: {
   title: string;
@@ -122,9 +131,9 @@ export async function publishMatome(params: {
       ['t', 'matometr'],
       CLIENT_TAG,
       ...buildMentionTags(params.blocks),
-      ...buildLayoutTag(params.blocks),
+      ...buildLayoutTag(params.blocks)
     ],
-    content: blocksToContent(params.blocks),
+    content: blocksToContent(params.blocks)
   });
 
   return nip19.naddrEncode({ kind: 30023, pubkey, identifier: dTag });
@@ -153,9 +162,9 @@ export async function updateMatome(params: {
       ['t', 'matometr'],
       CLIENT_TAG,
       ...buildMentionTags(params.blocks),
-      ...buildLayoutTag(params.blocks),
+      ...buildLayoutTag(params.blocks)
     ],
-    content: blocksToContent(params.blocks),
+    content: blocksToContent(params.blocks)
   });
 
   return nip19.naddrEncode({ kind: 30023, pubkey, identifier: params.dTag });
@@ -170,9 +179,9 @@ export async function deleteMatome(eventId: string): Promise<void> {
     created_at: now,
     tags: [
       ['e', eventId],
-      ['k', '30023'],
+      ['k', '30023']
     ],
-    content: '',
+    content: ''
   });
 }
 
@@ -193,9 +202,9 @@ export async function publishReaction(params: {
       ['e', params.eventId],
       ['p', params.eventPubkey],
       ['a', aTagValue],
-      ['k', String(params.kind)],
+      ['k', String(params.kind)]
     ],
-    content: '+',
+    content: '+'
   });
 }
 
@@ -207,6 +216,6 @@ export async function publishAnnouncement(content: string): Promise<void> {
     kind: 1,
     created_at: now,
     tags: [CLIENT_TAG, ...tTags],
-    content,
+    content
   });
 }

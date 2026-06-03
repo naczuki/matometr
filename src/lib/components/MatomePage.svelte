@@ -8,7 +8,12 @@
   import type { Subscription } from 'rxjs';
   import { Matome } from '$lib/entities/Matome';
   import type { MatomeBlock } from '$lib/entities/Matome';
-  import { fetchMatomeByAddress, deleteMatome, fetchReactionsForMatome, publishReaction } from '$lib/services/NostrClient';
+  import {
+    fetchMatomeByAddress,
+    deleteMatome,
+    fetchReactionsForMatome,
+    publishReaction
+  } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
   import { markDeleted } from '$lib/stores/deletedMatomes';
@@ -74,9 +79,16 @@
       requestProfile(pointer.pubkey);
 
       sub = fetchMatomeByAddress(pointer).subscribe({
-        next: (m) => { matome = m; },
-        complete: () => { loading = false; },
-        error: () => { error = '取得に失敗しました'; loading = false; }
+        next: (m) => {
+          matome = m;
+        },
+        complete: () => {
+          loading = false;
+        },
+        error: () => {
+          error = '取得に失敗しました';
+          loading = false;
+        }
       });
     } catch {
       error = '無効なアドレスです';
@@ -93,13 +105,24 @@
   $: isMine = !!$currentUser && matome?.pubkey === $currentUser.pubkey;
 
   $: profile = $profiles.get(matome?.pubkey ?? '');
-  $: authorName = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(matome?.pubkey ?? '');
+  $: authorName =
+    profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(matome?.pubkey ?? '');
   $: authorPicture = profile?.picture ?? null;
-  $: authorStyle = matome ? avatarStyle(matome.pubkey, authorName) : { bg: '#000000', fg: '#ffffff', initial: '' };
-  $: authorNpub = matome ? (() => { try { return nip19.npubEncode(matome!.pubkey); } catch { return null; } })() : null;
+  $: authorStyle = matome
+    ? avatarStyle(matome.pubkey, authorName)
+    : { bg: '#000000', fg: '#ffffff', initial: '' };
+  $: authorNpub = matome
+    ? (() => {
+        try {
+          return nip19.npubEncode(matome!.pubkey);
+        } catch {
+          return null;
+        }
+      })()
+    : null;
 
   let authorImgFailed = false;
-  $: authorPicture, (authorImgFailed = false);
+  $: (authorPicture, (authorImgFailed = false));
 
   type RenderBlock =
     | { type: 'note'; nevent: string; num: number }
@@ -123,7 +146,9 @@
         try {
           const npub = nip19.npubEncode(b.pubkey);
           plan.push({ type: 'mention', pubkey: b.pubkey, npub });
-        } catch { /* skip invalid */ }
+        } catch {
+          /* skip invalid */
+        }
       } else if (b.type === 'comment') {
         const html = hasLayout ? renderInlineMarkdown(b.content) : '';
         plan.push({ type: 'comment', content: b.content, html });
@@ -159,7 +184,10 @@
   let showFavNostrModal = false;
   let favLoginLaunching = false;
 
-  $: if ($currentUser) { showFavLoginModal = false; showFavNostrModal = false; }
+  $: if ($currentUser) {
+    showFavLoginModal = false;
+    showFavNostrModal = false;
+  }
 
   let _favFetchedPk: string | null = null;
 
@@ -191,14 +219,17 @@
 
   async function sendFav(): Promise<void> {
     if (!matome || faved || favSending) return;
-    if (!$currentUser) { showFavLoginModal = true; return; }
+    if (!$currentUser) {
+      showFavLoginModal = true;
+      return;
+    }
     favSending = true;
     try {
       await publishReaction({
         eventId: matome.id,
         eventPubkey: matome.pubkey,
         kind: 30023,
-        dTag: matome.dTag,
+        dTag: matome.dTag
       });
       faved = true;
       favCount += 1;
@@ -216,7 +247,9 @@
     if (!matome) return;
     await navigator.clipboard.writeText(`${matome.title} #まとめたー #nostr\n${shareUrl}`);
     copiedUrl = true;
-    setTimeout(() => { copiedUrl = false; }, 1500);
+    setTimeout(() => {
+      copiedUrl = false;
+    }, 1500);
   }
 
   function shareX(): void {
@@ -251,7 +284,10 @@
     if (!matome) return;
     await navigator.clipboard.writeText(matome.naddr);
     copiedNaddr = true;
-    setTimeout(() => { copiedNaddr = false; menuOpen = false; }, 1500);
+    setTimeout(() => {
+      copiedNaddr = false;
+      menuOpen = false;
+    }, 1500);
   }
 
   // nosli インポート確認
@@ -301,7 +337,9 @@
   async function copyJson(): Promise<void> {
     await navigator.clipboard.writeText(jsonText);
     copiedJson = true;
-    setTimeout(() => { copiedJson = false; }, 1500);
+    setTimeout(() => {
+      copiedJson = false;
+    }, 1500);
   }
 </script>
 
@@ -320,18 +358,36 @@
     {#if matome && isMine && matome.isMatometr}
       <div class="mgmt-btns">
         <a href="{base}/edit/{matome.naddr}" class="mgmt-btn mgmt-btn-edit">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
           </svg>
           編集
         </a>
         <button class="mgmt-btn mgmt-btn-delete" on:click={() => (showDeleteConfirm = true)}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-            <path d="M10 11v6"/><path d="M14 11v6"/>
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6" /><path d="M14 11v6" />
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
           </svg>
           削除
         </button>
@@ -340,13 +396,31 @@
       <div class="mgmt-btns">
         <div class="edit-menu-wrap">
           <button class="mgmt-btn mgmt-btn-nosli-edit" on:click={handleEditMenuToggle}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
             編集
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="6 9 12 15 18 9"/>
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9" />
             </svg>
           </button>
           {#if editMenuOpen}
@@ -357,10 +431,19 @@
                 type="button"
                 on:click={openNosliImportConfirm}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
                 インポートして編集
               </button>
@@ -371,10 +454,19 @@
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                  <polyline points="15 3 21 3 21 9"/>
-                  <line x1="10" y1="14" x2="21" y2="3"/>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
                 </svg>
                 nosliで編集
               </a>
@@ -405,7 +497,17 @@
       <div class="detail-title">{matome.title}</div>
 
       <div class="detail-count" title="ノート{matome.postCount}件">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
           <polyline points="14 2 14 8 20 8" />
         </svg>
@@ -458,8 +560,18 @@
           disabled={faved || favSending}
           on:click={sendFav}
         >
-          <svg class="fav-star" width="14" height="14" viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
-            <path d="M12 17.75l-6.172 3.245 1.179-6.873-4.993-4.867 6.9-1.002L12 2.5l3.086 6.253 6.9 1.002-4.993 4.867 1.179 6.873z" />
+          <svg
+            class="fav-star"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 17.75l-6.172 3.245 1.179-6.873-4.993-4.867 6.9-1.002L12 2.5l3.086 6.253 6.9 1.002-4.993 4.867 1.179 6.873z"
+            />
           </svg>
           <span class="fav-count">{favCount}</span>
         </button>
@@ -471,47 +583,94 @@
           <!-- X -->
           <button class="share-btn" title="Xでシェア" aria-label="Xでシェア" on:click={shareX}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              <path
+                d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+              />
             </svg>
           </button>
 
           <!-- コピー: title + URL -->
-          <button class="share-btn" title="タイトルとURLをコピー" aria-label="タイトルとURLをコピー" on:click={copyUrl}>
+          <button
+            class="share-btn"
+            title="タイトルとURLをコピー"
+            aria-label="タイトルとURLをコピー"
+            on:click={copyUrl}
+          >
             {#if copiedUrl}
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                <polyline points="20 6 9 17 4 12"/>
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+              >
+                <polyline points="20 6 9 17 4 12" />
               </svg>
             {:else}
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
               </svg>
             {/if}
           </button>
 
           <!-- ⋮ メニュー -->
           <div class="menu-wrap">
-            <button class="share-btn" title="その他" aria-label="その他のオプション" on:click={handleMenuToggle}>
+            <button
+              class="share-btn"
+              title="その他"
+              aria-label="その他のオプション"
+              on:click={handleMenuToggle}
+            >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="12" cy="5" r="2"/>
-                <circle cx="12" cy="12" r="2"/>
-                <circle cx="12" cy="19" r="2"/>
+                <circle cx="12" cy="5" r="2" />
+                <circle cx="12" cy="12" r="2" />
+                <circle cx="12" cy="19" r="2" />
               </svg>
             </button>
             {#if menuOpen}
               <div class="menu-dropdown" role="menu">
                 <button class="menu-item" role="menuitem" on:click={copyNaddr}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="9" y="9" width="13" height="13" rx="2"/>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
                   {copiedNaddr ? 'コピーしました' : 'naddr1 をコピー'}
                 </button>
                 <div class="menu-divider"></div>
-                <button class="menu-item" role="menuitem" on:click={() => { showJson = true; menuOpen = false; }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="16 18 22 12 16 6"/>
-                    <polyline points="8 6 2 12 8 18"/>
+                <button
+                  class="menu-item"
+                  role="menuitem"
+                  on:click={() => {
+                    showJson = true;
+                    menuOpen = false;
+                  }}
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <polyline points="16 18 22 12 16 6" />
+                    <polyline points="8 6 2 12 8 18" />
                   </svg>
                   JSON を表示
                 </button>
@@ -520,7 +679,6 @@
           </div>
         </div>
       </div>
-
     </div>
 
     {#if matome.isMatometr || matome.isNosli}
@@ -538,6 +696,7 @@
           </a>
         {:else if block.type === 'comment'}
           {#if block.html}
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized via DOMPurify in renderInlineMarkdown -->
             <div class="block-comment block-comment-md">{@html block.html}</div>
           {:else}
             <div class="block-comment">{block.content}</div>
@@ -550,6 +709,7 @@
       <div class="md-body">
         {#each mdSegments as seg}
           {#if seg.type === 'html'}
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized via DOMPurify in parseMarkdownContent -->
             {@html seg.html}
           {:else if seg.type === 'nevent'}
             <NoteCard nevent={seg.ref} />
@@ -599,8 +759,12 @@
     role="dialog"
     aria-modal="true"
     aria-label="削除の確認"
-    on:click|self={() => { if (!deleting) showDeleteConfirm = false; }}
-    on:keydown={(e) => { if (e.key === 'Escape' && !deleting) showDeleteConfirm = false; }}
+    on:click|self={() => {
+      if (!deleting) showDeleteConfirm = false;
+    }}
+    on:keydown={(e) => {
+      if (e.key === 'Escape' && !deleting) showDeleteConfirm = false;
+    }}
   >
     <div class="dialog-box">
       <p class="dialog-title">このまとめを削除しますか？</p>
@@ -612,13 +776,11 @@
         <button
           class="dialog-btn-cancel"
           disabled={deleting}
-          on:click={() => (showDeleteConfirm = false)}
-        >キャンセル</button>
-        <button
-          class="dialog-btn-delete"
-          disabled={deleting}
-          on:click={handleDelete}
-        >{deleting ? '削除中…' : '削除する'}</button>
+          on:click={() => (showDeleteConfirm = false)}>キャンセル</button
+        >
+        <button class="dialog-btn-delete" disabled={deleting} on:click={handleDelete}
+          >{deleting ? '削除中…' : '削除する'}</button
+        >
       </div>
     </div>
   </div>
@@ -641,19 +803,35 @@
         <div class="json-header-actions">
           <button class="json-copy" on:click={copyJson} aria-label="JSONをコピー">
             {#if copiedJson}
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                <polyline points="20 6 9 17 4 12"/>
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+              >
+                <polyline points="20 6 9 17 4 12" />
               </svg>
               コピーしました
             {:else}
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
               </svg>
               コピー
             {/if}
           </button>
-          <button class="json-close" on:click={() => (showJson = false)} aria-label="閉じる">×</button>
+          <button class="json-close" on:click={() => (showJson = false)} aria-label="閉じる"
+            >×</button
+          >
         </div>
       </div>
       <pre class="json-body">{jsonText}</pre>
@@ -719,7 +897,9 @@
     white-space: nowrap;
     text-decoration: none;
     cursor: pointer;
-    transition: background 0.12s, border-color 0.12s;
+    transition:
+      background 0.12s,
+      border-color 0.12s;
   }
 
   .mgmt-btn-edit {
@@ -795,7 +975,6 @@
     background: var(--accent-pale);
     color: var(--accent);
   }
-
 
   .state {
     text-align: center;
@@ -961,7 +1140,6 @@
     flex-wrap: wrap;
   }
 
-
   .fav-btn {
     display: inline-flex;
     align-items: center;
@@ -977,7 +1155,9 @@
     font-size: 14px;
     font-weight: 700;
     flex-shrink: 0;
-    transition: background 0.12s, transform 0.12s;
+    transition:
+      background 0.12s,
+      transform 0.12s;
   }
 
   .fav-btn:disabled {
@@ -1110,7 +1290,10 @@
     height: 34px;
     padding: 0 14px;
     cursor: pointer;
-    transition: background 0.12s, transform 0.12s, box-shadow 0.12s;
+    transition:
+      background 0.12s,
+      transform 0.12s,
+      box-shadow 0.12s;
     display: inline-flex;
     align-items: center;
   }
@@ -1138,7 +1321,10 @@
     border: none;
     background: var(--accent);
     color: white;
-    transition: background 0.12s, transform 0.12s, box-shadow 0.12s;
+    transition:
+      background 0.12s,
+      transform 0.12s,
+      box-shadow 0.12s;
     flex-shrink: 0;
   }
 
@@ -1214,9 +1400,17 @@
     line-height: 1.4;
   }
 
-  :global(.md-body h1) { font-size: 22px; }
-  :global(.md-body h2) { font-size: 19px; border-left: 4px solid var(--accent); padding-left: 12px; }
-  :global(.md-body h3) { font-size: 17px; }
+  :global(.md-body h1) {
+    font-size: 22px;
+  }
+  :global(.md-body h2) {
+    font-size: 19px;
+    border-left: 4px solid var(--accent);
+    padding-left: 12px;
+  }
+  :global(.md-body h3) {
+    font-size: 17px;
+  }
 
   :global(.md-body p) {
     margin: 0.8em 0;
@@ -1389,10 +1583,26 @@
     margin: 0.6em 0 0.3em;
   }
 
-  :global(.block-comment-md h1) { font-size: 17px; font-weight: 800; color: var(--ink); }
-  :global(.block-comment-md h2) { font-size: 16px; font-weight: 800; color: var(--ink); }
-  :global(.block-comment-md h3) { font-size: 16px; font-weight: 700; color: var(--ink); }
-  :global(.block-comment-md h4) { font-size: 16px; font-weight: 700; color: var(--ink2); }
+  :global(.block-comment-md h1) {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+  :global(.block-comment-md h2) {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+  :global(.block-comment-md h3) {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  :global(.block-comment-md h4) {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink2);
+  }
 
   .block-mention {
     display: block;
@@ -1477,7 +1687,9 @@
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.1s, border-color 0.1s;
+    transition:
+      background 0.1s,
+      border-color 0.1s;
     white-space: nowrap;
   }
 
@@ -1518,5 +1730,4 @@
     white-space: pre;
     word-break: break-all;
   }
-
 </style>
