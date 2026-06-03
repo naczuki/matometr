@@ -23,7 +23,7 @@
   })();
 
   const verb = isUpdate ? '更新' : '作成';
-  const matomeUrl = `${window.location.origin}/matome/${naddr}`;
+  const matomeUrl = `${window.location.origin}/${naddr}`;
   const naddrLine = `nostr:${naddrWithRelays}`;
   const defaultBody = `まとめ「${title}」を${verb}しました！\n#まとめたー`;
 

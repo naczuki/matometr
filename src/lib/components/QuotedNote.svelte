@@ -151,7 +151,7 @@
           <span class="text-seg">{segment.content}</span>
         {:else if segment.type === 'mention'}
           {@const mp = $profiles.get(segment.pubkey)}
-          <a class="mention-link" href="{base}/user/{nip19.npubEncode(segment.pubkey)}">
+          <a class="mention-link" href="{base}/{nip19.npubEncode(segment.pubkey)}">
             @{truncateName(mp?.displayName ?? mp?.name ?? shortNpubFromPubkey(segment.pubkey))}
           </a>
         {:else if segment.type === 'quote'}
@@ -167,7 +167,7 @@
             </a>
           {/if}
         {:else if segment.type === 'naddr'}
-          <a class="naddr-link" href="{base}/matome/{segment.naddr}" rel="noopener noreferrer">
+          <a class="naddr-link" href="{base}/{segment.naddr}" rel="noopener noreferrer">
             nostr:{shortRef(segment.naddr)}
           </a>
         {:else if segment.type === 'emoji'}
