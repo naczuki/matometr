@@ -200,7 +200,7 @@
     }
   })();
 
-  function openMenu(e: MouseEvent): void {
+  function openMenu(e: Event): void {
     e.stopPropagation();
     const MENU_W = 175;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -258,9 +258,13 @@
           <div class="note-pub">{shortNpubFromPubkey(note.pubkey)}</div>
         </div>
       </a>
-      <!-- svelte-ignore a11y-interactive-supports-focus -->
-      <!-- svelte-ignore a11y-click-events-have-key-events -->
-      <span class="note-time" role="button" on:click={openMenu}>
+      <span
+        class="note-time"
+        role="button"
+        tabindex="0"
+        on:click={openMenu}
+        on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMenu(e); } }}
+      >
         {timeAgo(note.createdAt)}<svg
           class="note-time-chevron"
           aria-hidden="true"
@@ -366,9 +370,13 @@
       </div>
 
       {#if hasCw && !cwRevealed}
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <!-- svelte-ignore a11y-no-static-element-interactions -->
-        <div class="cw-overlay" on:click={() => (cwRevealed = true)}>
+        <div
+          class="cw-overlay"
+          role="button"
+          tabindex="0"
+          on:click={() => (cwRevealed = true)}
+          on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cwRevealed = true; } }}
+        >
           <div class="cw-pill">
             <span class="cw-pill-text">⚠️{cwReason ? ' ' + cwReason : ''}</span>
           </div>
@@ -386,9 +394,7 @@
 </div>
 
 {#if menuOpen && menuNevent}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-interactive-supports-focus -->
-  <div class="note-menu" style="left:{menuX}px;top:{menuY}px" role="menu" on:click|stopPropagation>
+  <div class="note-menu" style="left:{menuX}px;top:{menuY}px" role="menu" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
     <a
       class="note-menu-item"
       href="https://nostter.app/{menuNevent}"
@@ -396,7 +402,13 @@
       rel="noopener noreferrer"
       on:click={() => (menuOpen = false)}>nostterで開く</a
     >
-    <div class="note-menu-item" role="menuitem" on:click={copyNevent}>neventをコピー</div>
+    <div
+      class="note-menu-item"
+      role="menuitem"
+      tabindex="0"
+      on:click={copyNevent}
+      on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copyNevent(); } }}
+    >neventをコピー</div>
   </div>
 {/if}
 

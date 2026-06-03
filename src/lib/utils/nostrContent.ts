@@ -15,7 +15,12 @@ export type ContentSegment =
   | EmojiSegment;
 
 export function isSafeUrl(url: string): boolean {
-  return /^https?:\/\//i.test(url);
+  try {
+    const { protocol } = new URL(url);
+    return protocol === 'http:' || protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 export function buildEmojiMap(tags: string[][]): Map<string, string> {
