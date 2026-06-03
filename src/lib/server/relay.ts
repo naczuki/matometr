@@ -1,10 +1,10 @@
 /**
  * エッジ（Cloudflare Workers）からリレーへ 1 回だけ REQ を投げ、最初の EVENT を取る
  * 軽量ヘルパー。rx-nostr は使わない（rxjs を含み重く、Workers の WebSocket クライアント
- * モデルと噛み合わないため）。
+ * モデルと噛み合わないため）。hooks.server.ts（OGP注入）からのみ使う。
  *
  * Workers の WebSocket クライアントは `fetch(httpUrl, { headers: { Upgrade: 'websocket' } })`
- * → `resp.webSocket.accept()` で確立する。
+ * → `resp.webSocket.accept()` で確立する（標準 fetch 型には webSocket が無いのでキャストする）。
  */
 
 // OGP 用の高速リレー（src/lib/stores/relays.ts の DEFAULT_RELAYS のうち応答が速いもの）。
@@ -21,6 +21,14 @@ export interface NostrEvent {
 
 type Filter = Record<string, unknown>;
 
+/* Cloudflare Workers 固有の WebSocket（accept() を持つ）。標準型に無いので最小限に定義。 */
+interface CfWebSocket {
+  accept(): void;
+  send(data: string): void;
+  close(): void;
+  addEventListener(type: string, listener: (ev: { data?: unknown }) => void): void;
+}
+
 /** 1 リレーへ接続し、最初に一致した EVENT を返す。EOSE / タイムアウト / エラー時は null。 */
 async function queryOne(
   relay: string,
@@ -29,7 +37,7 @@ async function queryOne(
 ): Promise<NostrEvent | null> {
   const httpUrl = relay.replace(/^ws/, 'http');
   const resp = await fetch(httpUrl, { headers: { Upgrade: 'websocket' } });
-  const ws = resp.webSocket;
+  const ws = (resp as unknown as { webSocket?: CfWebSocket | null }).webSocket;
   if (!ws) return null;
   ws.accept();
 
@@ -49,7 +57,7 @@ async function queryOne(
     };
     const timer = setTimeout(() => done(null), timeoutMs);
 
-    ws.addEventListener('message', (ev: MessageEvent) => {
+    ws.addEventListener('message', (ev) => {
       try {
         const msg = JSON.parse(typeof ev.data === 'string' ? ev.data : '');
         if (Array.isArray(msg) && msg[1] === subId) {

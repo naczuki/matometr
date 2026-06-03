@@ -24,16 +24,6 @@ export default [
     }
   },
   {
-    // Cloudflare Worker（エッジ実行）固有のグローバル。
-    files: ['worker/**/*.ts'],
-    languageOptions: {
-      globals: {
-        HTMLRewriter: 'readonly',
-        ExecutionContext: 'readonly'
-      }
-    }
-  },
-  {
     ignores: ['build/', '.svelte-kit/', 'dist/']
   }
 ];
