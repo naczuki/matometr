@@ -7,6 +7,10 @@ on:
 
 jobs:
   deploy:
+    # repo 変数 CF_DEPLOY='true' のときだけ実行（未設定なら Skipped＝赤くならない）。
+    # Cloudflare のシークレット（CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID）を
+    # 設定し終えてから CF_DEPLOY='true' にする。
+    if: ${{ vars.CF_DEPLOY == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
