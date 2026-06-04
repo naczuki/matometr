@@ -158,6 +158,9 @@ const NOSTR_LOGIN_CSS = `
     box-shadow: 0 2px 8px rgba(249, 115, 22, 0.14) !important;
     transform: translateY(-1px) !important;
   }
+  button-base[titlebtn="User name"] {
+    display: none !important;
+  }
 `;
 
 const _origAttachShadow = Element.prototype.attachShadow;
@@ -188,63 +191,153 @@ function setupNostrLoginStyles(): void {
 const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Log in': 'ログイン',
   'Sign up': '新規登録',
-  Connect: 'アプリでログイン',
-  'Read only': '見るだけログイン（npub）',
-  'With extension': '拡張機能でログイン',
-  'With nsec': '秘密鍵でログイン（nsec）',
+  Connect: 'リモートサイナー (NIP-46)',
+  'Read only': '見るだけ(npub)',
+  'With extension': 'ブラウザ拡張(NIP-07)',
+  'With nsec': '秘密鍵(nsec)',
   // 文末は「テキスト + <a>リンク</a> + .」に分割されるため断片ごとに登録
   "If you don't have a profile please": 'アカウントをお持ちでない方は',
   'If you already have a profile please': 'すでにアカウントをお持ちの方は',
   'sign up': '新規登録',
   'log in': 'ログイン',
-  'Connect to key store': '鍵ストアでログイン',
-  'Select key store:': '鍵ストアを選択：',
-  'Other key stores': 'その他の鍵ストア',
+  //'Connect to key store': 'キーストア',
+  'Select key store:': '選んでください',
+  'Other key stores': 'その他',
   offline: 'オフライン',
-  'Advanced: Relay Settings': '詳細設定：リレー設定',
-  Advanced: '詳細設定',
+  // 'Advanced: Relay Settings': '詳細設定：リレー設定',
+  // Advanced: '詳細設定',
   'User name': 'ユーザー名',
-  'Connection string': '接続文字列',
+  'Connection string': 'QRコード',
   'Bunker URL': 'Bunker URL',
-  'Log in to read only': '見るだけでログイン',
-  'Please enter the user name or npub of any Nostr user.':
-    'Nostrユーザーの名前かnpubを入れてください。',
+  'Log in to read only': '見るだけログイン',
+  // 'Please enter the user name or npub of any Nostr user.':
+   // 'ユーザーの名かnpubを入れてください。',
   'Login with nsec': '秘密鍵（nsec）でログイン',
-  'Enter your private key (nsec) to log in.': '秘密鍵（nsec）を入れてログインします。',
-  'Use at your own risk': '自己責任でご利用ください',
+  'Enter your private key (nsec) to log in.': 'nsec1から始まる文字列を入れてください',
+  'Use at your own risk': 'お知らせ',
   'Entering your private key directly is not recommended. We suggest migrating to a key store service for better security.':
-    '秘密鍵を直接入力することは推奨されません。安全性のため、鍵ストアサービスへの移行をおすすめします。',
-  'Connecting...': 'つないでいます…',
+    '秘密鍵のセキュリティのために、ブラウザ拡張かキーストアの使用をおすすめします。',
+  //'Connecting...': 'つないでいます…',
   'Establishing connection to your key storage.': '鍵ストアにつないでいます。',
   'Press Cancel to abort': '中止するにはキャンセルを押してください',
   Cancel: 'キャンセル',
   'Signing in...': 'ログインしています…',
   'Nostr profiles are based on cryptographic keys. You can create keys right here, or with a key storage app.':
     'Nostrのプロフィールは暗号鍵に基づいています。ここで鍵を作成するか、鍵管理アプリを使用できます。',
-  'Create keys': '鍵を作成',
-  'With key store': '鍵ストアで',
-  'Create Nostr profile': 'Nostrプロフィールを作成',
-  'Choose any username, you can always change it later.':
-    'ユーザー名はあとでいつでも変更できます。',
-  'Enter username': 'ユーザー名を入力',
-  'Create profile': 'プロフィールを作成',
-  'Error: Please enter some nickname': 'エラー：ニックネームを入力してください',
-  'Create keys with key store': '鍵ストアで鍵を作成',
-  'Choose some username and a key store service.':
-    'ユーザー名と鍵ストアサービスを選択してください。',
-  Name: '名前',
-  'Install browser extension!': 'ブラウザ拡張機能をインストール！',
+ // 'Create keys': '鍵を作成',
+//  'With key store': '鍵ストアで',
+ // 'Create Nostr profile': 'Nostrプロフィールを作成',
+ // 'Choose any username, you can always change it later.':
+ //   'ユーザー名はあとでいつでも変更できます。',
+ // 'Enter username': 'ユーザー名を入力',
+ // 'Create profile': 'プロフィールを作成',
+ // 'Error: Please enter some nickname': 'エラー：ニックネームを入力してください',
+ // 'Create keys with key store': '鍵ストアで鍵を作成',
+ // 'Choose some username and a key store service.':
+ //  'ユーザー名と鍵ストアサービスを選択してください。',
+//  Name: '名前',
+  'Install browser extension!': 'ブラウザ拡張をインストールしてください',
   'Try Alby, nos2x or Nostore':
-    'nos2x（Chrome）、nos2x-fox（Firefox）、Nostash（iOS）をお試しください',
+    'nos2x（Chrome）、nos2x-fox（Firefox）、Nostash（iOS）など',
   'Scan or copy the connection string with key store app':
-    '鍵ストアアプリで接続文字列をスキャンまたはコピーしてください',
-  'Nip46 Relays:': 'NIP-46 リレー：'
+    'QRコードをスキャンまたはコピーしてください',
+  // 'Nip46 Relays:': 'NIP-46 リレー：',
+  // プロフィール管理
+  //'Active profiles': 'アクティブなプロフィール',
+  //'Add profile': 'プロフィールを追加',
+  //'Recent profiles': '最近のプロフィール',
+  //'Switch profile': 'プロフィールを切り替え',
+  //'Switch between active profiles or choose a recent one for fast login.':
+  //  'アクティブなプロフィールを切り替えるか、最近のプロフィールを選んで素早くログインできます。',
+  //'Your profiles': 'あなたのプロフィール',
+ // 'Log out': 'ログアウト',
+ // 'Logout and delete keys': 'ログアウトして鍵を削除',
+ // 'Delete keys?': '鍵を削除しますか？',
+  // 鍵バックアップ
+  //'Almost ready!': 'もう少しです！',
+  //'Back up your keys': '鍵をバックアップ',
+  //'Backup keys': '鍵をバックアップ',
+ // 'Copy your keys and store them in a safe place, like a password manager.':
+  //  '鍵をコピーして、パスワードマネージャーなど安全な場所に保管してください。',
+ // 'You should backup your keys.': '鍵をバックアップしてください。',
+ // 'Your keys must be kept secret, never share them with anyone.':
+   // '鍵は絶対に秘密にし、誰にも教えないでください。',
+ // 'You can sign into other Nostr apps by pasting your keys into them.':
+ //   '鍵を貼り付けることで、他のNostrアプリにもログインできます。',
+ // 'You can also': 'または',
+ // 'Export keys': '鍵をエクスポート',
+ // 'Key export': '鍵のエクスポート',
+ // 'Import keys to storage service': '鍵ストアサービスにインポート',
+ // 'Import to key store': '鍵ストアにインポート',
+ // 'Start importing': 'インポートを開始',
+  // ログインフロー
+  'Login': 'ログイン',
+ // 'Get started': 'はじめる',
+ // 'Welcome to Nostr!': 'Nostrへようこそ！',
+ // 'Nostr profiles are controlled by cryptographic keys.': 'Nostrのプロフィールは暗号鍵で管理されます。',
+  'Back': '戻る',
+  'Close': '閉じる',
+  'Confirm': '確認',
+  'Confirming...': '確認中…',
+  'Continue': '続ける',
+  'Continue to confirm the connection to your key storage.':
+    '接続を確認してください。',
+  'Creating...': '作成中…',
+  // 拡張機能
+  'Extension': '拡張機能',
+  'No extension': '拡張機能なし',
+  'No Nostr extension!': 'ブラウザ拡張が見つかりません！',
+  'Open modal': 'モーダルを開く',
+  // Bunker / DM ログイン
+  'Connect with bunker url': 'Bunker URLで接続',
+  //'Log in with DM': 'DMでログイン',
+ // 'OTP code': 'ワンタイムコード',
+ // 'One-time code': 'ワンタイムコード',
+ // 'Enter the code': 'コードを入力',
+ // 'Please enter the one-time code we sent to you as a direct message on Nostr.':
+ //   'NostrのDMで送信したワンタイムコードを入力してください。',
+  // Nostrアドレス
+//  'Nostr address': 'Nostrアドレス',
+//  'Public key or Nostr address': '公開鍵またはNostrアドレス',
+  // 鍵ストア・サービス選択
+//  'Choose a service': 'サービスを選択',
+//  'Select service': 'サービスを選択',
+//  'Default provider is a fine choice to start with.':
+//    'デフォルトのプロバイダーから始めるのがおすすめです。',
+//  'Scan QR Code': 'QRコードをスキャン',
+  // プロフィール作成補足
+  'Display name': '表示名',
+  'Please enter your user name.': 'ユーザー名を入力してください。',
+  'Please enter your nsec': '秘密鍵（nsec）を入力してください',
+  'Please enter some nickname': 'ニックネームを入力してください',
+//  'Please confirm the connection in your key storage app.':
+//    '鍵ストアアプリで接続を確認してください。',
+  'Please enter a bunker url provided by key store.':
+    'キーストアのBunker URLを入力してください。',
+   //'Proceed to creating your Nostr profile in a new tab.':
+  //  '新しいタブでNostrプロフィールの作成に進みます。',
+//  'Publishing your profile on Nostr.': 'Nostrにプロフィールを公開しています。',
+  // エラー
+  'Invalid code': '無効なコード',
+  'Invalid name': '無効な名前',
+  'Invalid nsec format': '無効なnsec形式',
+  'Service unavailable': 'サービスが利用できません',
+  // リレー設定
+//  'Relay URL': 'リレーURL',
+//  'Remove relay': 'リレーを削除',
+//  'Reset to defaults': 'デフォルトに戻す',
+  // その他
+//  'Change theme': 'テーマを変更',
+  'Copied!': 'コピーしました！',
+  'Copy to clipboard': 'クリップボードにコピー',
+  'Secret key (nsec)': '秘密鍵(nsec)',
+ // 'Learn more about Nostr': 'Nostrについて詳しく知る'
 };
 
 const NOSTR_LOGIN_PLACEHOLDERS: Record<string, string> = {
-  'npub or name@domain': 'npub または name@domain',
-  'Enter username': 'ユーザー名を入力',
-  Name: '名前'
+//  'npub or name@domain': 'npub または name@domain',
+//  'Enter username': 'ユーザー名を入力',
+//  Name: '名前'
 };
 
 // nostr-login モーダルから「ログイン方法選択モーダル」へ戻すための通知ストア
