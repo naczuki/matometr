@@ -158,6 +158,9 @@ const NOSTR_LOGIN_CSS = `
     box-shadow: 0 2px 8px rgba(249, 115, 22, 0.14) !important;
     transform: translateY(-1px) !important;
   }
+  button-base[titlebtn="User name"] {
+    display: none !important;
+  }
 `;
 
 const _origAttachShadow = Element.prototype.attachShadow;
