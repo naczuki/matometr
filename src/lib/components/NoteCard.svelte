@@ -38,9 +38,10 @@
   function handleFetchedNote(n: Note, relay: string): void {
     const repost = resolveRepostTarget(n);
     if (repost) {
-      repostSub = fetchNoteByIdWithRelay(repost.eventId, {
-        relays: repost.relay ? [repost.relay] : undefined
-      }).subscribe({
+      repostSub = fetchNoteByIdWithRelay(
+        repost.eventId,
+        repost.relay ? [repost.relay] : undefined
+      ).subscribe({
         next: ({ note: original, relay: r }) => {
           if (destroyed) return;
           note = original;
@@ -76,13 +77,11 @@
     const str = nevent.replace('nostr:', '');
     let eventId: string;
     let hintRelays: string[] | undefined;
-    let hintAuthor: string | undefined;
     try {
       const decoded = nip19.decode(str);
       if (decoded.type === 'nevent') {
         eventId = decoded.data.id;
         hintRelays = decoded.data.relays;
-        hintAuthor = decoded.data.author;
       } else if (decoded.type === 'note') eventId = decoded.data;
       else {
         loadError = true;
@@ -94,10 +93,7 @@
     }
 
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const sub = fetchNoteByIdWithRelay(eventId, {
-      relays: hintRelays,
-      author: hintAuthor
-    }).subscribe({
+    const sub = fetchNoteByIdWithRelay(eventId, hintRelays).subscribe({
       next: ({ note: n, relay }) => {
         handleFetchedNote(n, relay);
         if (timer) {

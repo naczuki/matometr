@@ -54,7 +54,7 @@
   const MAX_INNER_ITERATIONS = 10;
   // EOSE もダウンも返さず詰まったリレーがいても、この時間で打ち切って表示を進める。
   // 期限内に返事のないリレーは（空バケット＝0件として）枯渇扱いにし、以降は叩かない。
-  const LOAD_TIMEOUT_MS = 8000;
+  const LOAD_TIMEOUT_MS = 4000;
 
   type FeedType = 'nosli' | 'matometr';
 
