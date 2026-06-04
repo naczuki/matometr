@@ -1,7 +1,8 @@
 import { createRxOneshotReq, uniq } from 'rx-nostr';
 import { EMPTY, merge, Observable, forkJoin, Subscription } from 'rxjs';
-import { map, filter, take } from 'rxjs';
+import { map, filter, take, switchMap } from 'rxjs';
 import { nip19 } from 'nostr-tools';
+import type { NostrEvent } from 'nostr-tools';
 import type { AddressPointer } from 'nostr-tools/nip19';
 import { DEFAULT_RELAYS, SEARCH_RELAYS } from '$lib/stores/relays';
 import { Matome } from '$lib/entities/Matome';
@@ -34,14 +35,25 @@ export function fetchMatomeListWithRelay(
 
 export function fetchMatomeByAddress(pointer: AddressPointer): Observable<Matome> {
   const client = getClient();
-  const rxReq = createRxOneshotReq({
-    filters: { kinds: [30023], authors: [pointer.pubkey], '#d': [pointer.identifier] }
-  });
-  return client.use(rxReq).pipe(
-    map(({ event }) => Matome.fromEvent(event)),
-    filter((m): m is Matome => m !== null),
-    take(1)
+  const filters = { kinds: [30023], authors: [pointer.pubkey], '#d': [pointer.identifier] };
+  const toMatome = map(({ event }: { event: NostrEvent }) => Matome.fromEvent(event));
+  const onlyMatome = filter((m: Matome | null): m is Matome => m !== null);
+
+  // 1) naddr に埋め込まれたリレーヒント＋既定リレー
+  const hint$ = client
+    .use(createRxOneshotReq({ filters }), withRelays(pointer.relays))
+    .pipe(toMatome, onlyMatome);
+  // 2) 著者の NIP-65 書き込みリレー。既定リレーから弾かれている人の救済。
+  const nip65$ = fetchUserWriteRelays(pointer.pubkey).pipe(
+    switchMap((writeRelays) =>
+      writeRelays.length > 0
+        ? client
+            .use(createRxOneshotReq({ filters }), withRelays(writeRelays))
+            .pipe(toMatome, onlyMatome)
+        : EMPTY
+    )
   );
+  return merge(hint$, nip65$).pipe(take(1));
 }
 
 export function fetchNoteById(eventId: string): Observable<Note> {
@@ -55,15 +67,30 @@ export function fetchNoteById(eventId: string): Observable<Note> {
   );
 }
 
-export function fetchNoteByIdWithRelay(eventId: string): Observable<{ note: Note; relay: string }> {
+export function fetchNoteByIdWithRelay(
+  eventId: string,
+  opts: { relays?: string[]; author?: string } = {}
+): Observable<{ note: Note; relay: string }> {
   const client = getClient();
-  const rxReq = createRxOneshotReq({
-    filters: { ids: [eventId], limit: 1 }
-  });
-  return client.use(rxReq).pipe(
-    map(({ event, from }) => ({ note: toNote(event), relay: from })),
-    take(1)
-  );
+  const filters = { ids: [eventId], limit: 1 };
+  const toResult = map(({ event, from }: { event: NostrEvent; from: string }) => ({
+    note: toNote(event),
+    relay: from
+  }));
+
+  // 1) nevent に埋め込まれたリレーヒント＋既定リレー
+  const hint$ = client.use(createRxOneshotReq({ filters }), withRelays(opts.relays)).pipe(toResult);
+  // 2) 著者（nevent の author）の NIP-65 書き込みリレー。
+  const nip65$ = opts.author
+    ? fetchUserWriteRelays(opts.author).pipe(
+        switchMap((writeRelays) =>
+          writeRelays.length > 0
+            ? client.use(createRxOneshotReq({ filters }), withRelays(writeRelays)).pipe(toResult)
+            : EMPTY
+        )
+      )
+    : EMPTY;
+  return merge(hint$, nip65$).pipe(take(1));
 }
 
 export function fetchFollowList(pubkey: string): Observable<string[]> {
@@ -94,6 +121,25 @@ export function fetchUserReadRelays(pubkey: string): Observable<string[]> {
       for (const tag of event.tags) {
         if (tag[0] !== 'r' || !tag[1]) continue;
         if (tag[2] === 'write') continue;
+        relays.push(tag[1]);
+      }
+      return relays;
+    }),
+    take(1)
+  );
+}
+
+export function fetchUserWriteRelays(pubkey: string): Observable<string[]> {
+  const client = getClient();
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [10002], authors: [pubkey], limit: 1 }
+  });
+  return client.use(rxReq).pipe(
+    map(({ event }) => {
+      const relays: string[] = [];
+      for (const tag of event.tags) {
+        if (tag[0] !== 'r' || !tag[1]) continue;
+        if (tag[2] === 'read') continue; // read 専用は除外し、write／マーカー無しを採用
         relays.push(tag[1]);
       }
       return relays;

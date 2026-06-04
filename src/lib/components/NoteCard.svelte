@@ -38,7 +38,9 @@
   function handleFetchedNote(n: Note, relay: string): void {
     const repost = resolveRepostTarget(n);
     if (repost) {
-      repostSub = fetchNoteByIdWithRelay(repost.eventId).subscribe({
+      repostSub = fetchNoteByIdWithRelay(repost.eventId, {
+        relays: repost.relay ? [repost.relay] : undefined
+      }).subscribe({
         next: ({ note: original, relay: r }) => {
           if (destroyed) return;
           note = original;
@@ -73,10 +75,15 @@
   onMount(() => {
     const str = nevent.replace('nostr:', '');
     let eventId: string;
+    let hintRelays: string[] | undefined;
+    let hintAuthor: string | undefined;
     try {
       const decoded = nip19.decode(str);
-      if (decoded.type === 'nevent') eventId = decoded.data.id;
-      else if (decoded.type === 'note') eventId = decoded.data;
+      if (decoded.type === 'nevent') {
+        eventId = decoded.data.id;
+        hintRelays = decoded.data.relays;
+        hintAuthor = decoded.data.author;
+      } else if (decoded.type === 'note') eventId = decoded.data;
       else {
         loadError = true;
         return;
@@ -87,7 +94,10 @@
     }
 
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const sub = fetchNoteByIdWithRelay(eventId).subscribe({
+    const sub = fetchNoteByIdWithRelay(eventId, {
+      relays: hintRelays,
+      author: hintAuthor
+    }).subscribe({
       next: ({ note: n, relay }) => {
         handleFetchedNote(n, relay);
         if (timer) {
@@ -263,7 +273,12 @@
         role="button"
         tabindex="0"
         on:click={openMenu}
-        on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMenu(e); } }}
+        on:keydown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openMenu(e);
+          }
+        }}
       >
         {timeAgo(note.createdAt)}<svg
           class="note-time-chevron"
@@ -375,7 +390,12 @@
           role="button"
           tabindex="0"
           on:click={() => (cwRevealed = true)}
-          on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cwRevealed = true; } }}
+          on:keydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              cwRevealed = true;
+            }
+          }}
         >
           <div class="cw-pill">
             <span class="cw-pill-text">⚠️{cwReason ? ' ' + cwReason : ''}</span>
@@ -394,7 +414,14 @@
 </div>
 
 {#if menuOpen && menuNevent}
-  <div class="note-menu" style="left:{menuX}px;top:{menuY}px" role="menu" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+  <div
+    class="note-menu"
+    style="left:{menuX}px;top:{menuY}px"
+    role="menu"
+    tabindex="-1"
+    on:click|stopPropagation
+    on:keydown|stopPropagation
+  >
     <a
       class="note-menu-item"
       href="https://nostter.app/{menuNevent}"
@@ -407,8 +434,15 @@
       role="menuitem"
       tabindex="0"
       on:click={copyNevent}
-      on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copyNevent(); } }}
-    >neventをコピー</div>
+      on:keydown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          copyNevent();
+        }
+      }}
+    >
+      neventをコピー
+    </div>
   </div>
 {/if}
 
