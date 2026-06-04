@@ -37,7 +37,8 @@ export function fetchMatomeByAddress(pointer: AddressPointer): Observable<Matome
   const rxReq = createRxOneshotReq({
     filters: { kinds: [30023], authors: [pointer.pubkey], '#d': [pointer.identifier] }
   });
-  return client.use(rxReq).pipe(
+  // naddr に埋め込まれたリレーヒントがあれば既定リレーに足す（無ければ既定のみ）
+  return client.use(rxReq, withRelays(pointer.relays)).pipe(
     map(({ event }) => Matome.fromEvent(event)),
     filter((m): m is Matome => m !== null),
     take(1)
@@ -55,12 +56,16 @@ export function fetchNoteById(eventId: string): Observable<Note> {
   );
 }
 
-export function fetchNoteByIdWithRelay(eventId: string): Observable<{ note: Note; relay: string }> {
+export function fetchNoteByIdWithRelay(
+  eventId: string,
+  relays?: string[]
+): Observable<{ note: Note; relay: string }> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
     filters: { ids: [eventId], limit: 1 }
   });
-  return client.use(rxReq).pipe(
+  // nevent に埋め込まれたリレーヒントがあれば既定リレーに足す（無ければ既定のみ）
+  return client.use(rxReq, withRelays(relays)).pipe(
     map(({ event, from }) => ({ note: toNote(event), relay: from })),
     take(1)
   );
