@@ -295,7 +295,7 @@ const NOSTR_LOGIN_DICT: Record<string, string> = {
  // 'One-time code': 'ワンタイムコード',
  // 'Enter the code': 'コードを入力',
  // 'Please enter the one-time code we sent to you as a direct message on Nostr.':
-    'NostrのDMで送信したワンタイムコードを入力してください。',
+ //   'NostrのDMで送信したワンタイムコードを入力してください。',
   // Nostrアドレス
 //  'Nostr address': 'Nostrアドレス',
 //  'Public key or Nostr address': '公開鍵またはNostrアドレス',
@@ -311,7 +311,7 @@ const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Please enter your nsec': '秘密鍵（nsec）を入力してください',
   'Please enter some nickname': 'ニックネームを入力してください',
 //  'Please confirm the connection in your key storage app.':
-    '鍵ストアアプリで接続を確認してください。',
+//    '鍵ストアアプリで接続を確認してください。',
   'Please enter a bunker url provided by key store.':
     'キーストアのBunker URLを入力してください。',
    //'Proceed to creating your Nostr profile in a new tab.':
