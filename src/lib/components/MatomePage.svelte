@@ -791,13 +791,13 @@
     class="json-overlay"
     role="dialog"
     aria-modal="true"
-    aria-label="イベントJSON"
+    aria-label="Raw Event JSON"
     on:click|self={() => (showJson = false)}
     on:keydown={(e) => e.key === 'Escape' && (showJson = false)}
   >
     <div class="json-modal">
       <div class="json-header">
-        <span>イベントJSON</span>
+        <span>Raw Event JSON</span>
         <div class="json-header-actions">
           <button class="json-copy" on:click={copyJson} aria-label="JSONをコピー">
             {#if copiedJson}
