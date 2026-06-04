@@ -52,6 +52,9 @@
   const BATCH_SIZE = 30;
   // もっと見るの内部ループ上限（暴走防止）
   const MAX_INNER_ITERATIONS = 10;
+  // EOSE もダウンも返さず詰まったリレーがいても、この時間で打ち切って表示を進める。
+  // 期限内に返事のないリレーは（空バケット＝0件として）枯渇扱いにし、以降は叩かない。
+  const LOAD_TIMEOUT_MS = 8000;
 
   type FeedType = 'nosli' | 'matometr';
 
@@ -122,6 +125,8 @@
 
     return new Promise<void>((resolve) => {
       let pending = 2;
+      let finalized = false;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
       const nosliBuckets = new Map<string, Matome[]>();
       const matometrBuckets = new Map<string, Matome[]>();
       for (const r of RELAYS) {
@@ -129,8 +134,16 @@
         matometrBuckets.set(r, []);
       }
 
-      function done(): void {
-        if (--pending > 0) return;
+      // 全リレーが complete／ダウンするか、LOAD_TIMEOUT_MS で打ち切られたら一度だけ確定。
+      function finalize(): void {
+        if (finalized) return;
+        finalized = true;
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        // 確定後に遅れて届くイベントでバケットがずれないよう購読を止める
+        for (const s of subs) s.unsubscribe();
 
         const candidateKeys = new Set<string>();
         for (const ms of nosliBuckets.values()) {
@@ -164,6 +177,11 @@
         applyReactionCounts(adopted);
       }
 
+      function done(): void {
+        if (--pending > 0) return;
+        finalize();
+      }
+
       const s1 = fetchMatomeListWithRelay(BATCH_SIZE).subscribe({
         next: ({ matome, relay }) => {
           addToRawMap(matome);
@@ -185,6 +203,7 @@
       });
 
       subs = [s1, s2];
+      timeoutId = setTimeout(finalize, LOAD_TIMEOUT_MS);
     });
   }
 
@@ -251,31 +270,39 @@
     const fetcher = type === 'nosli' ? fetchNosliListWithRelay : fetchMatomeListWithRelay;
     return new Promise((resolve) => {
       const events: Matome[] = [];
-      const sub = fetcher(BATCH_SIZE, until, [relay]).subscribe({
+      let settled = false;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      let sub: Subscription | undefined;
+
+      // complete／error／タイムアウトのいずれでも一度だけ確定する。
+      // 期限内に返事のないリレーは（0件として）枯渇扱いにし、以降は叩かない。
+      function settle(): void {
+        if (settled) return;
+        settled = true;
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        sub?.unsubscribe();
+        if (events.length === 0) {
+          markExhausted(type, relay);
+        } else {
+          const newCursor = computeCursorFromBuffer(events.map((e) => e.createdAt));
+          if (newCursor !== undefined) setCursor(type, relay, newCursor);
+        }
+        resolve();
+      }
+
+      sub = fetcher(BATCH_SIZE, until, [relay]).subscribe({
         next: ({ matome }) => {
           addToRawMap(matome);
           events.push(matome);
         },
-        complete: () => {
-          if (events.length === 0) {
-            markExhausted(type, relay);
-          } else {
-            const newCursor = computeCursorFromBuffer(events.map((e) => e.createdAt));
-            if (newCursor !== undefined) setCursor(type, relay, newCursor);
-          }
-          resolve();
-        },
-        error: () => {
-          if (events.length === 0) {
-            markExhausted(type, relay);
-          } else {
-            const newCursor = computeCursorFromBuffer(events.map((e) => e.createdAt));
-            if (newCursor !== undefined) setCursor(type, relay, newCursor);
-          }
-          resolve();
-        }
+        complete: settle,
+        error: settle
       });
       subs.push(sub);
+      timeoutId = setTimeout(settle, LOAD_TIMEOUT_MS);
     });
   }
 
