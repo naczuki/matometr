@@ -23,11 +23,15 @@
         var id = new URLSearchParams(location.search).get('id');
         var target;
         if (/^\/matome\/?$/.test(path) && id) {
-          target = '/matome/' + id; // 旧 /matome/?id=<naddr>
+          target = '/' + id; // 旧 /matome/?id=<naddr> → /<naddr>
         } else if (/^\/user\/?$/.test(path) && id) {
-          target = '/user/' + id; // 旧 /user/?id=<npub>
+          target = '/' + id; // 旧 /user/?id=<npub> → /<npub>
+        } else if (/^\/matome\/(.+)/.test(path)) {
+          target = '/' + path.replace(/^\/matome\//, ''); // 旧 /matome/<naddr> → /<naddr>
+        } else if (/^\/user\/(.+)/.test(path)) {
+          target = '/' + path.replace(/^\/user\//, ''); // 旧 /user/<npub> → /<npub>
         } else {
-          // 旧パス形式 /matome/<naddr>・/user/<npub> や /new 等はそのまま転送。
+          // /new 等はそのまま転送。
           location.replace(NEW_ORIGIN + path + location.search);
           return;
         }
