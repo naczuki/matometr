@@ -240,7 +240,7 @@ const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Try Alby, nos2x or Nostore':
     'nos2x（Chrome）、nos2x-fox（Firefox）、Nostash（iOS）など',
   'Scan or copy the connection string with key store app':
-    'QRコードをスキャンまたはコピーしてください',
+    'サイナーアプリでコードをスキャンまたはURLをコピーしてください',
   // 'Nip46 Relays:': 'NIP-46 リレー：',
   // プロフィール管理
   //'Active profiles': 'アクティブなプロフィール',
