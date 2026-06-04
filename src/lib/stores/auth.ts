@@ -191,7 +191,7 @@ function setupNostrLoginStyles(): void {
 const NOSTR_LOGIN_DICT: Record<string, string> = {
   'Log in': 'ログイン',
   'Sign up': '新規登録',
-  Connect: 'リモートサイナー (NIP-46)',
+  Connect: '接続',
   'Read only': '見るだけ(npub)',
   'With extension': 'ブラウザ拡張(NIP-07)',
   'With nsec': '秘密鍵(nsec)',
