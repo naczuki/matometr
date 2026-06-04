@@ -530,6 +530,32 @@ const _extStore = writable<NostrProvider | null>(null);
 export const nostrExtension = { subscribe: _extStore.subscribe };
 export const getNostrExtension = () => get(_extStore);
 
+// ブラウザ拡張（NIP-07）でログインする。
+//
+// nos2x などの拡張は、自身が注入した window.nostr 上に保留リクエスト表
+// （nos2x の場合 window.nostr._requests）を持ち、getPublicKey() 等の応答が
+// postMessage で届いたときに window.nostr.<内部状態>[id] を参照して解決する。
+// 一方 nostr-login は init() 時に window.nostr を自前プロキシへ差し替えるため、
+// その状態のまま拡張の getPublicKey() を直接呼ぶと、応答到着時に拡張側の
+// リスナーがプロキシ（_requests を持たない）を参照して
+//   TypeError: Cannot read properties of undefined (reading '<id>')
+// で落ち、Promise が解決されずログインモーダルが固まる。
+//
+// そこで拡張のメソッドを呼ぶ直前に window.nostr を本物の拡張へ戻しておく。
+// その後 setAuth({ method: 'extension' }) 内の setExtensionReadPubkey も
+// window.nostr を拡張へ向けてから読み直すため、ログインが正しく完了する。
+export async function loginWithExtension(): Promise<void> {
+  const ext = get(_extStore);
+  if (!ext) throw new Error('ブラウザ拡張機能が見つかりません');
+
+  (window as unknown as { nostr?: NostrProvider }).nostr = ext;
+  const pubkey = await ext.getPublicKey();
+  if (!pubkey) throw new Error('公開鍵を取得できませんでした');
+
+  const { setAuth } = await import('@konemono/nostr-login');
+  await setAuth({ type: 'login', method: 'extension', pubkey });
+}
+
 export function logout(): void {
   _profileSub?.unsubscribe();
   _profileSub = null;

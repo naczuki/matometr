@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { StartScreens } from '@konemono/nostr-login/dist/types';
-  import { nostrExtension } from '$lib/stores/auth';
+  import { nostrExtension, loginWithExtension } from '$lib/stores/auth';
 
   export let launching: boolean = false;
   export let leadText: string = '☆をつける&まとめを作るには';
@@ -21,10 +21,7 @@
     if (!$nostrExtension) return;
     busy = true;
     try {
-      const pubkey: string = await $nostrExtension.getPublicKey();
-      if (!pubkey) return;
-      const { setAuth } = await import('@konemono/nostr-login');
-      await setAuth({ type: 'login', method: 'extension', pubkey });
+      await loginWithExtension();
       dispatch('close');
     } catch {
       // silent — button will remain enabled for retry
