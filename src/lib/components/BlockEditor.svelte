@@ -2,9 +2,9 @@
   import { tick } from 'svelte';
   import { sortableAction } from '$lib/actions/sortable';
   import { fetchNotesByIds } from '$lib/services/NostrClient';
-  import { parseNostrInput, eventIdFromNevent } from '$lib/utils/nostr';
+  import { parseNostrInput, eventIdFromNevent, resolveReplyParentId } from '$lib/utils/nostr';
   import { renderInlineMarkdown } from '$lib/utils/markdown';
-  import type { EditorBlock, NoteEditorBlock } from '$lib/types';
+  import type { EditorBlock, NoteEditorBlock, Note } from '$lib/types';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import AddNoteModal from '$lib/components/AddNoteModal.svelte';
   import GapInserter, { type InsertType } from '$lib/components/GapInserter.svelte';
@@ -14,7 +14,8 @@
   let showAddModal = false;
   let sortLoading = false;
   let sortError = '';
-  let createdAtCache = new Map<string, number>();
+  let sortMenuOpen = false;
+  let notesCache = new Map<string, Note>();
   let pendingInsertIndex: number | null = null;
   let openGapId: string | null = null;
   let editingComments = new Set<string>();
@@ -111,7 +112,12 @@
     blocks = updated;
   }
 
-  async function sortByTime(): Promise<void> {
+  function createdAtOf(id: string | null): number {
+    return id ? (notesCache.get(id)?.createdAt ?? 0) : 0;
+  }
+
+  async function sortByTime(mode: 'simple' | 'reply'): Promise<void> {
+    sortMenuOpen = false;
     if (sortLoading) return;
 
     const hasNonNevent = blocks.some((b) => b.type === 'comment' || b.type === 'heading');
@@ -131,13 +137,13 @@
 
     if (allIds.length === 0) return;
 
-    const uncachedIds = allIds.filter((id) => !createdAtCache.has(id));
+    const uncachedIds = allIds.filter((id) => !notesCache.has(id));
     if (uncachedIds.length > 0) {
       sortLoading = true;
       sortError = '';
       await new Promise<void>((resolve) => {
         fetchNotesByIds(uncachedIds).subscribe({
-          next: (n) => createdAtCache.set(n.id, n.createdAt),
+          next: (n) => notesCache.set(n.id, n),
           complete: resolve,
           error: () => {
             sortError = '一部の投稿の日時を取得できませんでした。';
@@ -149,15 +155,64 @@
       sortLoading = false;
     }
 
-    const sorted = [...sortableBlocks].sort((a, b) => {
-      const idA = eventIdFromNevent(a.nevent) ?? '';
-      const idB = eventIdFromNevent(b.nevent) ?? '';
-      const tA = createdAtCache.get(idA) ?? 0;
-      const tB = createdAtCache.get(idB) ?? 0;
-      return tA - tB;
-    });
+    const sorted = mode === 'reply' ? sortRepliesAware(sortableBlocks) : sortSimple(sortableBlocks);
 
     blocks = [...sorted, ...otherBlocks];
+  }
+
+  // 全ポストをフラットに時刻昇順。
+  function sortSimple(items: NoteEditorBlock[]): NoteEditorBlock[] {
+    return [...items].sort(
+      (a, b) => createdAtOf(eventIdFromNevent(a.nevent)) - createdAtOf(eventIdFromNevent(b.nevent))
+    );
+  }
+
+  // ルートを時刻昇順に並べ、各ルートの直下に（孫以降も含め）返信を時刻順でぶら下げる。
+  function sortRepliesAware(items: NoteEditorBlock[]): NoteEditorBlock[] {
+    const idOf = new Map<NoteEditorBlock, string | null>();
+    for (const b of items) idOf.set(b, eventIdFromNevent(b.nevent));
+    const inSet = new Set([...idOf.values()].filter((id): id is string => id !== null));
+
+    // 親が inSet 内である限り上りつめ、所属ルート id を求める。
+    function rootOf(id: string | null): string | null {
+      let cur = id;
+      const seen = new Set<string>();
+      while (cur && inSet.has(cur)) {
+        const note = notesCache.get(cur);
+        const parent = note ? resolveReplyParentId(note) : null;
+        if (!parent || !inSet.has(parent) || seen.has(parent)) break;
+        seen.add(cur);
+        cur = parent;
+      }
+      return cur;
+    }
+
+    // ルートごとにグループ化。
+    const groups = new Map<string, NoteEditorBlock[]>();
+    const rootless: NoteEditorBlock[] = [];
+    for (const b of items) {
+      const root = rootOf(idOf.get(b) ?? null);
+      if (root === null) {
+        rootless.push(b);
+        continue;
+      }
+      const g = groups.get(root);
+      if (g) g.push(b);
+      else groups.set(root, [b]);
+    }
+
+    const byTime = (a: NoteEditorBlock, b: NoteEditorBlock): number =>
+      createdAtOf(idOf.get(a) ?? null) - createdAtOf(idOf.get(b) ?? null);
+
+    // ルートを時刻昇順に並べ、各グループ内も時刻昇順（ルートが最古で先頭になる）。
+    const orderedRoots = [...groups.keys()].sort((a, b) => createdAtOf(a) - createdAtOf(b));
+    const result: NoteEditorBlock[] = [];
+    for (const root of orderedRoots) {
+      result.push(...(groups.get(root) ?? []).sort(byTime));
+    }
+    // id 解決不能なブロックは末尾へ（時刻順）。
+    result.push(...rootless.sort(byTime));
+    return result;
   }
 
   function handleNoteInput(id: string, raw: string): void {
@@ -178,6 +233,8 @@
   }
 </script>
 
+<svelte:window on:click={() => (sortMenuOpen = false)} />
+
 <section class="blocks-section">
   <div class="blocks-header">
     <span class="blocks-label">まとめの中身</span>
@@ -185,9 +242,54 @@
       <span class="blocks-badge">{noteCount}件の投稿</span>
     {/if}
     {#if noteCount >= 1}
-      <button class="btn-sort-time" type="button" disabled={sortLoading} on:click={sortByTime}>
-        {sortLoading ? '取得中…' : '時系列に並べる'}
-      </button>
+      <div class="sort-wrap">
+        <button
+          class="btn-sort-time"
+          type="button"
+          disabled={sortLoading}
+          aria-haspopup="menu"
+          aria-expanded={sortMenuOpen}
+          on:click|stopPropagation={() => (sortMenuOpen = !sortMenuOpen)}
+        >
+          {sortLoading ? '取得中…' : '時系列に並べる'}
+          <svg
+            class="sort-chevron"
+            width="11"
+            height="11"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        {#if sortMenuOpen}
+          <div class="sort-dropdown" role="menu">
+            <button
+              class="sort-dropdown-item"
+              type="button"
+              role="menuitem"
+              on:click={() => sortByTime('simple')}
+            >
+              <span class="sort-item-title">時刻順（単純）</span>
+              <span class="sort-item-desc">全ポストを時刻昇順に並べます</span>
+            </button>
+            <button
+              class="sort-dropdown-item"
+              type="button"
+              role="menuitem"
+              on:click={() => sortByTime('reply')}
+            >
+              <span class="sort-item-title">リプライ考慮</span>
+              <span class="sort-item-desc">返信を元の投稿の下にまとめます</span>
+            </button>
+          </div>
+        {/if}
+      </div>
     {/if}
   </div>
   {#if sortError}
@@ -323,9 +425,16 @@
     padding: 2px 10px;
   }
 
-  .btn-sort-time {
+  .sort-wrap {
     margin-left: auto;
     flex-shrink: 0;
+    position: relative;
+  }
+
+  .btn-sort-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     font-size: 12px;
     font-weight: 700;
     font-family: var(--font-ui);
@@ -337,6 +446,53 @@
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.12s;
+  }
+
+  .sort-chevron {
+    flex-shrink: 0;
+  }
+
+  .sort-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 50;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-popover);
+    padding: 4px;
+    min-width: 220px;
+  }
+
+  .sort-dropdown-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    transition: background 0.1s;
+  }
+
+  .sort-dropdown-item:hover {
+    background: var(--accent-pale);
+  }
+
+  .sort-item-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .sort-item-desc {
+    font-size: 11px;
+    color: var(--ink3);
   }
 
   .btn-sort-time:hover:not(:disabled) {

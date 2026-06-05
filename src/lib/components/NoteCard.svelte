@@ -19,6 +19,10 @@
   export let nevent: string;
   export let num: number = 0;
   export let total: number = 0;
+  // まとめ内の親ポスト（NIP-10 で解決済み）。null ならルート扱い。
+  export let replyTo: { parentId: string; parentPubkey: string } | null = null;
+  // スクロール先アンカー用のイベント id（まとめ詳細から渡す）。
+  export let anchorId: string = '';
 
   let note: Note | null = null;
   let loadError = false;
@@ -120,6 +124,22 @@
   $: profile = note ? $profiles.get(note.pubkey) : undefined;
   $: authorName = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(note?.pubkey ?? '');
   $: picture = profile?.picture ?? null;
+
+  // 返信先（親）の表示名。displayName → name → npub 短縮にフォールバック。
+  $: if (replyTo) requestProfile(replyTo.parentPubkey);
+  $: replyToName = replyTo
+    ? (() => {
+        const p = $profiles.get(replyTo.parentPubkey);
+        return p?.displayName ?? p?.name ?? shortNpubFromPubkey(replyTo.parentPubkey);
+      })()
+    : '';
+
+  function scrollToParent(): void {
+    if (!replyTo) return;
+    document
+      .getElementById('note-' + replyTo.parentId)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   function truncateName(name: string, max = 30): string {
     return name.length > max ? name.slice(0, max) + '…' : name;
@@ -248,8 +268,35 @@
   });
 </script>
 
-<div class="note-card">
-  {#if total > 0}<div class="note-num">{num} / {total}</div>{/if}
+<div class="note-card" id={anchorId ? 'note-' + anchorId : undefined}>
+  {#if total > 0 || replyTo}
+    <div class="note-tags">
+      {#if total > 0}<span class="note-num">{num} / {total}</span>{/if}
+      {#if replyTo}
+        <button
+          type="button"
+          class="reply-badge"
+          title="返信先へ移動"
+          on:click|stopPropagation={scrollToParent}
+        >
+          <svg
+            class="reply-badge-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="9 17 4 12 9 7" />
+            <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+          </svg>
+          @{replyToName}
+        </button>
+      {/if}
+    </div>
+  {/if}
 
   {#if loadError}
     <div class="load-error">この投稿は取得できませんでした</div>
@@ -461,6 +508,14 @@
     border-color: var(--accent-mid);
   }
 
+  .note-tags {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
   .note-num {
     font-size: 11px;
     font-weight: 700;
@@ -468,9 +523,40 @@
     background: var(--accent-mid);
     padding: 2px 9px;
     border-radius: var(--radius-btn);
-    display: inline-block;
-    margin-bottom: 10px;
     font-family: var(--font-ui);
+  }
+
+  .reply-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-pale);
+    border: 1px solid var(--accent-mid);
+    padding: 2px 9px 2px 7px;
+    border-radius: var(--radius-btn);
+    font-family: var(--font-ui);
+    cursor: pointer;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition:
+      background 0.12s,
+      border-color 0.12s;
+  }
+
+  .reply-badge:hover {
+    background: var(--accent-mid);
+    border-color: var(--accent);
+  }
+
+  .reply-badge-icon {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
   }
 
   .note-header {

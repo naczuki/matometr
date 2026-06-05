@@ -12,14 +12,21 @@
     fetchMatomeByAddress,
     deleteMatome,
     fetchReactionsForMatome,
-    publishReaction
+    publishReaction,
+    fetchNotesByIds
   } from '$lib/services/NostrClient';
+  import type { Note } from '$lib/types';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
   import { markDeleted } from '$lib/stores/deletedMatomes';
   import { markFaved } from '$lib/stores/favs';
   import { avatarStyle } from '$lib/utils/avatar';
-  import { shortNpubFromPubkey, shortNpub as shortNpubStr } from '$lib/utils/nostr';
+  import {
+    shortNpubFromPubkey,
+    shortNpub as shortNpubStr,
+    eventIdFromNevent,
+    resolveReplyParentId
+  } from '$lib/utils/nostr';
   import { NOSLI_BASE_URL } from '$lib/utils/constants';
   import NoteCard from '$lib/components/NoteCard.svelte';
   import NaddrCard from '$lib/components/NaddrCard.svelte';
@@ -37,6 +44,10 @@
   let loading = true;
   let error = '';
   let sub: Subscription | null = null;
+  // まとめ内ポストの NIP-10 返信関係を解決するための一括取得結果。
+  let notesSub: Subscription | null = null;
+  let notesById: Map<string, Note> = new Map();
+  let _notesFetchedFor: string | null = null;
 
   // naddr が変わるたびに状態をリセットして再取得。
   // onMount は SvelteKit が同一コンポーネントを再利用する場合に再実行されないため、
@@ -51,6 +62,10 @@
     sub = null;
     favSub?.unsubscribe();
     favSub = null;
+    notesSub?.unsubscribe();
+    notesSub = null;
+    notesById = new Map();
+    _notesFetchedFor = null;
     matome = null;
     error = '';
     loading = true;
@@ -123,7 +138,7 @@
   $: (authorPicture, (authorImgFailed = false));
 
   type RenderBlock =
-    | { type: 'note'; nevent: string; num: number }
+    | { type: 'note'; nevent: string; num: number; eventId: string | null }
     | { type: 'naddr'; naddr: string }
     | { type: 'mention'; pubkey: string; npub: string }
     | { type: 'heading'; content: string }
@@ -136,7 +151,12 @@
     for (const b of blocks) {
       if (b.type === 'nevent') {
         noteNum++;
-        plan.push({ type: 'note', nevent: b.content, num: noteNum });
+        plan.push({
+          type: 'note',
+          nevent: b.content,
+          num: noteNum,
+          eventId: eventIdFromNevent(b.content)
+        });
       } else if (b.type === 'naddr') {
         const encoded = b.content.replace(/^nostr:/, '');
         plan.push({ type: 'naddr', naddr: encoded });
@@ -162,6 +182,51 @@
   $: for (const block of renderPlan) {
     if (block.type === 'mention') requestProfile(block.pubkey);
   }
+
+  // まとめ内ポストを一括取得し、NIP-10 で返信関係を解決する。
+  $: noteEventIds = renderPlan
+    .filter((b): b is Extract<RenderBlock, { type: 'note' }> => b.type === 'note')
+    .map((b) => b.eventId)
+    .filter((id): id is string => id !== null);
+
+  function fetchNotesForReply(ids: string[]): void {
+    const key = ids.join(',');
+    if (key === _notesFetchedFor) return;
+    _notesFetchedFor = key;
+    notesSub?.unsubscribe();
+    if (ids.length === 0) {
+      notesById = new Map();
+      return;
+    }
+    const acc = new Map<string, Note>();
+    notesSub = fetchNotesByIds(ids).subscribe({
+      next: (n) => {
+        acc.set(n.id, n);
+      },
+      complete: () => {
+        notesById = new Map(acc);
+      }
+    });
+  }
+
+  $: if (browser) fetchNotesForReply(noteEventIds);
+
+  // eventId -> 親（まとめ内に存在する場合のみ）
+  $: inMatomeIds = new Set(noteEventIds);
+  $: replyByEventId = (() => {
+    const map = new Map<string, { parentId: string; parentPubkey: string }>();
+    for (const id of noteEventIds) {
+      const note = notesById.get(id);
+      if (!note) continue;
+      const parentId = resolveReplyParentId(note);
+      if (!parentId || !inMatomeIds.has(parentId)) continue;
+      const parent = notesById.get(parentId);
+      if (!parent) continue;
+      map.set(id, { parentId, parentPubkey: parent.pubkey });
+    }
+    return map;
+  })();
+  $: for (const info of replyByEventId.values()) requestProfile(info.parentPubkey);
 
   let mdSegments: ContentSegment[] = [];
   $: if (matome && !matome.isMatometr && !matome.isNosli) {
@@ -684,7 +749,13 @@
         {#if block.type === 'heading'}
           <div class="block-heading">{block.content}</div>
         {:else if block.type === 'note'}
-          <NoteCard nevent={block.nevent} num={block.num} total={matome.postCount} />
+          <NoteCard
+            nevent={block.nevent}
+            num={block.num}
+            total={matome.postCount}
+            anchorId={block.eventId ?? ''}
+            replyTo={block.eventId ? (replyByEventId.get(block.eventId) ?? null) : null}
+          />
         {:else if block.type === 'naddr'}
           <NaddrCard ref={'nostr:' + block.naddr} />
         {:else if block.type === 'mention'}

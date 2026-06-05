@@ -18,6 +18,23 @@ export function resolveRepostTarget(note: Note): { eventId: string; relay: strin
   return { eventId: targetId, relay };
 }
 
+/**
+ * NIP-10 に基づき返信先（親）イベント id を解決する。
+ * - kind:1 の `e` タグのみ対象（リポスト等は除外）。
+ * - `reply` マーカー優先 → `root` マーカー → マーカー無し旧式は末尾 `e` タグ。
+ *   （nostter / lumilumi と同じ規約）
+ */
+export function resolveReplyParentId(note: Note): string | null {
+  if (note.kind !== 1) return null;
+  const eTags = note.tags.filter((t) => t[0] === 'e' && t[1] && HEX_64.test(t[1]));
+  if (eTags.length === 0) return null;
+  const reply = eTags.find((t) => t[3] === 'reply');
+  if (reply) return reply[1];
+  const root = eTags.find((t) => t[3] === 'root');
+  if (root) return root[1];
+  return eTags[eTags.length - 1][1];
+}
+
 export function parseNostrInput(raw: string): string | null {
   const m = raw.trim().match(/(nevent1[a-z0-9]+|note1[a-z0-9]+)/);
   if (!m) return null;
