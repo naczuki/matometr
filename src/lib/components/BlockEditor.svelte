@@ -2,7 +2,13 @@
   import { tick } from 'svelte';
   import { sortableAction } from '$lib/actions/sortable';
   import { fetchNotesByIds } from '$lib/services/NostrClient';
-  import { parseNostrInput, eventIdFromNevent, resolveReplyParentId } from '$lib/utils/nostr';
+  import {
+    parseNostrInput,
+    eventIdFromNevent,
+    resolveReplyParentId,
+    shortNpubFromPubkey
+  } from '$lib/utils/nostr';
+  import { profiles, requestProfile } from '$lib/stores/profiles';
   import { renderInlineMarkdown } from '$lib/utils/markdown';
   import type { EditorBlock, NoteEditorBlock, Note } from '$lib/types';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
@@ -32,6 +38,75 @@
   }
 
   $: noteCount = blocks.filter((b) => b.type === 'nevent' && b.nevent).length;
+
+  // まとめ内ポストのメタ情報を取得し、返信バッジ／インデント表示に使う。
+  $: neventIds = blocks
+    .filter((b): b is NoteEditorBlock => b.type === 'nevent' && !!b.nevent)
+    .map((b) => eventIdFromNevent(b.nevent))
+    .filter((id): id is string => id !== null);
+
+  function fetchMeta(ids: string[]): void {
+    const uncached = ids.filter((id) => !notesCache.has(id));
+    if (uncached.length === 0) return;
+    fetchNotesByIds(uncached).subscribe({
+      next: (n) => notesCache.set(n.id, n),
+      complete: () => {
+        notesCache = new Map(notesCache);
+      }
+    });
+  }
+
+  $: if (typeof window !== 'undefined') fetchMeta(neventIds);
+
+  $: inMatomeIds = new Set(neventIds);
+
+  // block.id -> まとめ内の親（NIP-10）。
+  $: replyParentByBlockId = (() => {
+    const map = new Map<string, { parentId: string; parentPubkey: string }>();
+    for (const b of blocks) {
+      if (b.type !== 'nevent' || !b.nevent) continue;
+      const id = eventIdFromNevent(b.nevent);
+      if (!id) continue;
+      const note = notesCache.get(id);
+      if (!note) continue;
+      const parentId = resolveReplyParentId(note);
+      if (!parentId || !inMatomeIds.has(parentId)) continue;
+      const parent = notesCache.get(parentId);
+      if (!parent) continue;
+      map.set(b.id, { parentId, parentPubkey: parent.pubkey });
+    }
+    return map;
+  })();
+  $: for (const info of replyParentByBlockId.values()) requestProfile(info.parentPubkey);
+
+  // まとめ内ポストの id -> pubkey（追加モーダルの候補に返信先バッジを出すため）。
+  $: matomePostPubkeys = (() => {
+    const m = new Map<string, string>();
+    for (const id of neventIds) {
+      const n = notesCache.get(id);
+      if (n) m.set(id, n.pubkey);
+    }
+    return m;
+  })();
+
+  function blockReplyToId(b: EditorBlock | undefined): string | null {
+    if (!b || b.type !== 'nevent' || !b.nevent) return null;
+    const id = eventIdFromNevent(b.nevent);
+    if (!id) return null;
+    const note = notesCache.get(id);
+    if (!note) return null;
+    const parentId = resolveReplyParentId(note);
+    return parentId && inMatomeIds.has(parentId) ? parentId : null;
+  }
+
+  // 詳細ページと同条件：直上が親本人または同じ親への兄弟リプのとき 1 段インデント。
+  function shouldIndentBlock(i: number): boolean {
+    const replyToId = blockReplyToId(blocks[i]);
+    if (!replyToId) return false;
+    const prev = blocks[i - 1];
+    if (!prev || prev.type !== 'nevent' || !prev.nevent) return false;
+    return eventIdFromNevent(prev.nevent) === replyToId || blockReplyToId(prev) === replyToId;
+  }
 
   function setOpenGapId(id: string | null): void {
     openGapId = id;
@@ -312,6 +387,7 @@
             class="block-card"
             class:is-heading={block.type === 'heading'}
             class:is-comment={block.type === 'comment'}
+            class:indented={shouldIndentBlock(i)}
           >
             <div class="drag-handle" aria-hidden="true">⋮⋮</div>
 
@@ -320,6 +396,15 @@
                 {#if block.nevent}
                   {@const eventId = eventIdFromNevent(block.nevent)}
                   {#if eventId}
+                    {@const rp = replyParentByBlockId.get(block.id)}
+                    {#if rp}
+                      {@const rpProfile = $profiles.get(rp.parentPubkey)}
+                      <div class="reply-badge-editor">
+                        ← @{rpProfile?.displayName ??
+                          rpProfile?.name ??
+                          shortNpubFromPubkey(rp.parentPubkey)}
+                      </div>
+                    {/if}
                     <QuotedNote {eventId} showDate={true} />
                   {:else}
                     <p class="parse-error">この投稿は表示できません</p>
@@ -395,7 +480,12 @@
   </div>
 </section>
 
-<AddNoteModal open={showAddModal} on:add={handleModalAdd} on:close={handleModalClose} />
+<AddNoteModal
+  open={showAddModal}
+  {matomePostPubkeys}
+  on:add={handleModalAdd}
+  on:close={handleModalClose}
+/>
 
 <style>
   .blocks-section {
@@ -551,6 +641,29 @@
 
   .block-card.is-comment {
     border-left: 3px solid var(--accent-mid);
+  }
+
+  /* 詳細ページと同じ条件で 1 段インデント（深さに関わらず固定）。 */
+  .block-card.indented {
+    margin-left: 28px;
+  }
+
+  .reply-badge-editor {
+    display: inline-flex;
+    align-items: baseline;
+    max-width: 100%;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-pale);
+    border: 1px solid var(--accent-mid);
+    padding: 2px 9px;
+    border-radius: var(--radius-btn);
+    font-family: var(--font-ui);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .drag-handle {

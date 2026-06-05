@@ -228,6 +228,22 @@
   })();
   $: for (const info of replyByEventId.values()) requestProfile(info.parentPubkey);
 
+  // まとめ内の親 id（まとめ外/親なしは null）。
+  function replyToIdAt(plan: RenderBlock[], i: number): string | null {
+    const b = plan[i];
+    if (!b || b.type !== 'note' || !b.eventId) return null;
+    return replyByEventId.get(b.eventId)?.parentId ?? null;
+  }
+
+  // 直上のカードが親本人、または同じ親への兄弟リプのときだけ 1 段インデント。
+  function shouldIndentAt(plan: RenderBlock[], i: number): boolean {
+    const replyToId = replyToIdAt(plan, i);
+    if (!replyToId) return false;
+    const prev = plan[i - 1];
+    if (!prev || prev.type !== 'note') return false;
+    return prev.eventId === replyToId || replyToIdAt(plan, i - 1) === replyToId;
+  }
+
   let mdSegments: ContentSegment[] = [];
   $: if (matome && !matome.isMatometr && !matome.isNosli) {
     mdSegments = parseMarkdownContent(matome.content);
@@ -745,7 +761,7 @@
     </div>
 
     {#if matome.isMatometr || matome.isNosli}
-      {#each renderPlan as block}
+      {#each renderPlan as block, i}
         {#if block.type === 'heading'}
           <div class="block-heading">{block.content}</div>
         {:else if block.type === 'note'}
@@ -755,6 +771,7 @@
             total={matome.postCount}
             anchorId={block.eventId ?? ''}
             replyTo={block.eventId ? (replyByEventId.get(block.eventId) ?? null) : null}
+            indent={shouldIndentAt(renderPlan, i)}
           />
         {:else if block.type === 'naddr'}
           <NaddrCard ref={'nostr:' + block.naddr} />

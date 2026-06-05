@@ -23,6 +23,8 @@
   export let replyTo: { parentId: string; parentPubkey: string } | null = null;
   // スクロール先アンカー用のイベント id（まとめ詳細から渡す）。
   export let anchorId: string = '';
+  // 直上が親または兄弟リプのとき 1 段インデントする（まとめ詳細から渡す）。
+  export let indent: boolean = false;
 
   let note: Note | null = null;
   let loadError = false;
@@ -268,33 +270,19 @@
   });
 </script>
 
-<div class="note-card" id={anchorId ? 'note-' + anchorId : undefined}>
-  {#if total > 0 || replyTo}
-    <div class="note-tags">
-      {#if total > 0}<span class="note-num">{num} / {total}</span>{/if}
-      {#if replyTo}
-        <button
-          type="button"
-          class="reply-badge"
-          title="返信先へ移動"
-          on:click|stopPropagation={scrollToParent}
-        >
-          <svg
-            class="reply-badge-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <polyline points="9 17 4 12 9 7" />
-            <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
-          </svg>
-          @{replyToName}
-        </button>
-      {/if}
+<div class="note-card" class:indented={indent} id={anchorId ? 'note-' + anchorId : undefined}>
+  {#if total > 0}<span class="note-num">{num} / {total}</span>{/if}
+
+  {#if replyTo}
+    <div class="reply-row">
+      <button
+        type="button"
+        class="reply-badge"
+        title="返信先へ移動"
+        on:click|stopPropagation={scrollToParent}
+      >
+        <span class="reply-arrow" aria-hidden="true">←</span>@{replyToName}
+      </button>
     </div>
   {/if}
 
@@ -495,10 +483,11 @@
 
 <style>
   .note-card {
+    position: relative;
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: var(--radius-card);
-    padding: 18px;
+    padding: 26px 18px 18px;
     margin-bottom: 12px;
     transition: box-shadow 0.15s;
   }
@@ -508,38 +497,40 @@
     border-color: var(--accent-mid);
   }
 
-  .note-tags {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 10px;
+  /* 直上が親/兄弟リプのときだけ 1 段（深さに関わらず固定幅）。 */
+  .note-card.indented {
+    margin-left: 28px;
   }
 
+  /* ナンバリングは左上の角に控えめに添える（グレー・背景なし）。 */
   .note-num {
+    position: absolute;
+    top: 9px;
+    left: 18px;
     font-size: 11px;
     font-weight: 700;
-    color: var(--accent);
-    background: var(--accent-mid);
-    padding: 2px 9px;
-    border-radius: var(--radius-btn);
+    color: var(--ink3);
     font-family: var(--font-ui);
+  }
+
+  .reply-row {
+    margin-bottom: 10px;
   }
 
   .reply-badge {
     display: inline-flex;
-    align-items: center;
+    align-items: baseline;
     gap: 4px;
-    font-size: 11px;
+    max-width: 100%;
+    font-size: 12px;
     font-weight: 700;
     color: var(--accent);
     background: var(--accent-pale);
     border: 1px solid var(--accent-mid);
-    padding: 2px 9px 2px 7px;
+    padding: 3px 11px;
     border-radius: var(--radius-btn);
     font-family: var(--font-ui);
     cursor: pointer;
-    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -553,9 +544,8 @@
     border-color: var(--accent);
   }
 
-  .reply-badge-icon {
-    width: 12px;
-    height: 12px;
+  .reply-arrow {
+    font-weight: 700;
     flex-shrink: 0;
   }
 

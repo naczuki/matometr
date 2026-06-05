@@ -3,17 +3,30 @@
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { formatAbsoluteTime } from '$lib/utils/time';
   import { extractImages, parseNostrRefs, buildEmojiMap } from '$lib/utils/nostrContent';
-  import { shortNpubFromPubkey } from '$lib/utils/nostr';
+  import { shortNpubFromPubkey, resolveReplyParentId } from '$lib/utils/nostr';
   import Avatar from '$lib/components/Avatar.svelte';
 
   export let note: Note;
   export let selected = false;
   export let onClick: (note: Note) => void;
+  // まとめ内ポストの id -> pubkey。候補がまとめ内ポストへの返信なら名前バッジを出す。
+  export let matomePostPubkeys: Map<string, string> = new Map();
 
   $: requestProfile(note.pubkey);
   $: profile = $profiles.get(note.pubkey);
   $: picture = profile?.picture ?? null;
   $: author = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(note.pubkey);
+
+  // まとめ内に親がいる場合のみ返信先 pubkey を解決。
+  $: replyToPubkey = (() => {
+    const parentId = resolveReplyParentId(note);
+    return parentId ? (matomePostPubkeys.get(parentId) ?? null) : null;
+  })();
+  $: if (replyToPubkey) requestProfile(replyToPubkey);
+  $: replyToProfile = replyToPubkey ? $profiles.get(replyToPubkey) : undefined;
+  $: replyToName = replyToPubkey
+    ? (replyToProfile?.displayName ?? replyToProfile?.name ?? shortNpubFromPubkey(replyToPubkey))
+    : '';
   $: parsed = extractImages(note.content);
   $: emojiMap = buildEmojiMap(note.tags);
   $: segments = parseNostrRefs(parsed.text, emojiMap);
@@ -34,6 +47,9 @@
       <span class="author">{author}</span>
       <span class="time">{formatAbsoluteTime(note.createdAt)}</span>
     </div>
+    {#if replyToPubkey}
+      <div class="reply-badge-preview">← @{replyToName}</div>
+    {/if}
     <div class="content">
       {#each segments as seg}
         {#if seg.type === 'text'}<span class="text-seg">{seg.content}</span>
@@ -157,6 +173,24 @@
     color: var(--ink3);
     margin-left: auto;
     flex-shrink: 0;
+  }
+
+  .reply-badge-preview {
+    display: inline-flex;
+    align-items: baseline;
+    max-width: 100%;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-pale);
+    border: 1px solid var(--accent-mid);
+    padding: 2px 9px;
+    border-radius: var(--radius-btn);
+    font-family: var(--font-ui);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .content {
