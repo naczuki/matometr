@@ -18,7 +18,7 @@
   )}px;background:{style.bg};color:{style.fg};"
 >
   {#if picture && !imgFailed}
-    <img src={picture} alt="" on:error={() => (imgFailed = true)} />
+    <img src={picture} alt="" loading="lazy" on:error={() => (imgFailed = true)} />
   {:else}
     {style.initial}
   {/if}

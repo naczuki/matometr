@@ -13,6 +13,9 @@
     buildEmojiMap
   } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey, resolveRepostTarget } from '$lib/utils/nostr';
+  import { subscribeNoteReactions } from '$lib/services/reactions';
+  import { groupReactions } from '$lib/utils/reaction';
+  import type { Subscription } from 'rxjs';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import Avatar from '$lib/components/Avatar.svelte';
 
@@ -38,6 +41,57 @@
   let repostSub: { unsubscribe(): void } | null = null;
   let repostTimer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
+
+  // リアクション/リポスト（タップ展開・lumilumi 式。開くまで購読しない）
+  let reactionsOpen = false;
+  let reactionSub: Subscription | null = null;
+  let reactionEvents: Note[] = [];
+  let repostEvents: Note[] = [];
+  let reactionLoading = false;
+  let reactionLoadTimer: ReturnType<typeof setTimeout> | null = null;
+  // 再購読時の二重追加防止（複数リレー由来の重複排除は service 側 uniq() でも行う）
+  const seenReactionIds = new Set<string>();
+
+  $: reactionGroups = groupReactions(reactionEvents);
+
+  function startReactions(): void {
+    if (reactionSub || !note) return;
+    reactionLoading = reactionEvents.length === 0 && repostEvents.length === 0;
+    reactionSub = subscribeNoteReactions(note.id).subscribe({
+      next: (ev) => {
+        if (destroyed || seenReactionIds.has(ev.id)) return;
+        seenReactionIds.add(ev.id);
+        if (ev.kind === 7) reactionEvents = [...reactionEvents, ev];
+        else repostEvents = [...repostEvents, ev];
+        requestProfile(ev.pubkey);
+        reactionLoading = false;
+        if (reactionLoadTimer) {
+          clearTimeout(reactionLoadTimer);
+          reactionLoadTimer = null;
+        }
+      }
+    });
+    // forward REQ は EOSE で完了しないため、初回の「読み込み中…」はタイムアウトで畳む
+    reactionLoadTimer = setTimeout(() => {
+      reactionLoading = false;
+      reactionLoadTimer = null;
+    }, 4500);
+  }
+
+  function stopReactions(): void {
+    reactionSub?.unsubscribe();
+    reactionSub = null;
+    if (reactionLoadTimer) {
+      clearTimeout(reactionLoadTimer);
+      reactionLoadTimer = null;
+    }
+  }
+
+  function toggleReactions(): void {
+    reactionsOpen = !reactionsOpen;
+    if (reactionsOpen) startReactions();
+    else stopReactions();
+  }
 
   function handleFetchedNote(n: Note, relay: string): void {
     const repost = resolveRepostTarget(n);
@@ -116,6 +170,7 @@
       destroyed = true;
       sub.unsubscribe();
       repostSub?.unsubscribe();
+      stopReactions();
       if (timer) clearTimeout(timer);
       if (repostTimer) clearTimeout(repostTimer);
     };
@@ -451,6 +506,97 @@
     {#if hasCw && cwRevealed}
       <div class="cw-hide-wrap">
         <button class="cw-hide-btn" on:click={() => (cwRevealed = false)}>隠す</button>
+      </div>
+    {/if}
+
+    <div class="reaction-bar">
+      <button
+        type="button"
+        class="reaction-trigger"
+        class:open={reactionsOpen}
+        aria-expanded={reactionsOpen}
+        title="リアクション・リポストを表示"
+        on:click|stopPropagation={toggleReactions}
+      >
+        <span class="rt-label">⭐ リアクション</span>
+        <span class="rt-sep" aria-hidden="true"></span>
+        <span class="rt-label">🔁 リポスト</span>
+        <svg
+          class="rt-chevron"
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg
+        >
+      </button>
+    </div>
+
+    {#if reactionsOpen}
+      <div class="reaction-panel">
+        {#if reactionLoading && reactionEvents.length === 0 && repostEvents.length === 0}
+          <div class="reaction-status">読み込み中…</div>
+        {:else if reactionEvents.length === 0 && repostEvents.length === 0}
+          <div class="reaction-status">まだリアクション・リポストはありません</div>
+        {:else}
+          {#each reactionGroups as group (group.key)}
+            <div class="reaction-row">
+              <span class="reaction-key">
+                {#if group.reaction.type === 'star'}⭐
+                {:else if group.reaction.type === 'thumbsdown'}👎
+                {:else if group.reaction.type === 'emoji'}
+                  <img
+                    class="reaction-emoji"
+                    src={group.reaction.url}
+                    alt=":{group.reaction.shortcode}:"
+                    loading="lazy"
+                  />
+                {:else}{group.reaction.text}{/if}
+              </span>
+              <div class="reactor-avatars">
+                {#each group.pubkeys as pk, i (i)}
+                  {@const rp = $profiles.get(pk)}
+                  <a
+                    class="reactor-avatar"
+                    href="{base}/{nip19.npubEncode(pk)}"
+                    title={rp?.displayName ?? rp?.name ?? shortNpubFromPubkey(pk)}
+                  >
+                    <Avatar
+                      pubkey={pk}
+                      picture={rp?.picture ?? null}
+                      name={rp?.displayName ?? rp?.name ?? null}
+                      size={24}
+                    />
+                  </a>
+                {/each}
+              </div>
+            </div>
+          {/each}
+          {#if repostEvents.length > 0}
+            <div class="reaction-row">
+              <span class="reaction-key">🔁</span>
+              <div class="reactor-avatars">
+                {#each repostEvents as ev (ev.id)}
+                  {@const rp = $profiles.get(ev.pubkey)}
+                  <a
+                    class="reactor-avatar"
+                    href="{base}/{nip19.npubEncode(ev.pubkey)}"
+                    title={rp?.displayName ?? rp?.name ?? shortNpubFromPubkey(ev.pubkey)}
+                  >
+                    <Avatar
+                      pubkey={ev.pubkey}
+                      picture={rp?.picture ?? null}
+                      name={rp?.displayName ?? rp?.name ?? null}
+                      size={24}
+                    />
+                  </a>
+                {/each}
+              </div>
+            </div>
+          {/if}
+        {/if}
       </div>
     {/if}
   {/if}
@@ -922,5 +1068,109 @@
     color: var(--ink3);
     padding: 8px 0;
     font-style: italic;
+  }
+
+  /* リアクション/リポスト */
+  .reaction-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+  }
+
+  .reaction-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: var(--font-ui);
+    color: var(--ink2);
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-btn);
+    padding: 5px 10px;
+    cursor: pointer;
+    transition:
+      background 0.12s,
+      border-color 0.12s;
+  }
+
+  .reaction-trigger:hover {
+    background: var(--accent-pale);
+    border-color: var(--accent-mid);
+  }
+
+  .reaction-trigger.open {
+    border-color: var(--accent-mid);
+    background: var(--accent-pale);
+  }
+
+  .rt-sep {
+    width: 1px;
+    align-self: stretch;
+    background: var(--border);
+  }
+
+  .rt-chevron {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    color: var(--note-chevron);
+    transition: transform 0.15s;
+  }
+
+  .reaction-trigger.open .rt-chevron {
+    transform: rotate(180deg);
+  }
+
+  .reaction-panel {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .reaction-status {
+    font-size: 13px;
+    color: var(--ink3);
+    font-family: var(--font-ui);
+    padding: 4px 0;
+  }
+
+  .reaction-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .reaction-key {
+    flex-shrink: 0;
+    min-width: 28px;
+    font-size: 15px;
+    line-height: 24px;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .reaction-emoji {
+    height: 20px;
+    max-width: 100px;
+    vertical-align: middle;
+  }
+
+  .reactor-avatars {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .reactor-avatar {
+    display: block;
+    line-height: 0;
+    border-radius: 50%;
   }
 </style>
