@@ -17,11 +17,10 @@
   $: picture = profile?.picture ?? null;
   $: author = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(note.pubkey);
 
-  // まとめ内に親がいる場合のみ返信先 pubkey を解決。
-  $: replyToPubkey = (() => {
-    const parentId = resolveReplyParentId(note);
-    return parentId ? (matomePostPubkeys.get(parentId) ?? null) : null;
-  })();
+  // リプライ投稿かどうか（NIP-10 で親がある）。まとめ内に親があれば pubkey を解決。
+  $: parentId = resolveReplyParentId(note);
+  $: isReply = parentId !== null;
+  $: replyToPubkey = parentId ? (matomePostPubkeys.get(parentId) ?? null) : null;
   $: if (replyToPubkey) requestProfile(replyToPubkey);
   $: replyToProfile = replyToPubkey ? $profiles.get(replyToPubkey) : undefined;
   $: replyToName = replyToPubkey
@@ -48,7 +47,9 @@
       <span class="time">{formatAbsoluteTime(note.createdAt)}</span>
     </div>
     {#if replyToPubkey}
-      <div class="reply-badge-preview">← @{replyToName}</div>
+      <div class="reply-badge-preview in-matome">← @{replyToName}</div>
+    {:else if isReply}
+      <div class="reply-badge-preview">リプライ</div>
     {/if}
     <div class="content">
       {#each segments as seg}
@@ -175,6 +176,7 @@
     flex-shrink: 0;
   }
 
+  /* リプライ投稿は原則バッジを付け、まとめ内への返信だけ色を変えて強調する。 */
   .reply-badge-preview {
     display: inline-flex;
     align-items: baseline;
@@ -182,15 +184,21 @@
     margin-bottom: 6px;
     font-size: 11px;
     font-weight: 700;
-    color: var(--accent);
-    background: var(--accent-pale);
-    border: 1px solid var(--accent-mid);
+    color: var(--ink3);
+    background: var(--bg);
+    border: 1px solid var(--border2);
     padding: 2px 9px;
     border-radius: var(--radius-btn);
     font-family: var(--font-ui);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .reply-badge-preview.in-matome {
+    color: var(--accent);
+    background: var(--accent-pale);
+    border-color: var(--accent-mid);
   }
 
   .content {
