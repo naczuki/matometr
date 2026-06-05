@@ -13,7 +13,7 @@
     buildEmojiMap
   } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey, resolveRepostTarget } from '$lib/utils/nostr';
-  import { openReactions } from '$lib/services/reactions';
+  import { openReactions, type ReactionHandle } from '$lib/services/reactions';
   import { groupReactions } from '$lib/utils/reaction';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import Avatar from '$lib/components/Avatar.svelte';
@@ -45,18 +45,24 @@
   // 購読は対象 id 単位の共有マネージャ（openReactions）に集約する。重複排除・
   // キャッシュ保持はマネージャ側で行うので、ここでは届いた配列を kind で振り分けるだけ。
   let reactionsOpen = false;
-  let reactionClose: (() => void) | null = null;
+  let reactionHandle: ReactionHandle | null = null;
   let reactionEvents: Note[] = [];
   let repostEvents: Note[] = [];
   let reactionLoading = false;
   let reactionLoadTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // 可視性（IntersectionObserver で更新）。タップ展開は可視中に起きるので初期値 true。
+  let cardEl: HTMLElement | undefined;
+  let cardVisible = true;
+  // 開いている間だけ、可視性の変化を共有マネージャへ伝える（フル/バックグラウンド切替）。
+  $: reactionHandle?.setVisible(cardVisible);
+
   $: reactionGroups = groupReactions(reactionEvents);
 
   function startReactions(): void {
-    if (reactionClose || !note) return;
+    if (reactionHandle || !note) return;
     reactionLoading = reactionEvents.length === 0 && repostEvents.length === 0;
-    reactionClose = openReactions(note.id, (events) => {
+    reactionHandle = openReactions(note.id, (events) => {
       if (destroyed) return;
       const reacts: Note[] = [];
       const reposts: Note[] = [];
@@ -75,6 +81,7 @@
         }
       }
     });
+    reactionHandle.setVisible(cardVisible);
     // forward REQ は EOSE で完了しないため、初回の「読み込み中…」はタイムアウトで畳む
     reactionLoadTimer = setTimeout(() => {
       reactionLoading = false;
@@ -83,8 +90,8 @@
   }
 
   function stopReactions(): void {
-    reactionClose?.();
-    reactionClose = null;
+    reactionHandle?.close();
+    reactionHandle = null;
     if (reactionLoadTimer) {
       clearTimeout(reactionLoadTimer);
       reactionLoadTimer = null;
@@ -170,11 +177,25 @@
     timer = setTimeout(() => {
       if (!note) loadError = true;
     }, 10_000);
+
+    // 可視性監視（リアクション欄の画面外停止/復帰のトリガー）
+    let io: IntersectionObserver | null = null;
+    if (cardEl && typeof IntersectionObserver !== 'undefined') {
+      io = new IntersectionObserver(
+        (obsEntries) => {
+          cardVisible = obsEntries[0]?.isIntersecting ?? true;
+        },
+        { rootMargin: '100px' }
+      );
+      io.observe(cardEl);
+    }
+
     return () => {
       destroyed = true;
       sub.unsubscribe();
       repostSub?.unsubscribe();
       stopReactions();
+      io?.disconnect();
       if (timer) clearTimeout(timer);
       if (repostTimer) clearTimeout(repostTimer);
     };
@@ -327,7 +348,7 @@
   });
 </script>
 
-<div class="note-card" id={anchorId ? 'note-' + anchorId : undefined}>
+<div class="note-card" id={anchorId ? 'note-' + anchorId : undefined} bind:this={cardEl}>
   {#if total > 0 || replyTo}
     <div class="note-tags">
       {#if total > 0}<span class="note-num">{num} / {total}</span>{/if}
