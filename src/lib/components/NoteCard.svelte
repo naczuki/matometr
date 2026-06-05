@@ -5,7 +5,7 @@
   import type { Note } from '$lib/types';
   import { fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
-  import { timeAgo } from '$lib/utils/time';
+  import { formatAbsoluteTime } from '$lib/utils/time';
   import {
     parseNostrRefs,
     extractImages,
@@ -276,7 +276,7 @@
           }
         }}
       >
-        {timeAgo(note.createdAt)}<svg
+        {formatAbsoluteTime(note.createdAt)}<svg
           class="note-time-chevron"
           aria-hidden="true"
           viewBox="0 0 24 24"
