@@ -13,9 +13,8 @@
     buildEmojiMap
   } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey, resolveRepostTarget } from '$lib/utils/nostr';
-  import { subscribeNoteReactions } from '$lib/services/reactions';
+  import { openReactions } from '$lib/services/reactions';
   import { groupReactions } from '$lib/utils/reaction';
-  import type { Subscription } from 'rxjs';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import Avatar from '$lib/components/Avatar.svelte';
 
@@ -43,27 +42,32 @@
   let destroyed = false;
 
   // リアクション/リポスト（タップ展開・lumilumi 式。開くまで購読しない）
+  // 購読は対象 id 単位の共有マネージャ（openReactions）に集約する。重複排除・
+  // キャッシュ保持はマネージャ側で行うので、ここでは届いた配列を kind で振り分けるだけ。
   let reactionsOpen = false;
-  let reactionSub: Subscription | null = null;
+  let reactionClose: (() => void) | null = null;
   let reactionEvents: Note[] = [];
   let repostEvents: Note[] = [];
   let reactionLoading = false;
   let reactionLoadTimer: ReturnType<typeof setTimeout> | null = null;
-  // 再購読時の二重追加防止（複数リレー由来の重複排除は service 側 uniq() でも行う）
-  const seenReactionIds = new Set<string>();
 
   $: reactionGroups = groupReactions(reactionEvents);
 
   function startReactions(): void {
-    if (reactionSub || !note) return;
+    if (reactionClose || !note) return;
     reactionLoading = reactionEvents.length === 0 && repostEvents.length === 0;
-    reactionSub = subscribeNoteReactions(note.id).subscribe({
-      next: (ev) => {
-        if (destroyed || seenReactionIds.has(ev.id)) return;
-        seenReactionIds.add(ev.id);
-        if (ev.kind === 7) reactionEvents = [...reactionEvents, ev];
-        else repostEvents = [...repostEvents, ev];
+    reactionClose = openReactions(note.id, (events) => {
+      if (destroyed) return;
+      const reacts: Note[] = [];
+      const reposts: Note[] = [];
+      for (const ev of events) {
+        if (ev.kind === 7) reacts.push(ev);
+        else reposts.push(ev);
         requestProfile(ev.pubkey);
+      }
+      reactionEvents = reacts;
+      repostEvents = reposts;
+      if (events.length > 0) {
         reactionLoading = false;
         if (reactionLoadTimer) {
           clearTimeout(reactionLoadTimer);
@@ -79,8 +83,8 @@
   }
 
   function stopReactions(): void {
-    reactionSub?.unsubscribe();
-    reactionSub = null;
+    reactionClose?.();
+    reactionClose = null;
     if (reactionLoadTimer) {
       clearTimeout(reactionLoadTimer);
       reactionLoadTimer = null;
