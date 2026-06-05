@@ -1,6 +1,5 @@
 import { createRxForwardReq, uniq } from 'rx-nostr';
-import type { Observable } from 'rxjs';
-import { map } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import type { Note } from '$lib/types';
 import { toNote, withRelays, getClient } from './nostrCore';
 
@@ -17,12 +16,18 @@ import { toNote, withRelays, getClient } from './nostrCore';
  *       ライフサイクルは次フェーズでこの関数の内部を差し替えて実現する。
  */
 export function subscribeNoteReactions(postId: string, relays?: string[]): Observable<Note> {
-  const client = getClient();
-  const rxReq = createRxForwardReq();
-  const obs = client.use(rxReq, withRelays(relays)).pipe(
-    uniq(),
-    map(({ event }) => toNote(event))
-  );
-  rxReq.emit({ kinds: [7, 6, 16], '#e': [postId] });
-  return obs;
+  return new Observable<Note>((subscriber) => {
+    const client = getClient();
+    const rxReq = createRxForwardReq();
+    const sub = client
+      .use(rxReq, withRelays(relays))
+      .pipe(
+        uniq(),
+        map(({ event }) => toNote(event))
+      )
+      .subscribe(subscriber);
+    // forward REQ は subscribe 確立後に emit しないと初回フィルタが流れない
+    rxReq.emit({ kinds: [7, 6, 16], '#e': [postId] });
+    return () => sub.unsubscribe();
+  });
 }
