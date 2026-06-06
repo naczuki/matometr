@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { base } from '$app/paths';
   import { goto } from '$app/navigation';
@@ -38,6 +39,16 @@
   import type { ContentSegment } from '$lib/utils/markdown';
 
   export let naddr: string;
+
+  onMount(() => {
+    function handlePopState(event: PopStateEvent): void {
+      if (event.state?.matomeJump === true) {
+        window.scrollTo({ top: event.state.scrollY ?? 0, behavior: 'smooth' });
+      }
+    }
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  });
 
   let matome: Matome | null = null;
   let loading = true;

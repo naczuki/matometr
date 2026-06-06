@@ -217,9 +217,10 @@
 
   function scrollToParent(): void {
     if (!replyTo) return;
-    document
-      .getElementById('note-' + replyTo.parentId)
-      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const target = document.getElementById('note-' + replyTo.parentId);
+    if (!target) return;
+    history.pushState({ matomeJump: true, scrollY: window.scrollY }, '');
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function truncateName(name: string, max = 30): string {
