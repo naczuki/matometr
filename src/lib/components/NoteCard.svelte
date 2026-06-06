@@ -13,6 +13,8 @@
     buildEmojiMap
   } from '$lib/utils/nostrContent';
   import { shortNpubFromPubkey, resolveRepostTarget } from '$lib/utils/nostr';
+  import { openReactions, type ReactionHandle } from '$lib/services/reactions';
+  import { groupReactions } from '$lib/utils/reaction';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import Avatar from '$lib/components/Avatar.svelte';
 
@@ -43,6 +45,64 @@
   let repostSub: { unsubscribe(): void } | null = null;
   let repostTimer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
+
+  // リアクション/リポスト（タップ展開・lumilumi 式。開くまで購読しない）
+  // 購読は対象 id 単位の共有マネージャ（openReactions）に集約する。重複排除・
+  // キャッシュ保持はマネージャ側で行うので、ここでは届いた配列を kind で振り分けるだけ。
+  let reactionsOpen = false;
+  let reactionHandle: ReactionHandle | null = null;
+  let reactionEvents: Note[] = [];
+  let repostEvents: Note[] = [];
+  // 履歴を取り切るまで true（EOSE 完了で false）。「読み込み中…」表示に使う。
+  let reactionLoading = false;
+  // 一度でも履歴を取り切ったか（EOSE 到達）。取得後は 0 件でもカウントに 0 を出す。
+  let reactionComplete = false;
+
+  // 可視性（IntersectionObserver で更新）。タップ展開は可視中に起きるので初期値 true。
+  let cardEl: HTMLElement | undefined;
+  let cardVisible = true;
+  // 開いている間だけ、可視性の変化を共有マネージャへ伝える（取得継続/一時停止の切替）。
+  $: reactionHandle?.setVisible(cardVisible);
+
+  $: reactionGroups = groupReactions(reactionEvents);
+
+  // カウント表示: 取得完了後は 0 件でも 0 を出す。未取得・読み込み中は件数があるときだけ。
+  $: reactionCountText =
+    reactionComplete || reactionEvents.length > 0 ? String(reactionEvents.length) : '';
+  $: repostCountText =
+    reactionComplete || repostEvents.length > 0 ? String(repostEvents.length) : '';
+
+  function startReactions(): void {
+    if (reactionHandle || !note) return;
+    reactionLoading = true;
+    reactionHandle = openReactions(note.id, (events, info) => {
+      if (destroyed) return;
+      const reacts: Note[] = [];
+      const reposts: Note[] = [];
+      for (const ev of events) {
+        if (ev.kind === 7) reacts.push(ev);
+        else reposts.push(ev);
+        requestProfile(ev.pubkey);
+      }
+      reactionEvents = reacts;
+      repostEvents = reposts;
+      // EOSE で履歴を取り切ったら読み込み表示を畳む（タイムアウト不要）。
+      reactionLoading = !info.complete;
+      reactionComplete = info.complete;
+    });
+    reactionHandle.setVisible(cardVisible);
+  }
+
+  function stopReactions(): void {
+    reactionHandle?.close();
+    reactionHandle = null;
+  }
+
+  function toggleReactions(): void {
+    reactionsOpen = !reactionsOpen;
+    if (reactionsOpen) startReactions();
+    else stopReactions();
+  }
 
   function handleFetchedNote(n: Note, relay: string): void {
     const repost = resolveRepostTarget(n);
@@ -118,10 +178,25 @@
     timer = setTimeout(() => {
       if (!note) loadError = true;
     }, 10_000);
+
+    // 可視性監視（リアクション欄の画面外停止/復帰のトリガー）
+    let io: IntersectionObserver | null = null;
+    if (cardEl && typeof IntersectionObserver !== 'undefined') {
+      io = new IntersectionObserver(
+        (obsEntries) => {
+          cardVisible = obsEntries[0]?.isIntersecting ?? true;
+        },
+        { rootMargin: '100px' }
+      );
+      io.observe(cardEl);
+    }
+
     return () => {
       destroyed = true;
       sub.unsubscribe();
       repostSub?.unsubscribe();
+      stopReactions();
+      io?.disconnect();
       if (timer) clearTimeout(timer);
       if (repostTimer) clearTimeout(repostTimer);
     };
@@ -274,7 +349,12 @@
   });
 </script>
 
-<div class="note-card" class:indented={indent} id={anchorId ? 'note-' + anchorId : undefined}>
+<div
+  class="note-card"
+  class:indented={indent}
+  id={anchorId ? 'note-' + anchorId : undefined}
+  bind:this={cardEl}
+>
   {#if total > 0}<span class="note-num">{num} / {total}</span>{/if}
 
   {#if replyTo}
@@ -443,6 +523,145 @@
     {#if hasCw && cwRevealed}
       <div class="cw-hide-wrap">
         <button class="cw-hide-btn" on:click={() => (cwRevealed = false)}>隠す</button>
+      </div>
+    {/if}
+
+    <div class="reaction-bar">
+      <button
+        type="button"
+        class="reaction-trigger"
+        class:open={reactionsOpen}
+        aria-expanded={reactionsOpen}
+        title="リアクション・リポストを表示"
+        on:click|stopPropagation={toggleReactions}
+      >
+        <span class="rt-item" title="リアクション">
+          <svg
+            class="rt-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 3.5l2.6 5.27 5.82.85-4.21 4.1.99 5.79L12 16.78l-5.2 2.73.99-5.79-4.21-4.1 5.82-.85z"
+            />
+          </svg>
+          <span class="rt-count">{reactionCountText}</span>
+        </span>
+        <span class="rt-sep" aria-hidden="true"></span>
+        <span class="rt-item rt-repost" title="リポスト">
+          <svg
+            class="rt-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="17 1 21 5 17 9" />
+            <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+            <polyline points="7 23 3 19 7 15" />
+            <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+          </svg>
+          <span class="rt-count">{repostCountText}</span>
+        </span>
+        <svg
+          class="rt-chevron"
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg
+        >
+      </button>
+    </div>
+
+    {#if reactionsOpen}
+      <div class="reaction-panel">
+        {#if reactionLoading && reactionEvents.length === 0 && repostEvents.length === 0}
+          <div class="reaction-status">読み込み中…</div>
+        {:else if reactionEvents.length === 0 && repostEvents.length === 0}
+          <div class="reaction-status">まだリアクション・リポストはありません</div>
+        {:else}
+          {#each reactionGroups as group (group.key)}
+            <div class="reaction-row">
+              <span class="reaction-key">
+                {#if group.reaction.type === 'star'}⭐
+                {:else if group.reaction.type === 'thumbsdown'}👎
+                {:else if group.reaction.type === 'emoji'}
+                  <img
+                    class="reaction-emoji"
+                    src={group.reaction.url}
+                    alt=":{group.reaction.shortcode}:"
+                    loading="lazy"
+                  />
+                {:else}{group.reaction.text}{/if}
+              </span>
+              <div class="reactor-avatars">
+                {#each group.pubkeys as pk, i (i)}
+                  {@const rp = $profiles.get(pk)}
+                  <a
+                    class="reactor-avatar"
+                    href="{base}/{nip19.npubEncode(pk)}"
+                    title={rp?.displayName ?? rp?.name ?? shortNpubFromPubkey(pk)}
+                  >
+                    <Avatar
+                      pubkey={pk}
+                      picture={rp?.picture ?? null}
+                      name={rp?.displayName ?? rp?.name ?? null}
+                      size={24}
+                    />
+                  </a>
+                {/each}
+              </div>
+            </div>
+          {/each}
+          {#if repostEvents.length > 0}
+            <div class="reaction-row" class:divided={reactionGroups.length > 0}>
+              <span class="reaction-key reaction-key-repost">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <polyline points="17 1 21 5 17 9" />
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                  <polyline points="7 23 3 19 7 15" />
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                </svg>
+              </span>
+              <div class="reactor-avatars">
+                {#each repostEvents as ev (ev.id)}
+                  {@const rp = $profiles.get(ev.pubkey)}
+                  <a
+                    class="reactor-avatar"
+                    href="{base}/{nip19.npubEncode(ev.pubkey)}"
+                    title={rp?.displayName ?? rp?.name ?? shortNpubFromPubkey(ev.pubkey)}
+                  >
+                    <Avatar
+                      pubkey={ev.pubkey}
+                      picture={rp?.picture ?? null}
+                      name={rp?.displayName ?? rp?.name ?? null}
+                      size={24}
+                    />
+                  </a>
+                {/each}
+              </div>
+            </div>
+          {/if}
+        {/if}
       </div>
     {/if}
   {/if}
@@ -905,5 +1124,154 @@
     color: var(--ink3);
     padding: 8px 0;
     font-style: italic;
+  }
+
+  /* リアクション/リポスト */
+  .reaction-bar {
+    margin-top: 14px;
+  }
+
+  /* ピル型ではなく、上に薄い水平線を引いて区切る全幅のタップ範囲。
+     全幅なので件数が出ても表示部分の幅は変わらない（右端のシェブロンは固定）。 */
+  .reaction-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    width: 100%;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: var(--font-ui);
+    color: var(--ink3);
+    background: none;
+    border: none;
+    border-top: 1px solid var(--border);
+    border-radius: 0;
+    padding: 10px 2px 0;
+    cursor: pointer;
+    transition: color 0.12s;
+  }
+
+  .reaction-trigger:hover {
+    color: var(--accent);
+  }
+
+  .reaction-trigger.open {
+    color: var(--accent);
+  }
+
+  /* ハイライト時（ホバー/展開）、星はアクセント色のままだがリポストは緑にする */
+  .reaction-trigger:hover .rt-repost,
+  .reaction-trigger.open .rt-repost {
+    color: var(--repost);
+  }
+
+  .rt-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .rt-icon {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+
+  .rt-count {
+    /* 件数が出ても/増えてもアイコン位置がずれないよう枠を常に確保する */
+    min-width: 1.4em;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink2);
+  }
+
+  .rt-sep {
+    width: 1px;
+    align-self: stretch;
+    background: var(--border);
+  }
+
+  .rt-chevron {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    color: var(--note-chevron);
+    transition: transform 0.15s;
+  }
+
+  .reaction-trigger.open .rt-chevron {
+    transform: rotate(180deg);
+  }
+
+  .reaction-panel {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .reaction-status {
+    font-size: 13px;
+    color: var(--ink3);
+    font-family: var(--font-ui);
+    padding: 4px 0;
+  }
+
+  .reaction-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .reaction-key {
+    flex-shrink: 0;
+    min-width: 28px;
+    font-size: 15px;
+    line-height: 24px;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .reaction-emoji {
+    height: 20px;
+    max-width: 100px;
+    vertical-align: middle;
+  }
+
+  /* リポストは開いた一覧でのみ緑（リアクションと区別）。初期表示は星と同じグレー。 */
+  .reaction-key-repost {
+    display: inline-flex;
+    align-items: center;
+    color: var(--repost);
+  }
+
+  .reaction-key-repost svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* リアクションとリポストが両方あるときの区切り線 */
+  .reaction-row.divided {
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+  }
+
+  .reactor-avatars {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .reactor-avatar {
+    display: block;
+    line-height: 0;
+    border-radius: 50%;
   }
 </style>
