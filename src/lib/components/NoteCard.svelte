@@ -530,12 +530,21 @@
         on:click|stopPropagation={toggleReactions}
       >
         <span class="rt-item" title="リアクション">
-          <svg class="rt-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <svg
+            class="rt-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
             <path
-              d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.3l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94L12 2.5z"
+              d="M12 3.5l2.6 5.27 5.82.85-4.21 4.1.99 5.79L12 16.78l-5.2 2.73.99-5.79-4.21-4.1 5.82-.85z"
             />
           </svg>
-          {#if reactionEvents.length > 0}<span class="rt-count">{reactionEvents.length}</span>{/if}
+          <span class="rt-count">{reactionEvents.length || ''}</span>
         </span>
         <span class="rt-sep" aria-hidden="true"></span>
         <span class="rt-item" title="リポスト">
@@ -554,7 +563,7 @@
             <polyline points="7 23 3 19 7 15" />
             <path d="M21 13v2a4 4 0 0 1-4 4H3" />
           </svg>
-          {#if repostEvents.length > 0}<span class="rt-count">{repostEvents.length}</span>{/if}
+          <span class="rt-count">{repostEvents.length || ''}</span>
         </span>
         <svg
           class="rt-chevron"
@@ -1152,10 +1161,13 @@
   }
 
   .rt-count {
+    /* 件数が出ても/増えてもアイコン位置がずれないよう枠を常に確保する */
+    min-width: 1.4em;
+    text-align: left;
     font-size: 12px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-    color: var(--accent);
+    color: var(--ink2);
   }
 
   .rt-sep {
