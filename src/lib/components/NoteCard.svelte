@@ -19,6 +19,15 @@
   export let nevent: string;
   export let num: number = 0;
   export let total: number = 0;
+  // まとめ内の親ポスト（NIP-10 で解決済み）。null ならルート扱い。
+  export let replyTo: { parentId: string; parentPubkey: string } | null = null;
+  // スクロール先アンカー用のイベント id（まとめ詳細から渡す）。
+  export let anchorId: string = '';
+  // 直上が親または兄弟リプのとき 1 段インデントする（まとめ詳細から渡す）。
+  export let indent: boolean = false;
+  // ノート取得完了時に親（MatomePage）へ生イベントを通知するコールバック。
+  // NIP-10 返信解決に使用するため、リポスト解決前の生イベントを渡す。
+  export let noteFetched: ((note: Note) => void) | undefined = undefined;
 
   let note: Note | null = null;
   let loadError = false;
@@ -95,6 +104,7 @@
     let timer: ReturnType<typeof setTimeout> | null = null;
     const sub = fetchNoteByIdWithRelay(eventId, hintRelays).subscribe({
       next: ({ note: n, relay }) => {
+        noteFetched?.(n); // 生イベントを親に通知（NIP-10 解決用）
         handleFetchedNote(n, relay);
         if (timer) {
           clearTimeout(timer);
@@ -120,6 +130,22 @@
   $: profile = note ? $profiles.get(note.pubkey) : undefined;
   $: authorName = profile?.displayName ?? profile?.name ?? shortNpubFromPubkey(note?.pubkey ?? '');
   $: picture = profile?.picture ?? null;
+
+  // 返信先（親）の表示名。displayName → name → npub 短縮にフォールバック。
+  $: if (replyTo) requestProfile(replyTo.parentPubkey);
+  $: replyToName = replyTo
+    ? (() => {
+        const p = $profiles.get(replyTo.parentPubkey);
+        return p?.displayName ?? p?.name ?? shortNpubFromPubkey(replyTo.parentPubkey);
+      })()
+    : '';
+
+  function scrollToParent(): void {
+    if (!replyTo) return;
+    document
+      .getElementById('note-' + replyTo.parentId)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   function truncateName(name: string, max = 30): string {
     return name.length > max ? name.slice(0, max) + '…' : name;
@@ -248,8 +274,21 @@
   });
 </script>
 
-<div class="note-card">
-  {#if total > 0}<div class="note-num">{num} / {total}</div>{/if}
+<div class="note-card" class:indented={indent} id={anchorId ? 'note-' + anchorId : undefined}>
+  {#if total > 0}<span class="note-num">{num} / {total}</span>{/if}
+
+  {#if replyTo}
+    <div class="reply-row">
+      <button
+        type="button"
+        class="reply-link"
+        title="返信先へ移動"
+        on:click|stopPropagation={scrollToParent}
+      >
+        @{replyToName}
+      </button>
+    </div>
+  {/if}
 
   {#if loadError}
     <div class="load-error">この投稿は取得できませんでした</div>
@@ -448,10 +487,11 @@
 
 <style>
   .note-card {
+    position: relative;
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: var(--radius-card);
-    padding: 18px;
+    padding: 26px 18px 18px;
     margin-bottom: 12px;
     transition: box-shadow 0.15s;
   }
@@ -461,16 +501,45 @@
     border-color: var(--accent-mid);
   }
 
+  /* 直上が親/兄弟リプのときだけ 1 段（深さに関わらず固定幅）。 */
+  .note-card.indented {
+    margin-left: 28px;
+  }
+
+  /* ナンバリングは左上の角に控えめに添える（グレー・背景なし）。 */
   .note-num {
+    position: absolute;
+    top: 9px;
+    left: 18px;
     font-size: 11px;
     font-weight: 700;
-    color: var(--accent);
-    background: var(--accent-mid);
-    padding: 2px 9px;
-    border-radius: var(--radius-btn);
-    display: inline-block;
-    margin-bottom: 10px;
+    color: var(--ink3);
     font-family: var(--font-ui);
+  }
+
+  .reply-row {
+    margin-bottom: 10px;
+  }
+
+  /* リプライ先は囲みなしのテキスト表示（@名前）。タップで親へスクロール。 */
+  .reply-link {
+    display: inline-flex;
+    max-width: 100%;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .reply-link:hover {
+    text-decoration: underline;
   }
 
   .note-header {

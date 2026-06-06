@@ -16,6 +16,7 @@
 
   export let selectedIds: Set<string>;
   export let onToggle: (eventId: string, nevent: string) => void;
+  export let matomePostPubkeys: Map<string, string> = new Map();
 
   let initLoading = true;
   let loadMoreLoading = false;
@@ -249,6 +250,11 @@
   onLoadMore={loadMore}
 >
   {#each notes as note (note.id)}
-    <NotePreview {note} selected={selectedIds.has(note.id)} onClick={handleClick} />
+    <NotePreview
+      {note}
+      selected={selectedIds.has(note.id)}
+      onClick={handleClick}
+      {matomePostPubkeys}
+    />
   {/each}
 </FeedList>

@@ -14,12 +14,18 @@
     fetchReactionsForMatome,
     publishReaction
   } from '$lib/services/NostrClient';
+  import type { Note } from '$lib/types';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { currentUser } from '$lib/stores/auth';
   import { markDeleted } from '$lib/stores/deletedMatomes';
   import { markFaved } from '$lib/stores/favs';
   import { avatarStyle } from '$lib/utils/avatar';
-  import { shortNpubFromPubkey, shortNpub as shortNpubStr } from '$lib/utils/nostr';
+  import {
+    shortNpubFromPubkey,
+    shortNpub as shortNpubStr,
+    eventIdFromNevent,
+    resolveReplyParentId
+  } from '$lib/utils/nostr';
   import { NOSLI_BASE_URL } from '$lib/utils/constants';
   import NoteCard from '$lib/components/NoteCard.svelte';
   import NaddrCard from '$lib/components/NaddrCard.svelte';
@@ -37,6 +43,8 @@
   let loading = true;
   let error = '';
   let sub: Subscription | null = null;
+  // NoteCard の個別フェッチ結果を受け取り NIP-10 返信解決に使用する。
+  let notesById: Map<string, Note> = new Map();
 
   // naddr が変わるたびに状態をリセットして再取得。
   // onMount は SvelteKit が同一コンポーネントを再利用する場合に再実行されないため、
@@ -51,6 +59,7 @@
     sub = null;
     favSub?.unsubscribe();
     favSub = null;
+    notesById = new Map();
     matome = null;
     error = '';
     loading = true;
@@ -123,7 +132,7 @@
   $: (authorPicture, (authorImgFailed = false));
 
   type RenderBlock =
-    | { type: 'note'; nevent: string; num: number }
+    | { type: 'note'; nevent: string; num: number; eventId: string | null }
     | { type: 'naddr'; naddr: string }
     | { type: 'mention'; pubkey: string; npub: string }
     | { type: 'heading'; content: string }
@@ -136,7 +145,12 @@
     for (const b of blocks) {
       if (b.type === 'nevent') {
         noteNum++;
-        plan.push({ type: 'note', nevent: b.content, num: noteNum });
+        plan.push({
+          type: 'note',
+          nevent: b.content,
+          num: noteNum,
+          eventId: eventIdFromNevent(b.content)
+        });
       } else if (b.type === 'naddr') {
         const encoded = b.content.replace(/^nostr:/, '');
         plan.push({ type: 'naddr', naddr: encoded });
@@ -162,6 +176,59 @@
   $: for (const block of renderPlan) {
     if (block.type === 'mention') requestProfile(block.pubkey);
   }
+
+  // NIP-10 返信解決用。NoteCard が個別フェッチしたノートをコールバックで受け取る。
+  function handleNoteFetched(note: Note): void {
+    if (notesById.has(note.id)) return; // 重複スキップ
+    const updated = new Map(notesById);
+    updated.set(note.id, note);
+    notesById = updated;
+  }
+
+  // まとめ内ポストの NIP-10 返信関係を解決する（notesById が更新されるたびに再計算）。
+  $: noteEventIds = renderPlan
+    .filter((b): b is Extract<RenderBlock, { type: 'note' }> => b.type === 'note')
+    .map((b) => b.eventId)
+    .filter((id): id is string => id !== null);
+
+  // eventId -> 親（まとめ内に存在する場合のみ）
+  $: inMatomeIds = new Set(noteEventIds);
+  $: replyByEventId = (() => {
+    const map = new Map<string, { parentId: string; parentPubkey: string }>();
+    for (const id of noteEventIds) {
+      const note = notesById.get(id);
+      if (!note) continue;
+      const parentId = resolveReplyParentId(note);
+      if (!parentId || !inMatomeIds.has(parentId)) continue;
+      const parent = notesById.get(parentId);
+      if (!parent) continue;
+      map.set(id, { parentId, parentPubkey: parent.pubkey });
+    }
+    return map;
+  })();
+  $: for (const info of replyByEventId.values()) requestProfile(info.parentPubkey);
+
+  // 直上のカードが親本人、または同じ親への兄弟リプのときだけ 1 段インデント。
+  // replyByEventId を引数で受け取ることで、ノート取得後の更新でも再計算させる。
+  function buildIndentFlags(
+    plan: RenderBlock[],
+    replies: Map<string, { parentId: string; parentPubkey: string }>
+  ): boolean[] {
+    const replyToIdAt = (i: number): string | null => {
+      const b = plan[i];
+      if (!b || b.type !== 'note' || !b.eventId) return null;
+      return replies.get(b.eventId)?.parentId ?? null;
+    };
+    return plan.map((b, i) => {
+      if (b.type !== 'note') return false;
+      const replyToId = replyToIdAt(i);
+      if (!replyToId) return false;
+      const prev = plan[i - 1];
+      if (!prev || prev.type !== 'note') return false;
+      return prev.eventId === replyToId || replyToIdAt(i - 1) === replyToId;
+    });
+  }
+  $: indentFlags = buildIndentFlags(renderPlan, replyByEventId);
 
   let mdSegments: ContentSegment[] = [];
   $: if (matome && !matome.isMatometr && !matome.isNosli) {
@@ -680,11 +747,19 @@
     </div>
 
     {#if matome.isMatometr || matome.isNosli}
-      {#each renderPlan as block}
+      {#each renderPlan as block, i}
         {#if block.type === 'heading'}
           <div class="block-heading">{block.content}</div>
         {:else if block.type === 'note'}
-          <NoteCard nevent={block.nevent} num={block.num} total={matome.postCount} />
+          <NoteCard
+            nevent={block.nevent}
+            num={block.num}
+            total={matome.postCount}
+            anchorId={block.eventId ?? ''}
+            replyTo={block.eventId ? (replyByEventId.get(block.eventId) ?? null) : null}
+            indent={indentFlags[i] ?? false}
+            noteFetched={handleNoteFetched}
+          />
         {:else if block.type === 'naddr'}
           <NaddrCard ref={'nostr:' + block.naddr} />
         {:else if block.type === 'mention'}
