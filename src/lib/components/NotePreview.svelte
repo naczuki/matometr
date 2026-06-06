@@ -49,7 +49,7 @@
     {#if replyToPubkey}
       <div class="reply-badge-preview in-matome">← @{replyToName}</div>
     {:else if isReply}
-      <div class="reply-badge-preview">リプライ</div>
+      <div class="reply-badge-preview">reply</div>
     {/if}
     <div class="content">
       {#each segments as seg}
