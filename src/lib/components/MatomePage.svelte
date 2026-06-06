@@ -228,21 +228,27 @@
   })();
   $: for (const info of replyByEventId.values()) requestProfile(info.parentPubkey);
 
-  // まとめ内の親 id（まとめ外/親なしは null）。
-  function replyToIdAt(plan: RenderBlock[], i: number): string | null {
-    const b = plan[i];
-    if (!b || b.type !== 'note' || !b.eventId) return null;
-    return replyByEventId.get(b.eventId)?.parentId ?? null;
-  }
-
   // 直上のカードが親本人、または同じ親への兄弟リプのときだけ 1 段インデント。
-  function shouldIndentAt(plan: RenderBlock[], i: number): boolean {
-    const replyToId = replyToIdAt(plan, i);
-    if (!replyToId) return false;
-    const prev = plan[i - 1];
-    if (!prev || prev.type !== 'note') return false;
-    return prev.eventId === replyToId || replyToIdAt(plan, i - 1) === replyToId;
+  // replyByEventId を引数で受け取ることで、ノート取得後の更新でも再計算させる。
+  function buildIndentFlags(
+    plan: RenderBlock[],
+    replies: Map<string, { parentId: string; parentPubkey: string }>
+  ): boolean[] {
+    const replyToIdAt = (i: number): string | null => {
+      const b = plan[i];
+      if (!b || b.type !== 'note' || !b.eventId) return null;
+      return replies.get(b.eventId)?.parentId ?? null;
+    };
+    return plan.map((b, i) => {
+      if (b.type !== 'note') return false;
+      const replyToId = replyToIdAt(i);
+      if (!replyToId) return false;
+      const prev = plan[i - 1];
+      if (!prev || prev.type !== 'note') return false;
+      return prev.eventId === replyToId || replyToIdAt(i - 1) === replyToId;
+    });
   }
+  $: indentFlags = buildIndentFlags(renderPlan, replyByEventId);
 
   let mdSegments: ContentSegment[] = [];
   $: if (matome && !matome.isMatometr && !matome.isNosli) {
@@ -771,7 +777,7 @@
             total={matome.postCount}
             anchorId={block.eventId ?? ''}
             replyTo={block.eventId ? (replyByEventId.get(block.eventId) ?? null) : null}
-            indent={shouldIndentAt(renderPlan, i)}
+            indent={indentFlags[i] ?? false}
           />
         {:else if block.type === 'naddr'}
           <NaddrCard ref={'nostr:' + block.naddr} />

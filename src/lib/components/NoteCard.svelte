@@ -277,11 +277,11 @@
     <div class="reply-row">
       <button
         type="button"
-        class="reply-badge"
+        class="reply-link"
         title="返信先へ移動"
         on:click|stopPropagation={scrollToParent}
       >
-        <span class="reply-arrow" aria-hidden="true">←</span>@{replyToName}
+        @{replyToName}
       </button>
     </div>
   {/if}
@@ -517,36 +517,25 @@
     margin-bottom: 10px;
   }
 
-  .reply-badge {
+  /* リプライ先は囲みなしのテキスト表示（@名前）。タップで親へスクロール。 */
+  .reply-link {
     display: inline-flex;
-    align-items: baseline;
-    gap: 4px;
     max-width: 100%;
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
     color: var(--accent);
-    background: var(--accent-pale);
-    border: 1px solid var(--accent-mid);
-    padding: 3px 11px;
-    border-radius: var(--radius-btn);
+    background: none;
+    border: none;
+    padding: 0;
     font-family: var(--font-ui);
     cursor: pointer;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    transition:
-      background 0.12s,
-      border-color 0.12s;
   }
 
-  .reply-badge:hover {
-    background: var(--accent-mid);
-    border-color: var(--accent);
-  }
-
-  .reply-arrow {
-    font-weight: 700;
-    flex-shrink: 0;
+  .reply-link:hover {
+    text-decoration: underline;
   }
 
   .note-header {
