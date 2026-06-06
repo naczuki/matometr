@@ -10,6 +10,8 @@
   import QuotedNote from '$lib/components/QuotedNote.svelte';
 
   export let open = false;
+  // まとめ内ポストの id -> pubkey（候補の返信先バッジ用）。
+  export let matomePostPubkeys: Map<string, string> = new Map();
 
   type Tab = 'paste' | 'following' | 'favorites' | 'search';
   let activeTab: Tab = 'paste';
@@ -219,11 +221,11 @@
             {/if}
           </div>
         {:else if activeTab === 'following'}
-          <FollowingFeedTab {selectedIds} onToggle={toggleSelection} />
+          <FollowingFeedTab {selectedIds} onToggle={toggleSelection} {matomePostPubkeys} />
         {:else if activeTab === 'favorites'}
-          <FavoritesFeedTab {selectedIds} onToggle={toggleSelection} />
+          <FavoritesFeedTab {selectedIds} onToggle={toggleSelection} {matomePostPubkeys} />
         {:else}
-          <SearchFeedTab {selectedIds} onToggle={toggleSelection} />
+          <SearchFeedTab {selectedIds} onToggle={toggleSelection} {matomePostPubkeys} />
         {/if}
       </div>
 
