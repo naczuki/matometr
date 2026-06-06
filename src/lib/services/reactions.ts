@@ -44,6 +44,8 @@ interface Entry {
   pageSub: Subscription | null;
   listeners: Set<Listener>;
   touchedAt: number; // LRU 用
+  failCount: number; // 連続エラー回数（バックオフ用、成功で 0 に戻す）
+  retryAt: number; // これ以前は再取得しない時刻（エラー時のバックオフ）
 }
 
 export interface ReactionHandle {
@@ -61,9 +63,16 @@ const BG_LIMIT = 4;
 const MAX_IDLE_ENTRIES = 60;
 // 開閉・可視性変化を畳むデバウンス（ms）。
 const TICK_DEBOUNCE = 80;
+// エラー再試行の基準待機（ms）。failCount に応じて指数的に伸ばす。
+const RETRY_BASE_MS = 2_000;
+// エラー再試行の上限待機（ms）。恒久故障でも最悪この間隔までしか詰めない。
+const RETRY_MAX_MS = 60_000;
 
 const entries = new Map<string, Entry>();
 let tickTimer: ReturnType<typeof setTimeout> | null = null;
+// バックオフ待ちエントリを起こすための専用タイマ（最短の retryAt に合わせて 1 本だけ張る）。
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryTimerAt = 0;
 
 const now = (): number => Date.now();
 
@@ -82,7 +91,9 @@ function getEntry(id: string): Entry {
       loading: false,
       pageSub: null,
       listeners: new Set(),
-      touchedAt: now()
+      touchedAt: now(),
+      failCount: 0,
+      retryAt: 0
     };
     entries.set(id, e);
   }
@@ -104,7 +115,10 @@ function startPage(entry: Entry): void {
     limit: PAGE_LIMIT,
     ...(until !== undefined ? { until } : {})
   };
-  let pageNew = 0;
+  // ページ受信中はバッファに溜め、EOSE（complete）で 1 度だけ反映・通知する。
+  // 1 件ごとに events をコピー＆全 listener へ通知すると、耐久ポストで O(n^2) の
+  // 配列コピー・再レンダリングになるため、ページ単位のバッチに畳む。
+  const pageEvents: Note[] = [];
   let pageMin = Infinity;
   entry.pageSub = getClient()
     .use(createRxOneshotReq({ filters }))
@@ -114,15 +128,19 @@ function startPage(entry: Entry): void {
         if (note.createdAt < pageMin) pageMin = note.createdAt;
         if (entry.seen.has(note.id)) return;
         entry.seen.add(note.id);
-        pageNew++;
-        entry.events = [...entry.events, note];
-        entry.touchedAt = now();
-        notify(entry);
+        pageEvents.push(note);
       },
       complete: () => {
         entry.loading = false;
         entry.pageSub = null;
-        if (pageNew === 0) {
+        // 成功＝バックオフ解除。
+        entry.failCount = 0;
+        entry.retryAt = 0;
+        if (pageEvents.length > 0) {
+          entry.events = entry.events.concat(pageEvents); // ページ単位で 1 度だけ複製
+          entry.touchedAt = now();
+        }
+        if (pageEvents.length === 0) {
           // 新規ゼロ＝これ以上古いものは無い（取り切り）。
           entry.complete = true;
         } else if (pageMin !== Infinity) {
@@ -134,7 +152,11 @@ function startPage(entry: Entry): void {
       error: () => {
         entry.loading = false;
         entry.pageSub = null;
-        // エラーは完了扱いにしない（再可視で再試行できるよう cursor は維持）。
+        // エラーは完了扱いにしない（cursor は維持）。指数バックオフで再試行間隔を空け、
+        // 恒久故障時に ~TICK_DEBOUNCE 間隔でリレーを叩き続けないようにする。
+        entry.failCount++;
+        const delay = Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** (entry.failCount - 1));
+        entry.retryAt = now() + delay;
         notify(entry);
         scheduleTick();
       }
@@ -150,10 +172,17 @@ function tick(): void {
   }
 
   const eligible: { e: Entry; visible: boolean }[] = [];
+  let nextRetry = Infinity; // バックオフ待ちで今は走れないエントリの最短 retryAt
   for (const e of entries.values()) {
     if (e.refCount <= 0 || e.complete || e.loading) continue;
-    if (e.visibleCount > 0) eligible.push({ e, visible: true });
-    else if (t < e.graceUntil) eligible.push({ e, visible: false });
+    const active = e.visibleCount > 0 || t < e.graceUntil;
+    if (!active) continue;
+    if (t < e.retryAt) {
+      // バックオフ待ち。後で起こせるよう最短時刻を覚えておく。
+      if (e.retryAt < nextRetry) nextRetry = e.retryAt;
+      continue;
+    }
+    eligible.push({ e, visible: e.visibleCount > 0 });
   }
   // 可視を先に、背景は直近まで可視だった（graceUntil 大）順に。
   eligible.sort((a, b) =>
@@ -168,6 +197,10 @@ function tick(): void {
       bgInFlight++;
     }
   }
+
+  // バックオフ待ちのエントリがあれば、その時刻に合わせて再 tick を予約する
+  // （イベント駆動の scheduleTick は来ないため、ここで自前で起こす）。
+  if (nextRetry !== Infinity) armRetryTimer(nextRetry);
 }
 
 function scheduleTick(): void {
@@ -176,6 +209,21 @@ function scheduleTick(): void {
     tickTimer = null;
     tick();
   }, TICK_DEBOUNCE);
+}
+
+/** 指定時刻に tick を 1 回起こす（最短の予約だけを残す）。 */
+function armRetryTimer(when: number): void {
+  if (retryTimer && retryTimerAt <= when) return; // 既により早い予約がある
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimerAt = when;
+  retryTimer = setTimeout(
+    () => {
+      retryTimer = null;
+      retryTimerAt = 0;
+      tick();
+    },
+    Math.max(0, when - now())
+  );
 }
 
 /** idle（参照ゼロ）エントリが上限を超えたら、古い順にキャッシュを破棄する。 */
@@ -196,6 +244,9 @@ export function openReactions(id: string, listener: Listener): ReactionHandle {
   const entry = getEntry(id);
   entry.refCount++;
   entry.touchedAt = now();
+  // 明示的な再オープンはユーザの「見たい」意思表示。バックオフ待ちなら解除して即試行。
+  entry.retryAt = 0;
+  entry.failCount = 0;
   entry.listeners.add(listener);
   // キャッシュ即時再生（再オープンでも真っ白にならない）
   listener(entry.events, { complete: entry.complete });
