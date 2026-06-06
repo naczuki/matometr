@@ -55,6 +55,8 @@
   let repostEvents: Note[] = [];
   // 履歴を取り切るまで true（EOSE 完了で false）。「読み込み中…」表示に使う。
   let reactionLoading = false;
+  // 一度でも履歴を取り切ったか（EOSE 到達）。取得後は 0 件でもカウントに 0 を出す。
+  let reactionComplete = false;
 
   // 可視性（IntersectionObserver で更新）。タップ展開は可視中に起きるので初期値 true。
   let cardEl: HTMLElement | undefined;
@@ -63,6 +65,12 @@
   $: reactionHandle?.setVisible(cardVisible);
 
   $: reactionGroups = groupReactions(reactionEvents);
+
+  // カウント表示: 取得完了後は 0 件でも 0 を出す。未取得・読み込み中は件数があるときだけ。
+  $: reactionCountText =
+    reactionComplete || reactionEvents.length > 0 ? String(reactionEvents.length) : '';
+  $: repostCountText =
+    reactionComplete || repostEvents.length > 0 ? String(repostEvents.length) : '';
 
   function startReactions(): void {
     if (reactionHandle || !note) return;
@@ -80,6 +88,7 @@
       repostEvents = reposts;
       // EOSE で履歴を取り切ったら読み込み表示を畳む（タイムアウト不要）。
       reactionLoading = !info.complete;
+      reactionComplete = info.complete;
     });
     reactionHandle.setVisible(cardVisible);
   }
@@ -541,10 +550,10 @@
               d="M12 3.5l2.6 5.27 5.82.85-4.21 4.1.99 5.79L12 16.78l-5.2 2.73.99-5.79-4.21-4.1 5.82-.85z"
             />
           </svg>
-          <span class="rt-count">{reactionEvents.length || ''}</span>
+          <span class="rt-count">{reactionCountText}</span>
         </span>
         <span class="rt-sep" aria-hidden="true"></span>
-        <span class="rt-item rt-repost" title="リポスト">
+        <span class="rt-item" title="リポスト">
           <svg
             class="rt-icon"
             viewBox="0 0 24 24"
@@ -560,7 +569,7 @@
             <polyline points="7 23 3 19 7 15" />
             <path d="M21 13v2a4 4 0 0 1-4 4H3" />
           </svg>
-          <span class="rt-count">{repostEvents.length || ''}</span>
+          <span class="rt-count">{repostCountText}</span>
         </span>
         <svg
           class="rt-chevron"
@@ -616,7 +625,7 @@
             </div>
           {/each}
           {#if repostEvents.length > 0}
-            <div class="reaction-row">
+            <div class="reaction-row" class:divided={reactionGroups.length > 0}>
               <span class="reaction-key reaction-key-repost">
                 <svg
                   viewBox="0 0 24 24"
@@ -1229,12 +1238,7 @@
     vertical-align: middle;
   }
 
-  /* リポストはリアクションと見間違えないよう緑で統一（トリガー・一覧とも） */
-  .rt-repost,
-  .rt-repost .rt-count {
-    color: var(--repost);
-  }
-
+  /* リポストは開いた一覧でのみ緑（リアクションと区別）。初期表示は星と同じグレー。 */
   .reaction-key-repost {
     display: inline-flex;
     align-items: center;
@@ -1244,6 +1248,12 @@
   .reaction-key-repost svg {
     width: 18px;
     height: 18px;
+  }
+
+  /* リアクションとリポストが両方あるときの区切り線 */
+  .reaction-row.divided {
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
   }
 
   .reactor-avatars {
