@@ -48,21 +48,21 @@
   let reactionHandle: ReactionHandle | null = null;
   let reactionEvents: Note[] = [];
   let repostEvents: Note[] = [];
+  // 履歴を取り切るまで true（EOSE 完了で false）。「読み込み中…」表示に使う。
   let reactionLoading = false;
-  let reactionLoadTimer: ReturnType<typeof setTimeout> | null = null;
 
   // 可視性（IntersectionObserver で更新）。タップ展開は可視中に起きるので初期値 true。
   let cardEl: HTMLElement | undefined;
   let cardVisible = true;
-  // 開いている間だけ、可視性の変化を共有マネージャへ伝える（フル/バックグラウンド切替）。
+  // 開いている間だけ、可視性の変化を共有マネージャへ伝える（取得継続/一時停止の切替）。
   $: reactionHandle?.setVisible(cardVisible);
 
   $: reactionGroups = groupReactions(reactionEvents);
 
   function startReactions(): void {
     if (reactionHandle || !note) return;
-    reactionLoading = reactionEvents.length === 0 && repostEvents.length === 0;
-    reactionHandle = openReactions(note.id, (events) => {
+    reactionLoading = true;
+    reactionHandle = openReactions(note.id, (events, info) => {
       if (destroyed) return;
       const reacts: Note[] = [];
       const reposts: Note[] = [];
@@ -73,29 +73,15 @@
       }
       reactionEvents = reacts;
       repostEvents = reposts;
-      if (events.length > 0) {
-        reactionLoading = false;
-        if (reactionLoadTimer) {
-          clearTimeout(reactionLoadTimer);
-          reactionLoadTimer = null;
-        }
-      }
+      // EOSE で履歴を取り切ったら読み込み表示を畳む（タイムアウト不要）。
+      reactionLoading = !info.complete;
     });
     reactionHandle.setVisible(cardVisible);
-    // forward REQ は EOSE で完了しないため、初回の「読み込み中…」はタイムアウトで畳む
-    reactionLoadTimer = setTimeout(() => {
-      reactionLoading = false;
-      reactionLoadTimer = null;
-    }, 4500);
   }
 
   function stopReactions(): void {
     reactionHandle?.close();
     reactionHandle = null;
-    if (reactionLoadTimer) {
-      clearTimeout(reactionLoadTimer);
-      reactionLoadTimer = null;
-    }
   }
 
   function toggleReactions(): void {

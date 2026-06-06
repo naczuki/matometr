@@ -1,35 +1,35 @@
-import { createRxForwardReq } from 'rx-nostr';
-import type { EventPacket } from 'rx-nostr';
+import { createRxOneshotReq } from 'rx-nostr';
 import type { Subscription } from 'rxjs';
 import type { Note } from '$lib/types';
 import { toNote, getClient } from './nostrCore';
 
 /**
- * リアクション(kind:7)・リポスト(kind:6/16) の共有購読マネージャ（段取り3〜5）。
+ * リアクション(kind:7)・リポスト(kind:6/16) の共有取得マネージャ。
  *
- * 段取り3（集約・参照カウント）:
- * - 購読は対象ポスト id 単位で管理し、参照カウントで複数カードを 1 本に集約。
- * - forward 戦略の「同一 subId・新 emit で旧 REQ を上書き終了」を利用し、active な
- *   id 集合が変わるたび `#e:[...ids]`（CHUNK 分割）を 1 本の forward REQ に emit し直す。
- * - 届いたイベントは e タグで対象 id のキャッシュへ振り分け、イベント id で重複排除
- *   （潰さない）。キャッシュは参照ゼロでも捨てない。
+ * 方針: **履歴取得のみ**（live forward は持たない）。まとめは過去のまとめなので、
+ * 見たいのは「そのポストに付いた既存のリアクション」。新着のリアルタイム反映は本質では
+ * ないため、`oneshot` REQ で履歴を取り切る方式にする。これにより:
+ * - oneshot は **EOSE で完了**するので、「読み込み中…」の終了・件数完了が正確。
+ * - 耐久ポスト（数百リアクション）は `limit` ＋ `until:最古` で**ページング**できる。
+ *   forward 上書きで履歴ストリームが途切れる問題が無い。
+ * - カーソル（until）が本来の用途で機能する。画面外で一時停止 → 再可視で続きから再開。
  *
- * 段取り4〜5（ライフサイクル・画面外停止/復帰）:
- * - 3 状態を可視性で表現する:
- *   - **フル**: 可視な open がある id。常に filter に載せる（live も受け続ける）。
- *   - **バックグラウンド継続**: open だが全カードが画面外。画面外化から GRACE_MS の間は
- *     filter に残し裏で取得を続ける。「重いポストを開いて待つ間に他を読み、戻ったら
- *     終わっている」を満たす。同時本数は BG_LIMIT 本まで（超過分は待機）。
- *   - **一時停止**: グレース切れ or BG_LIMIT 超過の画面外 open。filter から外す。
- *     キャッシュは保持し、再可視時に再開（イベント id 重複排除で続きから安全に再取得）。
- * - 復帰トリガーは NoteCard 側の IntersectionObserver（setVisible で通知）。
- * - emit はデバウンス。idle なエントリは LRU でキャッシュ上限を超えたら破棄。
+ * 設計:
+ * - 取得は対象ポスト id 単位で管理し、参照カウントで複数カードを 1 つのキャッシュに集約。
+ * - 届いたイベントはイベント id で重複排除（**潰さない**：同一 pubkey の同一絵文字も
+ *   回数ぶん保持）。キャッシュは参照ゼロでも捨てない（再オープンで即再生）。
+ * - ライフサイクル: 可視 or（画面外でも GRACE_MS 内かつ BG_LIMIT 本まで）の間だけ
+ *   ページ取得を進める。グレース切れ/上限超過の画面外は一時停止し、cursor から再開。
  *
- * NOTE: リレーごと until カーソルによる「再取得の帯域節約」は未実装（重複排除で
- *       再開の正しさは担保済み。帯域最適化として後続で足せる）。
+ * NOTE: until はリレー横断の単一カーソル。あるリレーが他より古いイベントを持つ場合でも
+ *       until は全リレーの最古なので取りこぼさない（既取得分は重複排除で弾く）。同一秒に
+ *       PAGE_LIMIT を超えるリアクションが集中する病的ケースのみページングが止まる。
  */
 
-type Listener = (events: Note[]) => void;
+export interface ReactionInfo {
+  complete: boolean;
+}
+type Listener = (events: Note[], info: ReactionInfo) => void;
 
 interface Entry {
   id: string;
@@ -38,6 +38,10 @@ interface Entry {
   graceUntil: number; // 画面外化した時刻 + GRACE_MS（可視中は 0）
   events: Note[];
   seen: Set<string>;
+  cursor: number | undefined; // 取得済み最古 created_at（次ページの until）
+  complete: boolean; // これ以上 stored は無い
+  loading: boolean; // ページ取得中
+  pageSub: Subscription | null;
   listeners: Set<Listener>;
   touchedAt: number; // LRU 用
 }
@@ -47,22 +51,19 @@ export interface ReactionHandle {
   setVisible(visible: boolean): void;
 }
 
-// 1 フィルタに並べる #e の上限（巨大 #e フィルタを避けるためチャンク分割）。
-const CHUNK = 20;
-// 連打・大量オープン時に emit を畳むデバウンス（ms）。
-const EMIT_DEBOUNCE = 80;
-// 画面外化してから filter に残す猶予（ms）。chapi 補足「30秒程度維持して降格」。
+// 1 ページの取得件数。多くのポストは 1 ページで取り切る。
+const PAGE_LIMIT = 100;
+// 画面外化してから取得を続ける猶予（ms）。chapi 補足「30秒程度維持して降格」。
 const GRACE_MS = 30_000;
-// 裏で同時に取得継続する本数の上限（耐久ポスト複数仕掛けを想定）。
+// 画面外で同時にページ取得を進める本数の上限（耐久ポスト複数仕掛けを想定）。
 const BG_LIMIT = 4;
 // キャッシュ保持する idle エントリ数の上限（超過分は LRU 破棄）。
 const MAX_IDLE_ENTRIES = 60;
+// 開閉・可視性変化を畳むデバウンス（ms）。
+const TICK_DEBOUNCE = 80;
 
 const entries = new Map<string, Entry>();
-let forwardReq: ReturnType<typeof createRxForwardReq> | null = null;
-let sub: Subscription | null = null;
-let emitTimer: ReturnType<typeof setTimeout> | null = null;
-let graceTimer: ReturnType<typeof setTimeout> | null = null;
+let tickTimer: ReturnType<typeof setTimeout> | null = null;
 
 const now = (): number => Date.now();
 
@@ -76,6 +77,10 @@ function getEntry(id: string): Entry {
       graceUntil: 0,
       events: [],
       seen: new Set(),
+      cursor: undefined,
+      complete: false,
+      loading: false,
+      pageSub: null,
       listeners: new Set(),
       touchedAt: now()
     };
@@ -85,98 +90,92 @@ function getEntry(id: string): Entry {
 }
 
 function notify(entry: Entry): void {
-  const snapshot = entry.events;
-  for (const fn of entry.listeners) fn(snapshot);
+  const info: ReactionInfo = { complete: entry.complete };
+  for (const fn of entry.listeners) fn(entry.events, info);
 }
 
-function route(packet: EventPacket): void {
-  const event = packet.event;
-  const note = toNote(event);
-  // 購読中の #e は active な id だけなので、一致する開いている id に振り分ける。
-  for (const tag of event.tags) {
-    if (tag[0] !== 'e' || !tag[1]) continue;
-    const entry = entries.get(tag[1]);
-    if (!entry || entry.seen.has(note.id)) continue;
-    entry.seen.add(note.id);
-    entry.events = [...entry.events, note];
-    entry.touchedAt = now();
-    notify(entry);
-  }
+/** 対象 id の次ページ（until=cursor）を 1 つ取得する。EOSE で完了。 */
+function startPage(entry: Entry): void {
+  entry.loading = true;
+  const until = entry.cursor;
+  const filters = {
+    kinds: [7, 6, 16],
+    '#e': [entry.id],
+    limit: PAGE_LIMIT,
+    ...(until !== undefined ? { until } : {})
+  };
+  let pageNew = 0;
+  let pageMin = Infinity;
+  entry.pageSub = getClient()
+    .use(createRxOneshotReq({ filters }))
+    .subscribe({
+      next: ({ event }) => {
+        const note = toNote(event);
+        if (note.createdAt < pageMin) pageMin = note.createdAt;
+        if (entry.seen.has(note.id)) return;
+        entry.seen.add(note.id);
+        pageNew++;
+        entry.events = [...entry.events, note];
+        entry.touchedAt = now();
+        notify(entry);
+      },
+      complete: () => {
+        entry.loading = false;
+        entry.pageSub = null;
+        if (pageNew === 0) {
+          // 新規ゼロ＝これ以上古いものは無い（取り切り）。
+          entry.complete = true;
+        } else if (pageMin !== Infinity) {
+          entry.cursor = entry.cursor === undefined ? pageMin : Math.min(entry.cursor, pageMin);
+        }
+        notify(entry);
+        scheduleTick();
+      },
+      error: () => {
+        entry.loading = false;
+        entry.pageSub = null;
+        // エラーは完了扱いにしない（再可視で再試行できるよう cursor は維持）。
+        notify(entry);
+        scheduleTick();
+      }
+    });
 }
 
-/**
- * filter に載せる id を決める。
- * - 可視な open（フル）は全部。
- * - 画面外 open はグレース内のものを、直近まで可視だった順に BG_LIMIT 本まで。
- */
-function computeActiveIds(): string[] {
+/** 取得を進めるべきエントリを選び、ページ取得を起動する（可視優先・背景は上限内）。 */
+function tick(): void {
   const t = now();
-  const full: Entry[] = [];
-  const bg: Entry[] = [];
+  let bgInFlight = 0;
   for (const e of entries.values()) {
-    if (e.refCount <= 0) continue;
-    if (e.visibleCount > 0) full.push(e);
-    else if (t < e.graceUntil) bg.push(e);
+    if (e.loading && e.visibleCount === 0 && e.refCount > 0) bgInFlight++;
   }
-  // 直近まで可視だった（graceUntil が大きい）ものを優先して継続。
-  bg.sort((a, b) => b.graceUntil - a.graceUntil);
-  return [...full, ...bg.slice(0, BG_LIMIT)].map((e) => e.id);
-}
 
-function applyFilters(): void {
-  const ids = computeActiveIds();
-  if (ids.length === 0) {
-    sub?.unsubscribe();
-    sub = null;
-    forwardReq = null;
-    scheduleGrace();
-    return;
-  }
-  if (!forwardReq || !sub) {
-    forwardReq = createRxForwardReq();
-    // forward REQ は subscribe 確立後に emit する必要がある。
-    sub = getClient()
-      .use(forwardReq)
-      .subscribe({ next: route, error: () => {} });
-  }
-  const filters = [];
-  for (let i = 0; i < ids.length; i += CHUNK) {
-    filters.push({ kinds: [7, 6, 16], '#e': ids.slice(i, i + CHUNK) });
-  }
-  forwardReq.emit(filters);
-  scheduleGrace();
-}
-
-function scheduleApply(): void {
-  if (emitTimer) clearTimeout(emitTimer);
-  emitTimer = setTimeout(() => {
-    emitTimer = null;
-    applyFilters();
-  }, EMIT_DEBOUNCE);
-}
-
-/** 次にグレースが切れる画面外エントリの時刻に再適用を仕込む（降格を反映するため）。 */
-function scheduleGrace(): void {
-  if (graceTimer) {
-    clearTimeout(graceTimer);
-    graceTimer = null;
-  }
-  const t = now();
-  let soonest = Infinity;
+  const eligible: { e: Entry; visible: boolean }[] = [];
   for (const e of entries.values()) {
-    if (e.refCount > 0 && e.visibleCount === 0 && e.graceUntil > t) {
-      soonest = Math.min(soonest, e.graceUntil);
+    if (e.refCount <= 0 || e.complete || e.loading) continue;
+    if (e.visibleCount > 0) eligible.push({ e, visible: true });
+    else if (t < e.graceUntil) eligible.push({ e, visible: false });
+  }
+  // 可視を先に、背景は直近まで可視だった（graceUntil 大）順に。
+  eligible.sort((a, b) =>
+    a.visible === b.visible ? b.e.graceUntil - a.e.graceUntil : a.visible ? -1 : 1
+  );
+
+  for (const { e, visible } of eligible) {
+    if (visible) {
+      startPage(e);
+    } else if (bgInFlight < BG_LIMIT) {
+      startPage(e);
+      bgInFlight++;
     }
   }
-  if (soonest !== Infinity) {
-    graceTimer = setTimeout(
-      () => {
-        graceTimer = null;
-        applyFilters();
-      },
-      Math.max(0, soonest - t) + 20
-    );
-  }
+}
+
+function scheduleTick(): void {
+  if (tickTimer) clearTimeout(tickTimer);
+  tickTimer = setTimeout(() => {
+    tickTimer = null;
+    tick();
+  }, TICK_DEBOUNCE);
 }
 
 /** idle（参照ゼロ）エントリが上限を超えたら、古い順にキャッシュを破棄する。 */
@@ -188,9 +187,9 @@ function evictIdle(): void {
 }
 
 /**
- * 対象ポスト id のリアクション/リポストを購読する。
+ * 対象ポスト id のリアクション/リポスト履歴を取得する。
  * - 参照カウントを 1 増やし、現在のキャッシュを即座に listener へ再生する。
- * - 戻り値の `setVisible` で可視性を通知（フル/バックグラウンドの切り替え）。
+ * - `setVisible` で可視性を通知（画面外の取得継続/一時停止の切替）。
  * - `close` で参照を 1 減らす。
  */
 export function openReactions(id: string, listener: Listener): ReactionHandle {
@@ -199,8 +198,8 @@ export function openReactions(id: string, listener: Listener): ReactionHandle {
   entry.touchedAt = now();
   entry.listeners.add(listener);
   // キャッシュ即時再生（再オープンでも真っ白にならない）
-  listener(entry.events);
-  scheduleApply();
+  listener(entry.events, { complete: entry.complete });
+  scheduleTick();
 
   let closed = false;
   let visible = false;
@@ -216,7 +215,7 @@ export function openReactions(id: string, listener: Listener): ReactionHandle {
         entry.visibleCount = Math.max(0, entry.visibleCount - 1);
         if (entry.visibleCount === 0) entry.graceUntil = now() + GRACE_MS;
       }
-      scheduleApply();
+      scheduleTick();
     },
     close(): void {
       if (closed) return;
@@ -228,8 +227,14 @@ export function openReactions(id: string, listener: Listener): ReactionHandle {
       }
       entry.refCount = Math.max(0, entry.refCount - 1);
       entry.touchedAt = now();
+      // 誰も見ていないなら取得中ページを中断（cursor は維持、再オープンで再開）。
+      if (entry.refCount === 0 && entry.pageSub) {
+        entry.pageSub.unsubscribe();
+        entry.pageSub = null;
+        entry.loading = false;
+      }
       evictIdle();
-      scheduleApply();
+      scheduleTick();
     }
   };
 }
