@@ -25,8 +25,9 @@
   export let anchorId: string = '';
   // 直上が親または兄弟リプのとき 1 段インデントする（まとめ詳細から渡す）。
   export let indent: boolean = false;
-  // MatomePage の一括フェッチ結果（あれば個別フェッチをスキップ）。
-  export let preloadedNote: Note | null = null;
+  // ノート取得完了時に親（MatomePage）へ生イベントを通知するコールバック。
+  // NIP-10 返信解決に使用するため、リポスト解決前の生イベントを渡す。
+  export let noteFetched: ((note: Note) => void) | undefined = undefined;
 
   let note: Note | null = null;
   let loadError = false;
@@ -42,20 +43,6 @@
   let repostSub: { unsubscribe(): void } | null = null;
   let repostTimer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
-
-  // 個別フェッチのサブスクリプションとタイマー（preloadedNote 到着時にキャンセル可能にする）。
-  let _ownSub: { unsubscribe(): void } | null = null;
-  let _ownTimer: ReturnType<typeof setTimeout> | null = null;
-  let _preloadApplied = false;
-
-  // preloadedNote が後から届いた場合: 個別フェッチをキャンセルして使用。
-  $: if (preloadedNote && !_preloadApplied && !note && !loadError) {
-    _preloadApplied = true;
-    _ownSub?.unsubscribe();
-    _ownSub = null;
-    if (_ownTimer) { clearTimeout(_ownTimer); _ownTimer = null; }
-    if (!destroyed) handleFetchedNote(preloadedNote, '');
-  }
 
   function handleFetchedNote(n: Note, relay: string): void {
     const repost = resolveRepostTarget(n);
@@ -114,35 +101,28 @@
       return;
     }
 
-    // 一括フェッチ済みならリレーへの個別リクエストをスキップ。
-    if (preloadedNote) {
-      _preloadApplied = true;
-      handleFetchedNote(preloadedNote, '');
-      return;
-    }
-
-    _ownSub = fetchNoteByIdWithRelay(eventId, hintRelays).subscribe({
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const sub = fetchNoteByIdWithRelay(eventId, hintRelays).subscribe({
       next: ({ note: n, relay }) => {
-        if (_preloadApplied) return; // preloadedNote が先に届いた場合は無視
+        noteFetched?.(n); // 生イベントを親に通知（NIP-10 解決用）
         handleFetchedNote(n, relay);
-        if (_ownTimer) {
-          clearTimeout(_ownTimer);
-          _ownTimer = null;
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
         }
       },
       error: () => {
         loadError = true;
       }
     });
-    _ownTimer = setTimeout(() => {
+    timer = setTimeout(() => {
       if (!note) loadError = true;
     }, 10_000);
     return () => {
       destroyed = true;
-      _ownSub?.unsubscribe();
-      _ownSub = null;
+      sub.unsubscribe();
       repostSub?.unsubscribe();
-      if (_ownTimer) clearTimeout(_ownTimer);
+      if (timer) clearTimeout(timer);
       if (repostTimer) clearTimeout(repostTimer);
     };
   });

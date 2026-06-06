@@ -12,8 +12,7 @@
     fetchMatomeByAddress,
     deleteMatome,
     fetchReactionsForMatome,
-    publishReaction,
-    fetchNotesByIds
+    publishReaction
   } from '$lib/services/NostrClient';
   import type { Note } from '$lib/types';
   import { profiles, requestProfile } from '$lib/stores/profiles';
@@ -44,10 +43,8 @@
   let loading = true;
   let error = '';
   let sub: Subscription | null = null;
-  // まとめ内ポストの NIP-10 返信関係を解決するための一括取得結果。
-  let notesSub: Subscription | null = null;
+  // NoteCard の個別フェッチ結果を受け取り NIP-10 返信解決に使用する。
   let notesById: Map<string, Note> = new Map();
-  let _notesFetchedFor: string | null = null;
 
   // naddr が変わるたびに状態をリセットして再取得。
   // onMount は SvelteKit が同一コンポーネントを再利用する場合に再実行されないため、
@@ -62,10 +59,7 @@
     sub = null;
     favSub?.unsubscribe();
     favSub = null;
-    notesSub?.unsubscribe();
-    notesSub = null;
     notesById = new Map();
-    _notesFetchedFor = null;
     matome = null;
     error = '';
     loading = true;
@@ -183,35 +177,19 @@
     if (block.type === 'mention') requestProfile(block.pubkey);
   }
 
-  // まとめ内ポストを一括取得し、NIP-10 で返信関係を解決する。
+  // NIP-10 返信解決用。NoteCard が個別フェッチしたノートをコールバックで受け取る。
+  function handleNoteFetched(note: Note): void {
+    if (notesById.has(note.id)) return; // 重複スキップ
+    const updated = new Map(notesById);
+    updated.set(note.id, note);
+    notesById = updated;
+  }
+
+  // まとめ内ポストの NIP-10 返信関係を解決する（notesById が更新されるたびに再計算）。
   $: noteEventIds = renderPlan
     .filter((b): b is Extract<RenderBlock, { type: 'note' }> => b.type === 'note')
     .map((b) => b.eventId)
     .filter((id): id is string => id !== null);
-
-  function fetchNotesForReply(ids: string[]): void {
-    const key = ids.join(',');
-    if (key === _notesFetchedFor) return;
-    _notesFetchedFor = key;
-    notesSub?.unsubscribe();
-    if (ids.length === 0) {
-      notesById = new Map();
-      return;
-    }
-    const acc = new Map<string, Note>();
-    notesSub = fetchNotesByIds(ids).subscribe({
-      next: (n) => {
-        acc.set(n.id, n);
-        // ノートが届くたびに更新して NoteCard の preloadedNote プロップを即座に反映。
-        notesById = new Map(acc);
-      },
-      complete: () => {
-        notesById = new Map(acc);
-      }
-    });
-  }
-
-  $: if (browser) fetchNotesForReply(noteEventIds);
 
   // eventId -> 親（まとめ内に存在する場合のみ）
   $: inMatomeIds = new Set(noteEventIds);
@@ -780,7 +758,7 @@
             anchorId={block.eventId ?? ''}
             replyTo={block.eventId ? (replyByEventId.get(block.eventId) ?? null) : null}
             indent={indentFlags[i] ?? false}
-            preloadedNote={block.eventId ? (notesById.get(block.eventId) ?? null) : null}
+            noteFetched={handleNoteFetched}
           />
         {:else if block.type === 'naddr'}
           <NaddrCard ref={'nostr:' + block.naddr} />
