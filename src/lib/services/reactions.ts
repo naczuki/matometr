@@ -21,9 +21,13 @@ import { toNote, getClient } from './nostrCore';
  * - ライフサイクル: 可視 or（画面外でも GRACE_MS 内かつ BG_LIMIT 本まで）の間だけ
  *   ページ取得を進める。グレース切れ/上限超過の画面外は一時停止し、cursor から再開。
  *
- * NOTE: until はリレー横断の単一カーソル。あるリレーが他より古いイベントを持つ場合でも
- *       until は全リレーの最古なので取りこぼさない（既取得分は重複排除で弾く）。同一秒に
- *       PAGE_LIMIT を超えるリアクションが集中する病的ケースのみページングが止まる。
+ * NOTE: until はリレー横断の単一カーソルだが、**全リレーの最古（min）へ一気に飛ばすと
+ *       高頻度リレーを取りこぼす**。あるリレーが 1 ページ（PAGE_LIMIT）で返し切れない大量の
+ *       リアクションを持つ場合、別の過疎リレーが返した古いイベントに引っ張られて until が
+ *       一気に過去へ飛ぶと、その間の高頻度リレー分が二度と取得されない。これが「1000件あるのに
+ *       510件で止まる」現象の正体。対策として **まだ続きがある（フルページを返した）リレーの
+ *       最古値のうち最も新しいもの（watermark）までしか until を進めない**。過疎リレーには
+ *       既取得分が重複再送されるが seen で弾く。watermark 方式により全リレーを取りこぼさない。
  */
 
 export interface ReactionInfo {
@@ -104,17 +108,19 @@ function startPage(entry: Entry): void {
     limit: PAGE_LIMIT,
     ...(until !== undefined ? { until } : {})
   };
-  let pageNew = 0;
-  let pageMin = Infinity;
+  // リレーごとの返却件数と最古 created_at を集計する（watermark 算出用）。
+  const relayCount = new Map<string, number>();
+  const relayMin = new Map<string, number>();
   entry.pageSub = getClient()
     .use(createRxOneshotReq({ filters }))
     .subscribe({
-      next: ({ event }) => {
+      next: ({ event, from }) => {
         const note = toNote(event);
-        if (note.createdAt < pageMin) pageMin = note.createdAt;
+        relayCount.set(from, (relayCount.get(from) ?? 0) + 1);
+        const prevMin = relayMin.get(from);
+        if (prevMin === undefined || note.createdAt < prevMin) relayMin.set(from, note.createdAt);
         if (entry.seen.has(note.id)) return;
         entry.seen.add(note.id);
-        pageNew++;
         entry.events = [...entry.events, note];
         entry.touchedAt = now();
         notify(entry);
@@ -122,11 +128,27 @@ function startPage(entry: Entry): void {
       complete: () => {
         entry.loading = false;
         entry.pageSub = null;
-        if (pageNew === 0) {
-          // 新規ゼロ＝これ以上古いものは無い（取り切り）。
+        // フルページ（=PAGE_LIMIT 到達）を返したリレーはまだ続きがある。その最古値のうち
+        // 最も新しいもの（watermark）までしか until を進めない。これより古くへ飛ばすと
+        // フルページを返したリレーの中間分を取りこぼす（単一カーソル問題）。
+        let watermark = -Infinity;
+        let anyActive = false;
+        for (const [r, c] of relayCount) {
+          if (c >= PAGE_LIMIT) {
+            anyActive = true;
+            const m = relayMin.get(r)!;
+            if (m > watermark) watermark = m;
+          }
+        }
+        if (!anyActive) {
+          // どのリレーもフルページ未満＝全リレー取り切り。
           entry.complete = true;
-        } else if (pageMin !== Infinity) {
-          entry.cursor = entry.cursor === undefined ? pageMin : Math.min(entry.cursor, pageMin);
+        } else {
+          let nextCursor = watermark;
+          // 進捗が無い（同一秒に PAGE_LIMIT 超が集中する病的ケース）は強制的に 1 秒戻して
+          // カーソルの単調減少＝必ず終了することを保証する。
+          if (until !== undefined && nextCursor >= until) nextCursor = until - 1;
+          entry.cursor = nextCursor;
         }
         notify(entry);
         scheduleTick();

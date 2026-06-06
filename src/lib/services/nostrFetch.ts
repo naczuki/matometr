@@ -252,6 +252,30 @@ export function fetchTagSearch(
   return merge(tagObs, searchObs);
 }
 
+/**
+ * 単一リレーに対する検索取得（タグ #t または全文 search の片方のみ）。
+ * リレーごとに独立した until カーソルでページングするため、リレーを 1 つに絞り、
+ * 返却イベントの出所（from）も一緒に流す。SearchFeedTab の watermark ページングで使う。
+ */
+export function fetchTagSearchOneRelay(
+  keyword: string,
+  mode: 'tag' | 'search',
+  relay: string,
+  options: { until?: number; limit?: number } = {}
+): Observable<{ note: Note; relay: string }> {
+  if (!keyword) return EMPTY;
+  const client = getClient();
+  const { until, limit = 30 } = options;
+  const f =
+    mode === 'tag'
+      ? { kinds: [1], '#t': [keyword], limit, ...(until != null ? { until } : {}) }
+      : { kinds: [1], search: keyword, limit, ...(until != null ? { until } : {}) };
+  const rxReq = createRxOneshotReq({ filters: f });
+  return client
+    .use(rxReq, { on: { relays: [relay], defaultReadRelays: false } })
+    .pipe(map(({ event, from }) => ({ note: toNote(event), relay: from })));
+}
+
 export function fetchProfiles(pubkeys: string[]): Observable<UserProfile> {
   if (pubkeys.length === 0) return EMPTY;
   const client = getClient();
