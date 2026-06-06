@@ -253,7 +253,7 @@
   function shareX(): void {
     if (!matome) return;
     const text = encodeURIComponent(`${matome.title} #まとめたー #nostr\n${shareUrl}`);
-    window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank', 'noopener');
+    window.open(`https://x.com/intent/tweet?text=${text}`, '_blank', 'noopener');
   }
 
   $: shareText = matome ? `${matome.title} #まとめたー\n${shareUrl}\nnostr:${matome.naddr}` : '';
