@@ -544,7 +544,7 @@
           <span class="rt-count">{reactionEvents.length || ''}</span>
         </span>
         <span class="rt-sep" aria-hidden="true"></span>
-        <span class="rt-item" title="リポスト">
+        <span class="rt-item rt-repost" title="リポスト">
           <svg
             class="rt-icon"
             viewBox="0 0 24 24"
@@ -617,7 +617,22 @@
           {/each}
           {#if repostEvents.length > 0}
             <div class="reaction-row">
-              <span class="reaction-key">🔁</span>
+              <span class="reaction-key reaction-key-repost">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <polyline points="17 1 21 5 17 9" />
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                  <polyline points="7 23 3 19 7 15" />
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                </svg>
+              </span>
               <div class="reactor-avatars">
                 {#each repostEvents as ev (ev.id)}
                   {@const rp = $profiles.get(ev.pubkey)}
@@ -1212,6 +1227,23 @@
     height: 20px;
     max-width: 100px;
     vertical-align: middle;
+  }
+
+  /* リポストはリアクションと見間違えないよう緑で統一（トリガー・一覧とも） */
+  .rt-repost,
+  .rt-repost .rt-count {
+    color: var(--repost);
+  }
+
+  .reaction-key-repost {
+    display: inline-flex;
+    align-items: center;
+    color: var(--repost);
+  }
+
+  .reaction-key-repost svg {
+    width: 18px;
+    height: 18px;
   }
 
   .reactor-avatars {
