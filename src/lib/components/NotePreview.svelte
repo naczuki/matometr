@@ -47,9 +47,9 @@
       <span class="time">{formatAbsoluteTime(note.createdAt)}</span>
     </div>
     {#if replyToPubkey}
-      <div class="reply-badge-preview in-matome">← @{replyToName}</div>
+      <div class="reply-tag in-matome">@{replyToName}</div>
     {:else if isReply}
-      <div class="reply-badge-preview">reply</div>
+      <div class="reply-tag">reply</div>
     {/if}
     <div class="content">
       {#each segments as seg}
@@ -176,29 +176,22 @@
     flex-shrink: 0;
   }
 
-  /* リプライ投稿は原則バッジを付け、まとめ内への返信だけ色を変えて強調する。 */
-  .reply-badge-preview {
+  /* リプライ投稿は原則表示し、まとめ内への返信だけ文字色を変えて強調する（囲みなし）。 */
+  .reply-tag {
     display: inline-flex;
-    align-items: baseline;
     max-width: 100%;
     margin-bottom: 6px;
-    font-size: 11px;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 600;
     color: var(--ink3);
-    background: var(--bg);
-    border: 1px solid var(--border2);
-    padding: 2px 9px;
-    border-radius: var(--radius-btn);
     font-family: var(--font-ui);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .reply-badge-preview.in-matome {
+  .reply-tag.in-matome {
     color: var(--accent);
-    background: var(--accent-pale);
-    border-color: var(--accent-mid);
   }
 
   .content {

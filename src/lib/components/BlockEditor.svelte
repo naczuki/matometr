@@ -399,8 +399,8 @@
                     {@const rp = replyParentByBlockId.get(block.id)}
                     {#if rp}
                       {@const rpProfile = $profiles.get(rp.parentPubkey)}
-                      <div class="reply-badge-editor">
-                        ← @{rpProfile?.displayName ??
+                      <div class="reply-tag in-matome">
+                        @{rpProfile?.displayName ??
                           rpProfile?.name ??
                           shortNpubFromPubkey(rp.parentPubkey)}
                       </div>
@@ -648,22 +648,22 @@
     margin-left: 28px;
   }
 
-  .reply-badge-editor {
+  /* リプライ先は囲みなしのテキスト表示。まとめ内はアクセント色で強調。 */
+  .reply-tag {
     display: inline-flex;
-    align-items: baseline;
     max-width: 100%;
     margin-bottom: 6px;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--accent);
-    background: var(--accent-pale);
-    border: 1px solid var(--accent-mid);
-    padding: 2px 9px;
-    border-radius: var(--radius-btn);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink3);
     font-family: var(--font-ui);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .reply-tag.in-matome {
+    color: var(--accent);
   }
 
   .drag-handle {
