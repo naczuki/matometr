@@ -529,9 +529,33 @@
         title="リアクション・リポストを表示"
         on:click|stopPropagation={toggleReactions}
       >
-        <span class="rt-label">⭐ リアクション</span>
+        <span class="rt-item" title="リアクション">
+          <svg class="rt-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.3l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94L12 2.5z"
+            />
+          </svg>
+          {#if reactionEvents.length > 0}<span class="rt-count">{reactionEvents.length}</span>{/if}
+        </span>
         <span class="rt-sep" aria-hidden="true"></span>
-        <span class="rt-label">🔁 リポスト</span>
+        <span class="rt-item" title="リポスト">
+          <svg
+            class="rt-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="17 1 21 5 17 9" />
+            <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+            <polyline points="7 23 3 19 7 15" />
+            <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+          </svg>
+          {#if repostEvents.length > 0}<span class="rt-count">{repostEvents.length}</span>{/if}
+        </span>
         <svg
           class="rt-chevron"
           aria-hidden="true"
@@ -1114,6 +1138,25 @@
   .reaction-trigger.open {
     border-color: var(--accent-mid);
     background: var(--accent-pale);
+  }
+
+  .rt-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .rt-icon {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+
+  .rt-count {
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
   }
 
   .rt-sep {
