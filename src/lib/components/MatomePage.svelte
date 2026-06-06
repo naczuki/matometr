@@ -202,6 +202,8 @@
     notesSub = fetchNotesByIds(ids).subscribe({
       next: (n) => {
         acc.set(n.id, n);
+        // ノートが届くたびに更新して NoteCard の preloadedNote プロップを即座に反映。
+        notesById = new Map(acc);
       },
       complete: () => {
         notesById = new Map(acc);
@@ -778,6 +780,7 @@
             anchorId={block.eventId ?? ''}
             replyTo={block.eventId ? (replyByEventId.get(block.eventId) ?? null) : null}
             indent={indentFlags[i] ?? false}
+            preloadedNote={block.eventId ? (notesById.get(block.eventId) ?? null) : null}
           />
         {:else if block.type === 'naddr'}
           <NaddrCard ref={'nostr:' + block.naddr} />
