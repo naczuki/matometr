@@ -1107,37 +1107,36 @@
 
   /* リアクション/リポスト */
   .reaction-bar {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 12px;
+    margin-top: 14px;
   }
 
+  /* ピル型ではなく、上に薄い水平線を引いて区切る全幅のタップ範囲。
+     全幅なので件数が出ても表示部分の幅は変わらない（右端のシェブロンは固定）。 */
   .reaction-trigger {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 8px;
+    width: 100%;
     font-size: 12px;
     font-weight: 700;
     font-family: var(--font-ui);
-    color: var(--ink2);
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-btn);
-    padding: 5px 10px;
+    color: var(--ink3);
+    background: none;
+    border: none;
+    border-top: 1px solid var(--border);
+    border-radius: 0;
+    padding: 10px 2px 0;
     cursor: pointer;
-    transition:
-      background 0.12s,
-      border-color 0.12s;
+    transition: color 0.12s;
   }
 
   .reaction-trigger:hover {
-    background: var(--accent-pale);
-    border-color: var(--accent-mid);
+    color: var(--accent);
   }
 
   .reaction-trigger.open {
-    border-color: var(--accent-mid);
-    background: var(--accent-pale);
+    color: var(--accent);
   }
 
   .rt-item {
