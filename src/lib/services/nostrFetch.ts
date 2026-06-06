@@ -197,14 +197,25 @@ export function fetchNotesByIds(
   if (ids.length === 0) return EMPTY;
   const client = getClient();
   const { relays } = options;
-  const rxReq = createRxOneshotReq({
-    filters: { ids, limit: ids.length }
-  });
+  // 指定リレーがあればそのリレーだけに問い合わせる（デフォルトリレーには投げない）。
+  const useOpts =
+    relays && relays.length > 0 ? { on: { relays, defaultReadRelays: false } } : undefined;
 
-  return client.use(rxReq, withRelays(relays)).pipe(
-    uniq(),
-    map(({ event }) => toNote(event))
-  );
+  // 巨大な ids フィルタを 1 本投げないよう、一定数ごとにチャンク分割して複数 REQ にする。
+  const MAX_IDS_PER_REQ = 100;
+  const observables: Observable<Note>[] = [];
+  for (let i = 0; i < ids.length; i += MAX_IDS_PER_REQ) {
+    const chunk = ids.slice(i, i + MAX_IDS_PER_REQ);
+    const rxReq = createRxOneshotReq({ filters: { ids: chunk, limit: chunk.length } });
+    observables.push(
+      client.use(rxReq, useOpts).pipe(
+        uniq(),
+        map(({ event }) => toNote(event))
+      )
+    );
+  }
+
+  return merge(...observables);
 }
 
 export function fetchTagSearch(

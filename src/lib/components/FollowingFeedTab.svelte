@@ -13,6 +13,7 @@
   import FeedList from '$lib/components/FeedList.svelte';
   import { collectObservable } from '$lib/utils/rxCollect';
   import { neventFor } from '$lib/utils/nostr';
+  import { WatermarkPager } from '$lib/utils/watermarkPager';
 
   export let selectedIds: Set<string>;
   export let onToggle: (eventId: string, nevent: string) => void;
@@ -28,28 +29,20 @@
   let subs: Subscription[] = [];
 
   const noteById = new Map<string, Note>();
-  const cursors = new Map<string, number>();
-  const exhaustedRelays = new Set<string>();
 
   const BATCH_SIZE = 30;
   const MAX_INNER_ITERATIONS = 10;
+  const pager = new WatermarkPager({
+    batchSize: BATCH_SIZE,
+    maxInnerIterations: MAX_INNER_ITERATIONS
+  });
 
   function normalizeRelay(r: string): string {
     return r.replace(/\/$/, '');
   }
 
   function activeRelays(): string[] {
-    return readRelays.filter((r) => !exhaustedRelays.has(r));
-  }
-
-  function computeT(): number | null {
-    let max: number | null = null;
-    for (const r of activeRelays()) {
-      const c = cursors.get(r);
-      if (c === undefined) continue;
-      if (max === null || c > max) max = c;
-    }
-    return max;
+    return pager.activeKeys(readRelays);
   }
 
   function collectCandidatesAtOrAbove(T: number, displayedIds: Set<string>): Note[] {
@@ -62,8 +55,8 @@
   }
 
   function fetchOne(relay: string): Promise<void> {
-    const cursor = cursors.get(relay);
-    const until = cursor !== undefined ? cursor - 1 : undefined;
+    const prev = pager.getCursor(relay);
+    const until = pager.untilFor(relay);
     return new Promise((resolve) => {
       const events: Note[] = [];
       const sub = fetchNotesFromAuthorsWithRelay(authors, {
@@ -76,21 +69,19 @@
           events.push(note);
         },
         complete: () => {
-          if (events.length === 0) {
-            exhaustedRelays.add(relay);
-          } else {
-            const oldest = Math.min(...events.map((n) => n.createdAt));
-            cursors.set(relay, oldest);
-          }
+          pager.finalize(
+            relay,
+            prev,
+            events.map((n) => n.createdAt)
+          );
           resolve();
         },
         error: () => {
-          if (events.length === 0) {
-            exhaustedRelays.add(relay);
-          } else {
-            const oldest = Math.min(...events.map((n) => n.createdAt));
-            cursors.set(relay, oldest);
-          }
+          pager.finalize(
+            relay,
+            prev,
+            events.map((n) => n.createdAt)
+          );
           resolve();
         }
       });
@@ -132,15 +123,16 @@
     });
 
     for (const [relay, relayNotes] of byRelay) {
-      if (relayNotes.length === 0) {
-        exhaustedRelays.add(relay);
-      } else {
-        const oldest = Math.min(...relayNotes.map((n) => n.createdAt));
-        cursors.set(relay, oldest);
-      }
+      // 初回は prevCursor 未設定なので no-progress ガードは作用せず、
+      // 空 → 枯渇 / 非空 → カーソル設定、という従来挙動と同一。
+      pager.finalize(
+        relay,
+        pager.getCursor(relay),
+        relayNotes.map((n) => n.createdAt)
+      );
     }
 
-    const T = computeT();
+    const T = pager.computeT(readRelays);
     if (T !== null) {
       notes = [...noteById.values()]
         .filter((n) => n.createdAt >= T)
@@ -191,29 +183,19 @@
     loadMoreLoading = true;
 
     const displayedIds = new Set(notes.map((n) => n.id));
-    const active = activeRelays();
+    const { fetchedAny } = await pager.loadPage(
+      readRelays,
+      (relay) => fetchOne(relay),
+      (T) => collectCandidatesAtOrAbove(T, displayedIds).length
+    );
 
-    if (active.length === 0) {
+    if (!fetchedAny) {
       reachedEnd = true;
       loadMoreLoading = false;
       return;
     }
 
-    await Promise.all(active.map((r) => fetchOne(r)));
-
-    for (let iter = 0; iter < MAX_INNER_ITERATIONS; iter++) {
-      const T = computeT();
-      if (T === null) break;
-
-      const candidates = collectCandidatesAtOrAbove(T, displayedIds);
-      if (candidates.length >= BATCH_SIZE) break;
-
-      const slowRelays = activeRelays().filter((r) => cursors.get(r) === T);
-      if (slowRelays.length === 0) break;
-      await Promise.all(slowRelays.map((r) => fetchOne(r)));
-    }
-
-    const finalT = computeT();
+    const finalT = pager.computeT(readRelays);
     let adopted: Note[];
     if (finalT === null) {
       adopted = [...noteById.values()]

@@ -7,6 +7,7 @@
   import NotePreview from '$lib/components/NotePreview.svelte';
   import FeedList from '$lib/components/FeedList.svelte';
   import { neventFor } from '$lib/utils/nostr';
+  import { WatermarkPager } from '$lib/utils/watermarkPager';
 
   export let selectedIds: Set<string>;
   export let onToggle: (eventId: string, nevent: string) => void;
@@ -30,11 +31,17 @@
   // 1 つのリレー／検索方式に引っ張られて期間がごっそり抜ける問題を防ぐ。
   type Source = { mode: 'tag' | 'search'; relay: string };
   let sources: Source[] = [];
-  const cursors = new Map<string, number>();
-  const exhausted = new Set<string>();
+  const pager = new WatermarkPager({
+    batchSize: BATCH_SIZE,
+    maxInnerIterations: MAX_INNER_ITERATIONS
+  });
 
   function sid(s: Source): string {
     return `${s.mode} ${s.relay}`;
+  }
+
+  function allKeys(): string[] {
+    return sources.map(sid);
   }
 
   function buildSources(): Source[] {
@@ -44,17 +51,7 @@
   }
 
   function activeSources(): Source[] {
-    return sources.filter((s) => !exhausted.has(sid(s)));
-  }
-
-  function computeT(): number | null {
-    let max: number | null = null;
-    for (const s of activeSources()) {
-      const c = cursors.get(sid(s));
-      if (c === undefined) continue;
-      if (max === null || c > max) max = c;
-    }
-    return max;
+    return sources.filter((s) => !pager.isExhausted(sid(s)));
   }
 
   function candidatesAtOrAbove(T: number, displayedIds: Set<string>): Note[] {
@@ -73,8 +70,8 @@
   /** 1 ソース（1 リレー × 1 検索方式）を 1 ページ取得し、カーソル／枯渇を更新する。 */
   function fetchOne(kw: string, s: Source): Promise<void> {
     const key = sid(s);
-    const cursor = cursors.get(key);
-    const until = cursor !== undefined ? cursor - 1 : undefined;
+    const prev = pager.getCursor(key);
+    const until = pager.untilFor(key);
     return new Promise((resolve) => {
       const got: Note[] = [];
       const sub = fetchTagSearchOneRelay(kw, s.mode, s.relay, {
@@ -86,11 +83,19 @@
           got.push(note);
         },
         complete: () => {
-          finalize(key, cursor, got);
+          pager.finalize(
+            key,
+            prev,
+            got.map((n) => n.createdAt)
+          );
           resolve();
         },
         error: () => {
-          finalize(key, cursor, got);
+          pager.finalize(
+            key,
+            prev,
+            got.map((n) => n.createdAt)
+          );
           resolve();
         }
       });
@@ -98,23 +103,8 @@
     });
   }
 
-  function finalize(key: string, prevCursor: number | undefined, got: Note[]): void {
-    if (got.length === 0) {
-      exhausted.add(key);
-      return;
-    }
-    const oldest = Math.min(...got.map((n) => n.createdAt));
-    // 進捗が無い（until を無視して同じ／新しい結果を返す検索リレー）なら枯渇扱いにして
-    // 無限ループを防ぐ。それ以外はカーソルを最古へ進める。
-    if (prevCursor !== undefined && oldest >= prevCursor) {
-      exhausted.add(key);
-    } else {
-      cursors.set(key, oldest);
-    }
-  }
-
   function refreshNotes(): void {
-    const T = computeT();
+    const T = pager.computeT(allKeys());
     if (T === null) {
       notes = [...noteById.values()].sort((a, b) => b.createdAt - a.createdAt);
     } else {
@@ -136,8 +126,7 @@
     reachedEnd = false;
     noteById.clear();
     notes = [];
-    cursors.clear();
-    exhausted.clear();
+    pager.reset();
     subs.forEach((s) => s.unsubscribe());
     subs = [];
     sources = buildSources();
@@ -155,23 +144,16 @@
     loadMoreLoading = true;
 
     const displayedIds = new Set(notes.map((n) => n.id));
-    const active = activeSources();
-    if (active.length === 0) {
+    const sourceByKey = new Map(sources.map((s) => [sid(s), s]));
+    const { fetchedAny } = await pager.loadPage(
+      allKeys(),
+      (key) => fetchOne(kw, sourceByKey.get(key)!),
+      (T) => candidatesAtOrAbove(T, displayedIds).length
+    );
+    if (!fetchedAny) {
       reachedEnd = true;
       loadMoreLoading = false;
       return;
-    }
-
-    await Promise.all(active.map((s) => fetchOne(kw, s)));
-
-    // 表示に足る候補（>= watermark）が BATCH_SIZE 集まるまで、遅れているソースを追加取得する。
-    for (let iter = 0; iter < MAX_INNER_ITERATIONS; iter++) {
-      const T = computeT();
-      if (T === null) break;
-      if (candidatesAtOrAbove(T, displayedIds).length >= BATCH_SIZE) break;
-      const slow = activeSources().filter((s) => cursors.get(sid(s)) === T);
-      if (slow.length === 0) break;
-      await Promise.all(slow.map((s) => fetchOne(kw, s)));
     }
 
     refreshNotes();

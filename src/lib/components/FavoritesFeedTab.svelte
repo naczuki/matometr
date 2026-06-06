@@ -13,6 +13,7 @@
   import FeedList from '$lib/components/FeedList.svelte';
   import { collectObservable } from '$lib/utils/rxCollect';
   import { neventFor } from '$lib/utils/nostr';
+  import { WatermarkPager } from '$lib/utils/watermarkPager';
 
   export let selectedIds: Set<string>;
   export let onToggle: (eventId: string, nevent: string) => void;
@@ -27,11 +28,13 @@
 
   const reactedAtMap = new Map<string, number>();
   const noteById = new Map<string, Note>();
-  const cursors = new Map<string, number>();
-  const exhaustedRelays = new Set<string>();
 
   const BATCH_SIZE = 30;
   const MAX_INNER_ITERATIONS = 10;
+  const pager = new WatermarkPager({
+    batchSize: BATCH_SIZE,
+    maxInnerIterations: MAX_INNER_ITERATIONS
+  });
 
   let displayNotes: Note[] = [];
 
@@ -40,17 +43,7 @@
   }
 
   function activeRelays(): string[] {
-    return readRelays.filter((r) => !exhaustedRelays.has(r));
-  }
-
-  function computeT(): number | null {
-    let max: number | null = null;
-    for (const r of activeRelays()) {
-      const c = cursors.get(r);
-      if (c === undefined) continue;
-      if (max === null || c > max) max = c;
-    }
-    return max;
+    return pager.activeKeys(readRelays);
   }
 
   type Reaction = { eventId: string; reactedAt: number };
@@ -65,8 +58,8 @@
   }
 
   function fetchOneRelay(pubkey: string, relay: string): Promise<Reaction[]> {
-    const cursor = cursors.get(relay);
-    const until = cursor !== undefined ? cursor - 1 : undefined;
+    const prev = pager.getCursor(relay);
+    const until = pager.untilFor(relay);
     return new Promise((resolve) => {
       const reactions: Reaction[] = [];
       const sub = fetchFavoriteReactionsWithRelay(pubkey, {
@@ -80,18 +73,19 @@
           if (cur == null || reactedAt > cur) reactedAtMap.set(eventId, reactedAt);
         },
         complete: () => {
-          if (reactions.length === 0) {
-            exhaustedRelays.add(relay);
-          } else {
-            const oldest = Math.min(...reactions.map((r) => r.reactedAt));
-            cursors.set(relay, oldest);
-          }
+          pager.finalize(
+            relay,
+            prev,
+            reactions.map((r) => r.reactedAt)
+          );
           resolve(reactions);
         },
         error: () => {
-          if (reactions.length === 0) {
-            exhaustedRelays.add(relay);
-          }
+          pager.finalize(
+            relay,
+            prev,
+            reactions.map((r) => r.reactedAt)
+          );
           resolve(reactions);
         }
       });
@@ -99,8 +93,9 @@
     });
   }
 
-  async function fetchNotesForNewIds(): Promise<void> {
-    const idsToFetch = [...reactedAtMap.keys()].filter((id) => !noteById.has(id));
+  // 表示候補に絞った ID だけを取得する（リレー負荷を抑えるため、reactedAtMap 全体は取らない）。
+  async function fetchNotesForNewIds(ids: string[]): Promise<void> {
+    const idsToFetch = ids.filter((id) => !noteById.has(id));
     if (idsToFetch.length === 0) return;
 
     await new Promise<void>((resolve) => {
@@ -129,22 +124,17 @@
 
     await Promise.all(readRelays.map((relay) => fetchOneRelay(user.pubkey, relay)));
 
-    const T = computeT();
+    const T = pager.computeT(readRelays);
     if (T !== null) {
       const candidates = collectCandidatesAtOrAbove(T, new Set())
         .sort((a, b) => b.reactedAt - a.reactedAt)
         .slice(0, BATCH_SIZE);
-      const candidateIds = new Set(candidates.map((c) => c.eventId));
-      const trimmed = new Map<string, number>();
-      for (const [id, at] of reactedAtMap) {
-        if (candidateIds.has(id)) trimmed.set(id, at);
-      }
-      await fetchNotesForNewIds();
+      await fetchNotesForNewIds(candidates.map((c) => c.eventId));
       displayNotes = candidates
         .map((c) => noteById.get(c.eventId))
         .filter((n): n is Note => n !== undefined);
     } else {
-      await fetchNotesForNewIds();
+      // T === null はどのリレーもリアクションを返さなかった場合 = reactedAtMap は空。
       rebuildDisplay();
     }
 
@@ -188,48 +178,37 @@
     }
 
     const displayedIds = new Set(displayNotes.map((n) => n.id));
-    const active = activeRelays();
+    const { fetchedAny } = await pager.loadPage(
+      readRelays,
+      (relay) => fetchOneRelay(user.pubkey, relay).then(() => undefined),
+      (T) => collectCandidatesAtOrAbove(T, displayedIds).length
+    );
 
-    if (active.length === 0) {
+    if (!fetchedAny) {
       reachedEnd = true;
       loadMoreLoading = false;
       return;
     }
 
-    await Promise.all(active.map((r) => fetchOneRelay(user.pubkey, r)));
-
-    for (let iter = 0; iter < MAX_INNER_ITERATIONS; iter++) {
-      const T = computeT();
-      if (T === null) break;
-
-      const candidates = collectCandidatesAtOrAbove(T, displayedIds);
-      if (candidates.length >= BATCH_SIZE) break;
-
-      const slowRelays = activeRelays().filter((r) => cursors.get(r) === T);
-      if (slowRelays.length === 0) break;
-      await Promise.all(slowRelays.map((r) => fetchOneRelay(user.pubkey, r)));
-    }
-
-    await fetchNotesForNewIds();
-
-    const finalT = computeT();
-    let adopted: Note[];
+    const finalT = pager.computeT(readRelays);
+    let candidates: Reaction[];
     if (finalT === null) {
-      adopted = [...noteById.values()]
-        .filter((n) => !displayedIds.has(n.id))
-        .sort((a, b) => {
-          const ra = reactedAtMap.get(a.id) ?? 0;
-          const rb = reactedAtMap.get(b.id) ?? 0;
-          return rb - ra;
-        });
+      candidates = [...reactedAtMap.entries()]
+        .filter(([id]) => !displayedIds.has(id))
+        .map(([eventId, reactedAt]) => ({ eventId, reactedAt }))
+        .sort((a, b) => b.reactedAt - a.reactedAt);
     } else {
-      const candidates = collectCandidatesAtOrAbove(finalT, displayedIds)
+      candidates = collectCandidatesAtOrAbove(finalT, displayedIds)
         .sort((a, b) => b.reactedAt - a.reactedAt)
         .slice(0, BATCH_SIZE);
-      adopted = candidates
-        .map((c) => noteById.get(c.eventId))
-        .filter((n): n is Note => n !== undefined);
     }
+
+    // 採用が確定した候補 ID の note だけを取得する。
+    await fetchNotesForNewIds(candidates.map((c) => c.eventId));
+
+    const adopted = candidates
+      .map((c) => noteById.get(c.eventId))
+      .filter((n): n is Note => n !== undefined);
 
     if (adopted.length > 0) {
       displayNotes = [...displayNotes, ...adopted].sort((a, b) => {
