@@ -553,7 +553,7 @@
           <span class="rt-count">{reactionCountText}</span>
         </span>
         <span class="rt-sep" aria-hidden="true"></span>
-        <span class="rt-item" title="リポスト">
+        <span class="rt-item rt-repost" title="リポスト">
           <svg
             class="rt-icon"
             viewBox="0 0 24 24"
@@ -1158,6 +1158,12 @@
 
   .reaction-trigger.open {
     color: var(--accent);
+  }
+
+  /* ハイライト時（ホバー/展開）、星はアクセント色のままだがリポストは緑にする */
+  .reaction-trigger:hover .rt-repost,
+  .reaction-trigger.open .rt-repost {
+    color: var(--repost);
   }
 
   .rt-item {
