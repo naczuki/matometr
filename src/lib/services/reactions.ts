@@ -42,6 +42,7 @@ interface Entry {
   complete: boolean; // これ以上 stored は無い
   loading: boolean; // ページ取得中
   pageSub: Subscription | null;
+  pageTimer: ReturnType<typeof setTimeout> | null; // ページ完了の番人（EOSE 不達リレー対策）
   listeners: Set<Listener>;
   touchedAt: number; // LRU 用
   failCount: number; // 連続エラー回数（バックオフ用、成功で 0 に戻す）
@@ -67,6 +68,9 @@ const TICK_DEBOUNCE = 80;
 const RETRY_BASE_MS = 2_000;
 // エラー再試行の上限待機（ms）。恒久故障でも最悪この間隔までしか詰めない。
 const RETRY_MAX_MS = 60_000;
+// 1 ページの完了を待つ最大時間（ms）。EOSE を返さない/イベントを流し続けて
+// rx-nostr の eoseTimeout が発火しないリレーに当たっても、ここで打ち切って前進させる。
+const PAGE_TIMEOUT_MS = 20_000;
 
 const entries = new Map<string, Entry>();
 let tickTimer: ReturnType<typeof setTimeout> | null = null;
@@ -90,6 +94,7 @@ function getEntry(id: string): Entry {
       complete: false,
       loading: false,
       pageSub: null,
+      pageTimer: null,
       listeners: new Set(),
       touchedAt: now(),
       failCount: 0,
@@ -105,7 +110,25 @@ function notify(entry: Entry): void {
   for (const fn of entry.listeners) fn(entry.events, info);
 }
 
-/** 対象 id の次ページ（until=cursor）を 1 つ取得する。EOSE で完了。 */
+/** エラー/タイムアウトを指数バックオフに変換する（完了扱いにはしない）。 */
+function applyBackoff(entry: Entry): void {
+  entry.failCount++;
+  const delay = Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** (entry.failCount - 1));
+  entry.retryAt = now() + delay;
+}
+
+/** 取得済みページぶんを events に取り込み、cursor を最古へ進める（成功＝バックオフ解除）。 */
+function absorbPage(entry: Entry, pageEvents: Note[], pageMin: number): void {
+  entry.failCount = 0;
+  entry.retryAt = 0;
+  entry.events = entry.events.concat(pageEvents); // ページ単位で 1 度だけ複製
+  entry.touchedAt = now();
+  if (pageMin !== Infinity) {
+    entry.cursor = entry.cursor === undefined ? pageMin : Math.min(entry.cursor, pageMin);
+  }
+}
+
+/** 対象 id の次ページ（until=cursor）を 1 つ取得する。EOSE または番人タイマで完了。 */
 function startPage(entry: Entry): void {
   entry.loading = true;
   const until = entry.cursor;
@@ -120,6 +143,23 @@ function startPage(entry: Entry): void {
   // 配列コピー・再レンダリングになるため、ページ単位のバッチに畳む。
   const pageEvents: Note[] = [];
   let pageMin = Infinity;
+  let settled = false;
+
+  // complete / error / timeout のいずれか最初の 1 回だけ後始末する。
+  const settle = (apply: () => void): void => {
+    if (settled) return;
+    settled = true;
+    if (entry.pageTimer) {
+      clearTimeout(entry.pageTimer);
+      entry.pageTimer = null;
+    }
+    entry.loading = false;
+    entry.pageSub = null;
+    apply();
+    notify(entry);
+    scheduleTick();
+  };
+
   entry.pageSub = getClient()
     .use(createRxOneshotReq({ filters }))
     .subscribe({
@@ -131,36 +171,39 @@ function startPage(entry: Entry): void {
         pageEvents.push(note);
       },
       complete: () => {
-        entry.loading = false;
-        entry.pageSub = null;
-        // 成功＝バックオフ解除。
-        entry.failCount = 0;
-        entry.retryAt = 0;
-        if (pageEvents.length > 0) {
-          entry.events = entry.events.concat(pageEvents); // ページ単位で 1 度だけ複製
-          entry.touchedAt = now();
-        }
-        if (pageEvents.length === 0) {
-          // 新規ゼロ＝これ以上古いものは無い（取り切り）。
-          entry.complete = true;
-        } else if (pageMin !== Infinity) {
-          entry.cursor = entry.cursor === undefined ? pageMin : Math.min(entry.cursor, pageMin);
-        }
-        notify(entry);
-        scheduleTick();
+        settle(() => {
+          if (pageEvents.length === 0) {
+            // 新規ゼロ＝これ以上古いものは無い（取り切り）。バックオフも解除。
+            entry.failCount = 0;
+            entry.retryAt = 0;
+            entry.complete = true;
+          } else {
+            absorbPage(entry, pageEvents, pageMin);
+          }
+        });
       },
       error: () => {
-        entry.loading = false;
-        entry.pageSub = null;
         // エラーは完了扱いにしない（cursor は維持）。指数バックオフで再試行間隔を空け、
         // 恒久故障時に ~TICK_DEBOUNCE 間隔でリレーを叩き続けないようにする。
-        entry.failCount++;
-        const delay = Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** (entry.failCount - 1));
-        entry.retryAt = now() + delay;
-        notify(entry);
-        scheduleTick();
+        settle(() => applyBackoff(entry));
       }
     });
+
+  // 番人: rx-nostr の eoseTimeout が発火しない（EOSE 不達かつイベントを流し続ける）
+  // リレーで oneshot が完了しないと loading に張り付くため、ここで打ち切る。
+  entry.pageTimer = setTimeout(() => {
+    const sub = entry.pageSub; // settle が null 化する前に確保
+    settle(() => {
+      if (pageEvents.length > 0) {
+        // 部分取得済み。得たぶんを反映し cursor を進めて続行（complete にはしない）。
+        absorbPage(entry, pageEvents, pageMin);
+      } else {
+        // 1 件も来ずにタイムアウト＝「無し」と確証できない。complete せずバックオフ再試行。
+        applyBackoff(entry);
+      }
+    });
+    sub?.unsubscribe(); // リレーへ CLOSE を送る
+  }, PAGE_TIMEOUT_MS);
 }
 
 /** 取得を進めるべきエントリを選び、ページ取得を起動する（可視優先・背景は上限内）。 */
@@ -283,6 +326,10 @@ export function openReactions(id: string, listener: Listener): ReactionHandle {
         entry.pageSub.unsubscribe();
         entry.pageSub = null;
         entry.loading = false;
+        if (entry.pageTimer) {
+          clearTimeout(entry.pageTimer);
+          entry.pageTimer = null;
+        }
       }
       evictIdle();
       scheduleTick();
