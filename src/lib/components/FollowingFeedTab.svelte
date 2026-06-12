@@ -61,36 +61,55 @@
     return out;
   }
 
+  function settlePage(
+    relay: string,
+    prevCursor: number | undefined,
+    events: Note[],
+    newCount: number,
+    errored: boolean
+  ): void {
+    if (events.length === 0) {
+      // 一時的なエラーで 0 件のときは枯渇にせず、次の loadMore で再試行する
+      if (!errored) exhaustedRelays.add(relay);
+      return;
+    }
+    const oldest = Math.min(...events.map((n) => n.createdAt));
+    if (prevCursor === undefined || oldest < prevCursor) {
+      cursors.set(relay, oldest);
+      return;
+    }
+    // カーソルが進まなかった場合：境界の再送だけなら枯渇。フルページなら同一秒に
+    // limit 超が集中しているケースなので、1 秒戻して前進を強制する。
+    if (newCount === 0) {
+      if (events.length >= BATCH_SIZE) cursors.set(relay, prevCursor - 1);
+      else exhaustedRelays.add(relay);
+    }
+  }
+
   function fetchOne(relay: string): Promise<void> {
     const cursor = cursors.get(relay);
-    const until = cursor !== undefined ? cursor - 1 : undefined;
+    // until は包含なので、境界（前ページ最古と同じ秒）のイベントを取りこぼさないよう
+    // cursor をそのまま使う。重複は noteById と newCount で吸収する。
+    const until = cursor;
     return new Promise((resolve) => {
       const events: Note[] = [];
+      let newCount = 0;
       const sub = fetchNotesFromAuthorsWithRelay(authors, {
         until,
         limit: BATCH_SIZE,
         relays: [relay]
       }).subscribe({
         next: ({ note }) => {
+          if (!noteById.has(note.id)) newCount++;
           noteById.set(note.id, note);
           events.push(note);
         },
         complete: () => {
-          if (events.length === 0) {
-            exhaustedRelays.add(relay);
-          } else {
-            const oldest = Math.min(...events.map((n) => n.createdAt));
-            cursors.set(relay, oldest);
-          }
+          settlePage(relay, cursor, events, newCount, false);
           resolve();
         },
         error: () => {
-          if (events.length === 0) {
-            exhaustedRelays.add(relay);
-          } else {
-            const oldest = Math.min(...events.map((n) => n.createdAt));
-            cursors.set(relay, oldest);
-          }
+          settlePage(relay, cursor, events, newCount, true);
           resolve();
         }
       });
@@ -100,6 +119,7 @@
 
   async function initialLoad(): Promise<void> {
     const byRelay = new Map<string, Note[]>();
+    const erroredRelays = new Set<string>();
     for (const relay of readRelays) byRelay.set(relay, []);
 
     await new Promise<void>((resolve) => {
@@ -124,6 +144,7 @@
             if (--pending === 0) resolve();
           },
           error: () => {
+            erroredRelays.add(relay);
             if (--pending === 0) resolve();
           }
         });
@@ -133,7 +154,8 @@
 
     for (const [relay, relayNotes] of byRelay) {
       if (relayNotes.length === 0) {
-        exhaustedRelays.add(relay);
+        // エラーで 0 件のリレーは枯渇にせず、loadMore で再試行できるよう残す
+        if (!erroredRelays.has(relay)) exhaustedRelays.add(relay);
       } else {
         const oldest = Math.min(...relayNotes.map((n) => n.createdAt));
         cursors.set(relay, oldest);

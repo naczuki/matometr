@@ -105,7 +105,9 @@ export class Matome {
       dTag,
       title,
       summary,
-      publishedAt: publishedAtStr ? (parseInt(publishedAtStr, 10) || event.created_at) : event.created_at,
+      publishedAt: publishedAtStr
+        ? parseInt(publishedAtStr, 10) || event.created_at
+        : event.created_at,
       createdAt: event.created_at,
       content: event.content,
       blocks: Matome.parseContent(event.content, event.tags),
@@ -116,11 +118,77 @@ export class Matome {
   }
 
   private static parseContent(content: string, eventTags: string[][]): MatomeBlock[] {
-    const layoutTag = eventTags.find(([k]) => k === 'matome_layout');
-    if (layoutTag && layoutTag[1] === '1') {
-      return Matome.parseContentWithLayout(content, eventTags, layoutTag[2]);
+    const layoutTags = eventTags.filter(([k]) => k === 'matome_layout');
+    // v2（ブロック種別を明示）があれば最優先。内容と整合しなければ v1 → 推測へ退避する。
+    const v2 = layoutTags.find((t) => t[1] === '2');
+    if (v2) {
+      const parsed = Matome.parseContentWithLayoutV2(content, eventTags, v2[2]);
+      if (parsed) return parsed;
+    }
+    const v1 = layoutTags.find((t) => t[1] === '1');
+    if (v1) {
+      return Matome.parseContentWithLayout(content, eventTags, v1[2]);
     }
     return Matome.parseContentLegacy(content, eventTags);
+  }
+
+  /**
+   * v2 レイアウト（'e'=引用ポスト, 'h'=見出し, 数値=コメントのチャンク数）で content を
+   * 復元する。種別が明示されるため「## で始まるコメント」や「nostr: 参照のみのコメント」も
+   * 取り違えない。列と content がずれている場合は null を返し、呼び出し側で v1 等に退避する。
+   */
+  private static parseContentWithLayoutV2(
+    content: string,
+    eventTags: string[][],
+    layoutJson: string
+  ): MatomeBlock[] | null {
+    let seq: unknown;
+    try {
+      seq = JSON.parse(layoutJson);
+    } catch {
+      return null;
+    }
+    if (!Array.isArray(seq)) return null;
+
+    const chunks = content
+      .split(/\n\s*\n/)
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0);
+
+    const blocks: MatomeBlock[] = [];
+    let pos = 0;
+    for (const item of seq) {
+      if (item === 'e') {
+        const chunk = chunks[pos++];
+        if (chunk === undefined || !NOSTR_REF_SOLO.test(chunk)) return null;
+        blocks.push(Matome.classifyRefChunk(chunk));
+      } else if (item === 'h') {
+        const chunk = chunks[pos++];
+        if (chunk === undefined) return null;
+        blocks.push({
+          type: 'heading',
+          content: HEADING_LINE.test(chunk) ? chunk.slice(3) : chunk
+        });
+      } else if (typeof item === 'number' && Number.isInteger(item) && item > 0) {
+        const slice = chunks.slice(pos, pos + item);
+        if (slice.length !== item) return null;
+        pos += item;
+        blocks.push({ type: 'comment', content: slice.join('\n\n') });
+      } else {
+        return null;
+      }
+    }
+    if (pos !== chunks.length) return null;
+
+    if (blocks.filter((b) => b.type === 'nevent').length === 0) {
+      for (const tag of eventTags) {
+        if (tag[0] === 'e' && tag[1]) {
+          blocks.push({ type: 'nevent', content: `nostr:${nip19.neventEncode({ id: tag[1] })}` });
+        }
+      }
+    }
+
+    return blocks;
   }
 
   private static classifyRefChunk(chunk: string): MatomeBlock {

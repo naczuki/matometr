@@ -45,6 +45,9 @@
   const matometrCursors = new Map<string, number>();
   const exhaustedNosli = new Set<string>();
   const exhaustedMatometr = new Set<string>();
+  // ソース（タイプ×リレー）ごとに受信済みイベント id を記録し、
+  // 包含 until で再送される境界分を「新規なし」と判定するのに使う。
+  const seenEventIds = new Map<string, Set<string>>();
 
   // 30日以上のギャップがあれば ascending-relay の末尾と判断し、
   // ギャップ直前のイベントを cursor にする。
@@ -118,6 +121,7 @@
     matometrCursors.clear();
     exhaustedNosli.clear();
     exhaustedMatometr.clear();
+    seenEventIds.clear();
     matomes = [];
     loadingMore = false;
     loading = true;
@@ -266,10 +270,19 @@
   // 1リレー×1タイプ分を取得し、cursor を更新 or 枯渇マークする
   function fetchOne(type: FeedType, relay: string): Promise<void> {
     const cursor = getCursor(type, relay);
-    const until = cursor !== undefined ? cursor - 1 : undefined;
+    // until は包含なので、境界（前ページ最古と同じ秒）のまとめを取りこぼさないよう
+    // cursor をそのまま使う。再送される境界分は seenEventIds で判定して吸収する。
+    const until = cursor;
+    const seenKey = `${type}:${relay}`;
+    let seen = seenEventIds.get(seenKey);
+    if (!seen) {
+      seen = new Set();
+      seenEventIds.set(seenKey, seen);
+    }
     const fetcher = type === 'nosli' ? fetchNosliListWithRelay : fetchMatomeListWithRelay;
     return new Promise((resolve) => {
       const events: Matome[] = [];
+      let newCount = 0;
       let settled = false;
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
       let sub: Subscription | undefined;
@@ -286,6 +299,14 @@
         sub?.unsubscribe();
         if (events.length === 0) {
           markExhausted(type, relay);
+        } else if (newCount === 0) {
+          // 新規ゼロ＝境界の再送のみ。フルページなら同一秒に limit 超が集中している
+          // ケースなので 1 秒戻して前進を強制し、そうでなければ取り切ったとみなす。
+          if (events.length >= BATCH_SIZE && cursor !== undefined) {
+            setCursor(type, relay, cursor - 1);
+          } else {
+            markExhausted(type, relay);
+          }
         } else {
           const newCursor = computeCursorFromBuffer(events.map((e) => e.createdAt));
           if (newCursor !== undefined) setCursor(type, relay, newCursor);
@@ -296,6 +317,10 @@
       sub = fetcher(BATCH_SIZE, until, [relay]).subscribe({
         next: ({ matome }) => {
           addToRawMap(matome);
+          if (!seen.has(matome.id)) {
+            seen.add(matome.id);
+            newCount++;
+          }
           events.push(matome);
         },
         complete: settle,
