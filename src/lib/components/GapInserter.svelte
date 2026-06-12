@@ -10,7 +10,8 @@
   export let setOpenId: (id: string | null) => void;
   export let onInsert: (afterIndex: number, type: InsertType) => void;
 
-  const id = `gap-${afterIndex}`;
+  // 挿入・並べ替えで afterIndex が変わるため、id は固定せずリアクティブに導出する
+  $: id = `gap-${afterIndex}`;
   $: open = openId === id;
 
   let hovering = false;

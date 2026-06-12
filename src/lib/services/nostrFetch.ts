@@ -1,6 +1,6 @@
 import { createRxOneshotReq, uniq } from 'rx-nostr';
 import { EMPTY, merge, Observable, forkJoin, Subscription } from 'rxjs';
-import { map, filter, take } from 'rxjs';
+import { map, filter, take, scan, distinctUntilChanged } from 'rxjs';
 import { nip19 } from 'nostr-tools';
 import type { AddressPointer } from 'nostr-tools/nip19';
 import { DEFAULT_RELAYS, SEARCH_RELAYS } from '$lib/stores/relays';
@@ -32,6 +32,21 @@ export function fetchMatomeListWithRelay(
   );
 }
 
+// 置換可能イベントは複数リレーから新旧バージョンが届きうるため、
+// その時点で最新（created_at 最大）のものだけを下流へ流す。
+// 最初の応答は即座に流れ、より新しい版が後から届けば再度流れる。
+function latestByCreatedAt<P extends { event: { id: string; created_at: number } }>() {
+  return (source: Observable<P>): Observable<P> =>
+    source.pipe(
+      scan<P, P | null>(
+        (best, cur) => (best && best.event.created_at >= cur.event.created_at ? best : cur),
+        null
+      ),
+      filter((p): p is P => p !== null),
+      distinctUntilChanged((a, b) => a.event.id === b.event.id)
+    );
+}
+
 export function fetchMatomeByAddress(pointer: AddressPointer): Observable<Matome> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
@@ -39,9 +54,9 @@ export function fetchMatomeByAddress(pointer: AddressPointer): Observable<Matome
   });
   // naddr に埋め込まれたリレーヒントがあれば既定リレーに足す（無ければ既定のみ）
   return client.use(rxReq, withRelays(pointer.relays)).pipe(
+    latestByCreatedAt(),
     map(({ event }) => Matome.fromEvent(event)),
-    filter((m): m is Matome => m !== null),
-    take(1)
+    filter((m): m is Matome => m !== null)
   );
 }
 
@@ -77,14 +92,14 @@ export function fetchFollowList(pubkey: string): Observable<string[]> {
     filters: { kinds: [3], authors: [pubkey], limit: 1 }
   });
   return client.use(rxReq).pipe(
+    latestByCreatedAt(),
     map(({ event }) => {
       const seen = new Set<string>();
       for (const tag of event.tags) {
         if (tag[0] === 'p' && tag[1] && HEX_64.test(tag[1])) seen.add(tag[1]);
       }
       return [...seen];
-    }),
-    take(1)
+    })
   );
 }
 
@@ -94,6 +109,7 @@ export function fetchUserReadRelays(pubkey: string): Observable<string[]> {
     filters: { kinds: [10002], authors: [pubkey], limit: 1 }
   });
   return client.use(rxReq).pipe(
+    latestByCreatedAt(),
     map(({ event }) => {
       const relays: string[] = [];
       for (const tag of event.tags) {
@@ -102,8 +118,7 @@ export function fetchUserReadRelays(pubkey: string): Observable<string[]> {
         relays.push(tag[1]);
       }
       return relays;
-    }),
-    take(1)
+    })
   );
 }
 

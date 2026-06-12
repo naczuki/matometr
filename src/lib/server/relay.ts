@@ -36,7 +36,11 @@ async function queryOne(
   timeoutMs: number
 ): Promise<NostrEvent | null> {
   const httpUrl = relay.replace(/^ws/, 'http');
-  const resp = await fetch(httpUrl, { headers: { Upgrade: 'websocket' } });
+  // timeoutMs のタイマーはハンドシェイク後にしか始まらないため、ここにも締切を付ける
+  const resp = await fetch(httpUrl, {
+    headers: { Upgrade: 'websocket' },
+    signal: AbortSignal.timeout(timeoutMs)
+  });
   const ws = (resp as unknown as { webSocket?: CfWebSocket | null }).webSocket;
   if (!ws) return null;
   ws.accept();
@@ -83,11 +87,9 @@ export async function fetchFirstEvent(
   const tasks = RELAYS.map((relay) =>
     queryOne(relay, filter, timeoutMs).then((ev) => (ev ? ev : Promise.reject(new Error('none'))))
   );
-  try {
-    return await Promise.any(tasks);
-  } catch {
-    return null;
-  }
+  // どこかが固まっても SSR 全体を巻き込まないよう、レース全体にも締切を設ける
+  const deadline = new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs + 500));
+  return await Promise.race([Promise.any(tasks).catch(() => null), deadline]);
 }
 
 /** イベントから指定タグの最初の値を取り出す。 */

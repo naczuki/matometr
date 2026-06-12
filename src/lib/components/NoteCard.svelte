@@ -2,6 +2,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { nip19 } from 'nostr-tools';
   import { base } from '$app/paths';
+  import { pushState, replaceState } from '$app/navigation';
+  import { page } from '$app/stores';
   import type { Note } from '$lib/types';
   import { fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
@@ -219,7 +221,11 @@
     if (!replyTo) return;
     const target = document.getElementById('note-' + replyTo.parentId);
     if (!target) return;
-    history.pushState({ matomeJump: true, scrollY: window.scrollY }, '');
+    // 「戻る」の着地先となる現在のエントリにジャンプ元の位置を刻んでから、
+    // ジャンプ先のエントリを積む。生の history API は SvelteKit のルーター状態を
+    // 壊すため、$app/navigation の浅いルーティングを使う。
+    replaceState('', { ...$page.state, matomeJump: true, scrollY: window.scrollY });
+    pushState('', {});
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 

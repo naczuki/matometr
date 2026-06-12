@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { page } from '$app/stores';
   import { base } from '$app/paths';
   import { goto } from '$app/navigation';
@@ -40,20 +40,26 @@
 
   export let naddr: string;
 
-  onMount(() => {
-    function handlePopState(event: PopStateEvent): void {
-      if (event.state?.matomeJump === true) {
-        window.scrollTo({ top: event.state.scrollY ?? 0, behavior: 'smooth' });
-      }
+  // リプライジャンプで積んだエントリから「戻る」で戻ったとき、
+  // NoteCard が刻んだスクロール位置を復元する（$page.state は履歴エントリごとの浅い状態）。
+  let _restoredJumpState: object | null = null;
+  $: if (browser && $page.state !== _restoredJumpState) {
+    _restoredJumpState = $page.state;
+    if ($page.state.matomeJump === true) {
+      window.scrollTo({ top: $page.state.scrollY ?? 0, behavior: 'smooth' });
     }
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  });
+  }
 
   let matome: Matome | null = null;
   let loading = true;
   let error = '';
   let sub: Subscription | null = null;
+
+  // naddr 変更時の張り替え（initForNaddr）だけでなく、ページ離脱時にも REQ を閉じる。
+  onDestroy(() => {
+    sub?.unsubscribe();
+    favSub?.unsubscribe();
+  });
   // NoteCard の個別フェッチ結果を受け取り NIP-10 返信解決に使用する。
   let notesById: Map<string, Note> = new Map();
 
@@ -100,7 +106,9 @@
 
       sub = fetchMatomeByAddress(pointer).subscribe({
         next: (m) => {
+          // 最初の応答で即表示し、より新しい版が届けば差し替わる
           matome = m;
+          loading = false;
         },
         complete: () => {
           loading = false;

@@ -23,13 +23,18 @@ declare global {
       };
     };
   }
-}
 
-declare namespace App {
-  // interface Error {}
-  // interface Locals {}
-  // interface PageData {}
-  // interface Platform {}
+  namespace App {
+    // interface Error {}
+    // interface Locals {}
+    // interface PageData {}
+    // interface Platform {}
+    interface PageState {
+      /** リプライジャンプ元のエントリに刻む印。「戻る」でこのエントリに着いたら scrollY を復元する */
+      matomeJump?: boolean;
+      scrollY?: number;
+    }
+  }
 }
 
 export {};
