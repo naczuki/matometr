@@ -130,11 +130,7 @@
                 ＋ まとめを作る
               </a>
               <div class="dropdown-divider" />
-              <a
-                class="dropdown-item"
-                href="{base}/{$currentUser.npub}"
-                on:click={closeDropdown}
-              >
+              <a class="dropdown-item" href="{base}/{$currentUser.npub}" on:click={closeDropdown}>
                 <svg
                   width="15"
                   height="15"

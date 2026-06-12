@@ -382,9 +382,7 @@
                     />
                   {/if}
                 {:else if seg.type === 'naddr'}
-                  <a class="bio-url" href="{base}/{seg.naddr}"
-                    >nostr:{seg.naddr.slice(0, 12)}…</a
-                  >
+                  <a class="bio-url" href="{base}/{seg.naddr}">nostr:{seg.naddr.slice(0, 12)}…</a>
                 {/if}
               {/each}
               {#if aboutContent.urls.length > 0}
