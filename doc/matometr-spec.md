@@ -168,7 +168,7 @@ nostr:nevent1def...
 ### グローバルデフォルト
 
 - `wss://nos.lol/`
-- `wss://relay.damus.io/`
+- `wss://relay.primal.net/`
 
 ### ログイン後
 
