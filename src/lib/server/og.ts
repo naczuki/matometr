@@ -112,8 +112,12 @@ export function injectOgIntoHtml(html: string, og: OgData): string {
   const desc = esc(og.description);
   const image = esc(og.image);
   const u = esc(og.url);
+  // 置換文字列だと val 中の $& や $' が特殊パターン扱いされるため、関数形式で挿入する
   const setContent = (h: string, attr: string, val: string) =>
-    h.replace(new RegExp(`(<meta ${attr} content=")[^"]*(")`), `$1${val}$2`);
+    h.replace(
+      new RegExp(`(<meta ${attr} content=")[^"]*(")`),
+      (_m, p1: string, p2: string) => p1 + val + p2
+    );
   return [
     (h: string) => setContent(h, 'property="og:title"', title),
     (h: string) => setContent(h, 'property="og:description"', desc),
@@ -122,6 +126,6 @@ export function injectOgIntoHtml(html: string, og: OgData): string {
     (h: string) => setContent(h, 'name="twitter:title"', title),
     (h: string) => setContent(h, 'name="twitter:description"', desc),
     (h: string) => setContent(h, 'name="twitter:image"', image),
-    (h: string) => h.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
+    (h: string) => h.replace(/<title>[^<]*<\/title>/, () => `<title>${title}</title>`)
   ].reduce((acc, fn) => fn(acc), html);
 }

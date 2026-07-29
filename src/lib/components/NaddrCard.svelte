@@ -32,7 +32,9 @@
       const pointer = decoded.data as AddressPointer;
       const sub = fetchMatomeByAddress(pointer).subscribe({
         next: (a) => {
+          // 最初の応答で即表示し、より新しい版が届けば差し替わる
           matome = a;
+          loading = false;
         },
         complete: () => {
           loading = false;

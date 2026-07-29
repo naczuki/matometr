@@ -6,7 +6,7 @@ export const DEFAULT_RELAYS_JP = [
   'wss://nrelay-jp.c-stellar.net/'
 ] as const;
 
-export const DEFAULT_RELAYS_GLOBAL = ['wss://nos.lol/', 'wss://relay.damus.io/'] as const;
+export const DEFAULT_RELAYS_GLOBAL = ['wss://nos.lol/', 'wss://relay.primal.net/'] as const;
 
 export const DEFAULT_RELAYS = [...DEFAULT_RELAYS_JP, ...DEFAULT_RELAYS_GLOBAL];
 

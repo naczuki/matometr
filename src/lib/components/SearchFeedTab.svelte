@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import type { Subscription } from 'rxjs';
+  import { finalize } from 'rxjs';
   import type { Note } from '$lib/types';
   import { fetchTagSearchOneRelay } from '$lib/services/NostrClient';
   import { DEFAULT_RELAYS, SEARCH_RELAYS } from '$lib/stores/relays';
@@ -74,43 +75,59 @@
   function fetchOne(kw: string, s: Source): Promise<void> {
     const key = sid(s);
     const cursor = cursors.get(key);
-    const until = cursor !== undefined ? cursor - 1 : undefined;
+    // until は包含なので、境界（前ページ最古と同じ秒）のイベントを取りこぼさないよう
+    // cursor をそのまま使う。重複は noteById と newCount で吸収する。
+    const until = cursor;
     return new Promise((resolve) => {
       const got: Note[] = [];
+      let newCount = 0;
       const sub = fetchTagSearchOneRelay(kw, s.mode, s.relay, {
         until,
         limit: BATCH_SIZE
-      }).subscribe({
-        next: ({ note }) => {
-          noteById.set(note.id, note);
-          got.push(note);
-        },
-        complete: () => {
-          finalize(key, cursor, got);
-          resolve();
-        },
-        error: () => {
-          finalize(key, cursor, got);
-          resolve();
-        }
-      });
+      })
+        // 再検索時の unsubscribe でも必ず resolve し、待ち中の loadMore を固まらせない
+        .pipe(finalize(resolve))
+        .subscribe({
+          next: ({ note }) => {
+            if (!noteById.has(note.id)) newCount++;
+            noteById.set(note.id, note);
+            got.push(note);
+          },
+          complete: () => settlePage(key, cursor, got, newCount, false),
+          error: () => settlePage(key, cursor, got, newCount, true)
+        });
       subs.push(sub);
     });
   }
 
-  function finalize(key: string, prevCursor: number | undefined, got: Note[]): void {
+  function settlePage(
+    key: string,
+    prevCursor: number | undefined,
+    got: Note[],
+    newCount: number,
+    errored: boolean
+  ): void {
     if (got.length === 0) {
-      exhausted.add(key);
+      // 一時的なエラーで 0 件のときは枯渇にせず、次の loadMore で再試行する
+      if (!errored) exhausted.add(key);
       return;
     }
     const oldest = Math.min(...got.map((n) => n.createdAt));
-    // 進捗が無い（until を無視して同じ／新しい結果を返す検索リレー）なら枯渇扱いにして
-    // 無限ループを防ぐ。それ以外はカーソルを最古へ進める。
-    if (prevCursor !== undefined && oldest >= prevCursor) {
-      exhausted.add(key);
-    } else {
+    if (prevCursor === undefined || oldest < prevCursor) {
       cursors.set(key, oldest);
+      return;
     }
+    // カーソルが進まなかった場合：境界の再送だけなら枯渇。フルページなら同一秒に
+    // limit 超が集中しているか until を無視するリレーなので、1 秒戻して前進を強制する。
+    if (newCount === 0) {
+      if (got.length >= BATCH_SIZE && prevCursor !== undefined) {
+        cursors.set(key, prevCursor - 1);
+      } else {
+        exhausted.add(key);
+      }
+    }
+    // newCount > 0 で oldest >= prevCursor のときはカーソル据え置きで続行
+    // （次ページが全て重複になった時点で上の分岐に入る）
   }
 
   function refreshNotes(): void {
@@ -124,12 +141,18 @@
     }
   }
 
+  // 再検索のたびに進める世代番号。実行中の loadMore が古い世代の続きを
+  // 新しい検索の状態に書き込まないよう、await のたびに照合して中断する。
+  let searchGeneration = 0;
+
   async function handleSearch(): Promise<void> {
     const kw = normalizedKeyword();
     if (!kw) {
       searchError = 'キーワードを入力してください';
       return;
     }
+    searchGeneration++;
+    const gen = searchGeneration;
     searchError = '';
     searchLoading = true;
     hasSearched = true;
@@ -143,6 +166,7 @@
     sources = buildSources();
 
     await Promise.all(activeSources().map((s) => fetchOne(kw, s)));
+    if (gen !== searchGeneration) return;
     refreshNotes();
     reachedEnd = activeSources().length === 0;
     searchLoading = false;
@@ -152,6 +176,7 @@
     if (loadMoreLoading || reachedEnd) return;
     const kw = normalizedKeyword();
     if (!kw) return;
+    const gen = searchGeneration;
     loadMoreLoading = true;
 
     const displayedIds = new Set(notes.map((n) => n.id));
@@ -163,6 +188,10 @@
     }
 
     await Promise.all(active.map((s) => fetchOne(kw, s)));
+    if (gen !== searchGeneration) {
+      loadMoreLoading = false;
+      return;
+    }
 
     // 表示に足る候補（>= watermark）が BATCH_SIZE 集まるまで、遅れているソースを追加取得する。
     for (let iter = 0; iter < MAX_INNER_ITERATIONS; iter++) {
@@ -172,6 +201,10 @@
       const slow = activeSources().filter((s) => cursors.get(sid(s)) === T);
       if (slow.length === 0) break;
       await Promise.all(slow.map((s) => fetchOne(kw, s)));
+      if (gen !== searchGeneration) {
+        loadMoreLoading = false;
+        return;
+      }
     }
 
     refreshNotes();

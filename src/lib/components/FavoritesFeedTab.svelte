@@ -64,11 +64,39 @@
     return out;
   }
 
+  function settlePage(
+    relay: string,
+    prevCursor: number | undefined,
+    reactions: Reaction[],
+    newCount: number,
+    errored: boolean
+  ): void {
+    if (reactions.length === 0) {
+      // 一時的なエラーで 0 件のときは枯渇にせず、次の loadMore で再試行する
+      if (!errored) exhaustedRelays.add(relay);
+      return;
+    }
+    const oldest = Math.min(...reactions.map((r) => r.reactedAt));
+    if (prevCursor === undefined || oldest < prevCursor) {
+      cursors.set(relay, oldest);
+      return;
+    }
+    // カーソルが進まなかった場合：境界の再送だけなら枯渇。フルページなら同一秒に
+    // limit 超が集中しているケースなので、1 秒戻して前進を強制する。
+    if (newCount === 0) {
+      if (reactions.length >= BATCH_SIZE) cursors.set(relay, prevCursor - 1);
+      else exhaustedRelays.add(relay);
+    }
+  }
+
   function fetchOneRelay(pubkey: string, relay: string): Promise<Reaction[]> {
     const cursor = cursors.get(relay);
-    const until = cursor !== undefined ? cursor - 1 : undefined;
+    // until は包含なので、境界（前ページ最古と同じ秒）のリアクションを取りこぼさないよう
+    // cursor をそのまま使う。重複は reactedAtMap と newCount で吸収する。
+    const until = cursor;
     return new Promise((resolve) => {
       const reactions: Reaction[] = [];
+      let newCount = 0;
       const sub = fetchFavoriteReactionsWithRelay(pubkey, {
         until,
         limit: BATCH_SIZE,
@@ -77,21 +105,17 @@
         next: ({ eventId, reactedAt }) => {
           reactions.push({ eventId, reactedAt });
           const cur = reactedAtMap.get(eventId);
-          if (cur == null || reactedAt > cur) reactedAtMap.set(eventId, reactedAt);
+          if (cur == null || reactedAt > cur) {
+            if (cur == null) newCount++;
+            reactedAtMap.set(eventId, reactedAt);
+          }
         },
         complete: () => {
-          if (reactions.length === 0) {
-            exhaustedRelays.add(relay);
-          } else {
-            const oldest = Math.min(...reactions.map((r) => r.reactedAt));
-            cursors.set(relay, oldest);
-          }
+          settlePage(relay, cursor, reactions, newCount, false);
           resolve(reactions);
         },
         error: () => {
-          if (reactions.length === 0) {
-            exhaustedRelays.add(relay);
-          }
+          settlePage(relay, cursor, reactions, newCount, true);
           resolve(reactions);
         }
       });
@@ -134,11 +158,6 @@
       const candidates = collectCandidatesAtOrAbove(T, new Set())
         .sort((a, b) => b.reactedAt - a.reactedAt)
         .slice(0, BATCH_SIZE);
-      const candidateIds = new Set(candidates.map((c) => c.eventId));
-      const trimmed = new Map<string, number>();
-      for (const [id, at] of reactedAtMap) {
-        if (candidateIds.has(id)) trimmed.set(id, at);
-      }
       await fetchNotesForNewIds();
       displayNotes = candidates
         .map((c) => noteById.get(c.eventId))

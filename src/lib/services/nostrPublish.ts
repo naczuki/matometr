@@ -10,7 +10,8 @@ function splitTextToChunks(text: string): string[] {
     .filter((c) => c.length > 0);
 }
 
-function blocksToContent(blocks: EditorBlock[]): string {
+// テスト（ラウンドトリップ検証）から参照するため export している
+export function blocksToContent(blocks: EditorBlock[]): string {
   const parts: string[] = [];
   for (const block of blocks) {
     if (block.type === 'nevent' && block.nevent) {
@@ -24,14 +25,20 @@ function blocksToContent(blocks: EditorBlock[]): string {
   return parts.join('\n\n');
 }
 
-function buildLayoutTag(blocks: EditorBlock[]): string[][] {
+// テスト（ラウンドトリップ検証）から参照するため export している
+export function buildLayoutTag(blocks: EditorBlock[]): string[][] {
   const effectiveBlocks = blocks.filter((b) => {
     if (b.type === 'nevent') return !!b.nevent;
     return b.text.trim().length > 0;
   });
 
+  // v1: nevent で区切られたテキスト連続区間ごとのチャンク数の入れ子配列。
+  // 種別を内容から推測するため「## で始まるコメント」「nostr: 参照のみのコメント」を
+  // 取り違える。旧クライアント互換のために残し、新クライアントは v2 を優先して読む。
   const runs: number[][] = [];
   let currentRun: number[] = [];
+  // v2: ブロック列をそのまま記録する。'e'=引用ポスト, 'h'=見出し, 数値=コメント（チャンク数）。
+  const seq: ('e' | 'h' | number)[] = [];
 
   for (const block of effectiveBlocks) {
     if (block.type === 'nevent') {
@@ -39,23 +46,26 @@ function buildLayoutTag(blocks: EditorBlock[]): string[][] {
         runs.push(currentRun);
         currentRun = [];
       }
+      seq.push('e');
+    } else if (block.type === 'heading') {
+      currentRun.push(1);
+      seq.push('h');
     } else {
-      let chunkCount: number;
-      if (block.type === 'heading') {
-        chunkCount = 1;
-      } else {
-        chunkCount = splitTextToChunks(block.text).length;
-        if (chunkCount === 0) chunkCount = 1;
-      }
+      let chunkCount = splitTextToChunks(block.text).length;
+      if (chunkCount === 0) chunkCount = 1;
       currentRun.push(chunkCount);
+      seq.push(chunkCount);
     }
   }
   if (currentRun.length > 0) {
     runs.push(currentRun);
   }
 
-  if (runs.length === 0) return [];
-  return [['matome_layout', '1', JSON.stringify(runs)]];
+  if (seq.length === 0) return [];
+  const tags: string[][] = [];
+  if (runs.length > 0) tags.push(['matome_layout', '1', JSON.stringify(runs)]);
+  tags.push(['matome_layout', '2', JSON.stringify(seq)]);
+  return tags;
 }
 
 function buildMentionTags(blocks: EditorBlock[]): string[][] {
