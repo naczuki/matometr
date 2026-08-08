@@ -444,14 +444,14 @@
     gap: 8px;
   }
 
-  /* 候補リストと同じくカードとして描く。中の QuotedNote は bare にして
-     囲みが二重にならないようにする。 */
+  /* カードとして描くが、面自体は押せない（押せるのは × だけ）ので
+     シャドウは付けない。地がピーチなので面の色だけで分離する。
+     中の QuotedNote は bare にして囲みが二重にならないようにする。 */
   .pending-card {
     position: relative;
     background: var(--surface);
     border-radius: var(--radius-card);
     padding: 10px 14px;
-    box-shadow: var(--shadow-tappable);
   }
 
   .pending-remove {
