@@ -173,23 +173,23 @@
 
   .announce-textarea {
     width: 100%;
-    border: 1.5px solid var(--border2);
-    border-radius: 10px;
+    /* テキストボックスはシャドウを持たず、暖色の枠線だけで示す。 */
+    border: 1.5px solid var(--border-warm);
+    border-radius: var(--radius-card);
     padding: 10px 12px;
     font-size: 13px;
     color: var(--ink);
-    background: var(--bg);
+    background: var(--surface);
     font-family: var(--font-body);
     box-sizing: border-box;
     resize: vertical;
-    transition: border-color 0.12s;
     margin-bottom: 10px;
     line-height: 1.7;
   }
 
   .announce-textarea:focus {
-    outline: none;
-    border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
   }
 
   .checkbox-row {

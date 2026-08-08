@@ -203,21 +203,28 @@
 
     <section class="card">
       <div class="field">
-        <label class="field-label" for="title">タイトル</label>
+        <label class="field-label" for="matome-title">タイトル</label>
+        <!-- id="title" はブラウザの自動入力に敬称（honorific-prefix）や
+             ユーザー名の欄と誤判定されるため、まとめ固有の名前にして
+             autocomplete も切る。 -->
         <input
-          id="title"
+          id="matome-title"
+          name="matome-title"
           class="field-input"
           type="text"
+          autocomplete="off"
           placeholder="まとめのタイトルを入力"
           bind:value={title}
           maxlength={120}
         />
       </div>
       <div class="field">
-        <label class="field-label" for="summary">説明（省略可）</label>
+        <label class="field-label" for="matome-summary">説明（省略可）</label>
         <textarea
-          id="summary"
+          id="matome-summary"
+          name="matome-summary"
           class="field-textarea"
+          autocomplete="off"
           placeholder="このまとめについて簡単に説明してください"
           bind:value={summary}
           rows={3}
@@ -283,10 +290,11 @@
     margin: 0 0 20px;
   }
 
+  /* 中の入力欄が枠を持つので、外枠は枠線もシャドウも持たせず沈める。 */
   .card {
     background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 16px;
+    border: none;
+    border-radius: var(--radius-card);
     padding: 18px;
     margin-bottom: 20px;
   }
@@ -308,22 +316,23 @@
   .field-input,
   .field-textarea {
     width: 100%;
-    border: 1.5px solid var(--border2);
-    border-radius: 10px;
+    /* テキストボックスはシャドウを持たず、暖色の枠線だけで示す。 */
+    border: 1.5px solid var(--border-warm);
+    border-radius: var(--radius-card);
     padding: 10px 12px;
     font-size: 15px;
     color: var(--ink);
-    background: var(--bg);
+    /* 地はまとめ画面の読む面と同じ白。 */
+    background: var(--surface);
     font-family: var(--font-body);
     box-sizing: border-box;
-    transition: border-color 0.12s;
     resize: vertical;
   }
 
   .field-input:focus,
   .field-textarea:focus {
-    outline: none;
-    border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
   }
 
   .publish-error {

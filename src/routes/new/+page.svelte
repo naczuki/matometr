@@ -177,21 +177,28 @@
 
     <section class="card">
       <div class="field">
-        <label class="field-label" for="title">タイトル</label>
+        <label class="field-label" for="matome-title">タイトル</label>
+        <!-- id="title" はブラウザの自動入力に敬称（honorific-prefix）や
+             ユーザー名の欄と誤判定されるため、まとめ固有の名前にして
+             autocomplete も切る。 -->
         <input
-          id="title"
+          id="matome-title"
+          name="matome-title"
           class="field-input"
           type="text"
+          autocomplete="off"
           placeholder="まとめのタイトルを入力"
           bind:value={title}
           maxlength={120}
         />
       </div>
       <div class="field">
-        <label class="field-label" for="summary">説明（省略可）</label>
+        <label class="field-label" for="matome-summary">説明（省略可）</label>
         <textarea
-          id="summary"
+          id="matome-summary"
+          name="matome-summary"
           class="field-textarea"
+          autocomplete="off"
           placeholder="このまとめについて簡単に説明してください"
           bind:value={summary}
           rows={3}
@@ -294,7 +301,8 @@
   .field-input,
   .field-textarea {
     width: 100%;
-    border: none;
+    /* テキストボックスはシャドウを持たず、暖色の枠線だけで示す。 */
+    border: 1.5px solid var(--border-warm);
     border-radius: var(--radius-card);
     padding: 10px 12px;
     font-size: 15px;
@@ -303,8 +311,6 @@
     background: var(--surface);
     font-family: var(--font-body);
     box-sizing: border-box;
-    /* 押す面ではなく書き込む面なので、浮かせずに沈めて溝に見せる。 */
-    box-shadow: var(--shadow-input);
     resize: vertical;
   }
 

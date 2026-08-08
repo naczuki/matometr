@@ -284,18 +284,19 @@
     flex: 1;
     min-width: 0;
     padding: 10px 12px;
-    border: 1.5px solid var(--border2);
-    border-radius: 10px;
+    /* テキストボックスはシャドウを持たず、暖色の枠線だけで示す。 */
+    border: 1.5px solid var(--border-warm);
+    border-radius: var(--radius-card);
     font-size: 14px;
     color: var(--ink);
-    background: var(--bg);
+    background: var(--surface);
     font-family: var(--font-body);
     box-sizing: border-box;
   }
 
   .search-input:focus {
-    outline: none;
-    border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
   }
 
   .search-btn {

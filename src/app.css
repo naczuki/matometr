@@ -31,7 +31,8 @@
 
   --note-chevron: #c4b8ac;
 
-  /* 暖色の枠線。入れ子で影が使えない面（引用ポスト等）の区別に使う。 */
+  /* 暖色の枠線。テキストボックス共通の枠と、入れ子で影が使えない面
+     （引用ポスト等）の区別に使う。 */
   --border-warm: rgba(214, 140, 84, 0.32);
 
   --shadow-btn: 0 3px 10px rgba(249, 115, 22, 0.25);
@@ -41,10 +42,6 @@
   --shadow-fab-hover: 0 6px 18px rgba(249, 115, 22, 0.45);
   /* タップできる面の目印。背景に合わせた暖色。 */
   --shadow-tappable: 1px 1px 3px rgba(214, 140, 84, 0.28);
-  /* 入力欄は逆に沈めて「書き込む面」を示す。地と同じ白の上に置くため、
-     四辺を出すリングと内側の落ち影を重ねて溝に見せる。 */
-  --shadow-input:
-    inset 0 0 0 1px rgba(214, 140, 84, 0.18), inset 1px 2px 4px rgba(214, 140, 84, 0.22);
   --shadow-comment: 0 2px 4px rgba(234, 88, 12, 0.2), 0 5px 11px rgba(234, 88, 12, 0.15);
   --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.1);
   --shadow-dialog-sm: 0 8px 32px rgba(0, 0, 0, 0.18);
@@ -78,9 +75,6 @@
     --shadow-fab-hover: 0 6px 22px rgba(249, 115, 22, 0.6);
     /* 暗い背景では影が沈むため、色相はそのままに濃度を上げる。 */
     --shadow-tappable: 1px 1px 3px rgba(214, 140, 84, 0.4);
-    /* 暗い面の上では暖色の影は光って見え、逆に浮いてしまう。
-       リングだけ暖色で残し、落ち影は黒にして沈ませる。 */
-    --shadow-input: inset 0 0 0 1px rgba(214, 140, 84, 0.3), inset 1px 2px 4px rgba(0, 0, 0, 0.4);
     --shadow-comment: 0 2px 4px rgba(234, 88, 12, 0.32), 0 5px 11px rgba(234, 88, 12, 0.24);
     --shadow-popover: 0 8px 28px rgba(0, 0, 0, 0.45);
     --shadow-dialog-sm: 0 8px 36px rgba(0, 0, 0, 0.55);

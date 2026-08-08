@@ -722,20 +722,20 @@
 
   .paste-input {
     width: 100%;
-    border: 1.5px solid var(--border2);
-    border-radius: 8px;
+    /* テキストボックスはシャドウを持たず、暖色の枠線だけで示す。 */
+    border: 1.5px solid var(--border-warm);
+    border-radius: var(--radius-card);
     padding: 8px 10px;
     font-size: 13px;
     color: var(--ink);
     background: var(--surface);
     font-family: var(--font-body);
     box-sizing: border-box;
-    transition: border-color 0.12s;
   }
 
   .paste-input:focus {
-    outline: none;
-    border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
   }
 
   .change-btn {
@@ -757,40 +757,36 @@
 
   .comment-textarea {
     width: 100%;
-    border: 1.5px solid var(--border2);
-    border-radius: 10px;
+    /* テキストボックスはシャドウを持たず、暖色の枠線だけで示す。 */
+    border: 1.5px solid var(--border-warm);
+    border-radius: var(--radius-card);
     padding: 8px 10px;
     font-size: 14px;
     color: var(--ink);
-    background: var(--bg);
+    background: var(--surface);
     font-family: var(--font-body);
     resize: vertical;
     box-sizing: border-box;
-    transition: border-color 0.12s;
   }
 
   .comment-textarea:focus {
-    outline: none;
-    border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
   }
 
+  /* 入力欄と入れ替わるので、同じ枠・同じ地にして切り替わっても見た目が動かない。 */
   .comment-preview {
     position: relative;
-    border: 1.5px solid var(--border2);
-    border-radius: 10px;
+    border: 1.5px solid var(--border-warm);
+    border-radius: var(--radius-card);
     padding: 8px 10px;
-    background: var(--accent-pale);
+    background: var(--surface);
     cursor: text;
-    transition: border-color 0.12s;
-  }
-
-  .comment-preview:hover {
-    border-color: var(--accent-mid);
   }
 
   .comment-preview:focus-visible {
-    outline: none;
-    border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
   }
 
   .comment-preview-body {
