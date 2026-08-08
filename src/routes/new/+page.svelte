@@ -299,11 +299,12 @@
     padding: 10px 12px;
     font-size: 15px;
     color: var(--ink);
-    background: var(--bg);
+    /* 地はまとめ画面の読む面と同じ白。 */
+    background: var(--surface);
     font-family: var(--font-body);
     box-sizing: border-box;
-    /* 触れる面なのでシャドウで浮かせる。 */
-    box-shadow: var(--shadow-tappable);
+    /* 押す面ではなく書き込む面なので、浮かせずに沈めて溝に見せる。 */
+    box-shadow: var(--shadow-input);
     resize: vertical;
   }
 

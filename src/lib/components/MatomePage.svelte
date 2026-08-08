@@ -1123,15 +1123,12 @@
     margin-right: 1px;
   }
 
+  /* 説明はまとめの地の文なので、囲みを外してテキストだけにする。 */
   .detail-desc {
     font-size: 16px;
     color: var(--ink2);
     line-height: 1.85;
     margin-bottom: 18px;
-    padding: 14px 16px;
-    background: var(--accent-pale);
-    border-radius: 10px;
-    border-left: 3px solid var(--accent);
     white-space: pre-wrap;
     word-break: break-word;
   }
