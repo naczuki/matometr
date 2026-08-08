@@ -268,10 +268,11 @@
     font-family: var(--font-ui);
   }
 
+  /* 中の入力欄が浮くので、外枠は枠線もシャドウも持たせず沈める。 */
   .card {
     background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 16px;
+    border: none;
+    border-radius: var(--radius-card);
     padding: 18px;
     margin-bottom: 20px;
   }
@@ -293,22 +294,24 @@
   .field-input,
   .field-textarea {
     width: 100%;
-    border: 1.5px solid var(--border2);
-    border-radius: 10px;
+    border: none;
+    border-radius: var(--radius-card);
     padding: 10px 12px;
     font-size: 15px;
     color: var(--ink);
     background: var(--bg);
     font-family: var(--font-body);
     box-sizing: border-box;
-    transition: border-color 0.12s;
+    /* 触れる面なのでシャドウで浮かせる。 */
+    box-shadow: var(--shadow-tappable);
     resize: vertical;
   }
 
+  /* 枠線を外したぶん、フォーカス位置は outline で示す。 */
   .field-input:focus,
   .field-textarea:focus {
-    outline: none;
-    border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
   }
 
   .publish-error {

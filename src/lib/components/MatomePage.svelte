@@ -1087,7 +1087,8 @@
   /* ===== 詳細ヘッダー ===== */
   .detail-header {
     background: var(--surface);
-    border: 1.5px solid var(--border);
+    /* 読むだけの面。フラットにする。 */
+    border: none;
     border-radius: var(--radius-card);
     padding: 22px 24px;
     margin-bottom: 20px;
@@ -1615,9 +1616,7 @@
     margin: 16px 4px 14px 4px;
     white-space: pre-wrap;
     word-break: break-word;
-    box-shadow:
-      0 3px 6px rgba(234, 88, 12, 0.15),
-      0 8px 20px rgba(234, 88, 12, 0.12);
+    box-shadow: var(--shadow-comment);
   }
 
   .block-comment-md {

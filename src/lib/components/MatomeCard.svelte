@@ -98,20 +98,14 @@
   .card {
     display: block;
     background: var(--surface);
-    border: 1.5px solid var(--border);
+    border: none;
     border-radius: var(--radius-card);
     padding: 18px;
     cursor: pointer;
-    transition:
-      box-shadow 0.15s,
-      border-color 0.15s;
+    /* シャドウ = タップできる面。 */
+    box-shadow: var(--shadow-tappable);
     text-decoration: none;
     color: inherit;
-  }
-
-  .card:hover {
-    box-shadow: var(--shadow-card-hover);
-    border-color: var(--accent-mid);
   }
 
   .author {
@@ -179,16 +173,13 @@
     flex-wrap: wrap;
   }
 
+  /* 件数・nosli は囲みを外してテキストだけにする（.tag は分類ラベルなので囲みを残す）。 */
   .count {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     font-size: 11px;
     color: var(--ink3);
-    background: var(--bg);
-    padding: 3px 10px;
-    border-radius: var(--radius-btn);
-    border: 1px solid var(--border2);
     font-family: var(--font-ui);
   }
 
@@ -207,12 +198,10 @@
   }
 
   .nosli-badge {
+    display: inline-flex;
+    align-items: center;
     font-size: 11px;
     color: var(--ink3);
-    background: var(--bg);
-    padding: 3px 10px;
-    border-radius: var(--radius-btn);
-    border: 1px solid var(--border2);
     font-family: var(--font-ui);
     font-style: italic;
   }

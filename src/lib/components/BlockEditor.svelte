@@ -623,24 +623,36 @@
     flex-direction: column;
   }
 
+  /* 編集画面は閲覧画面のプレビューとして扱うため、ブロック種別ごとに見た目を分ける。 */
+
+  /* ノートブロック：閲覧画面のカードと同じくタップできる面。 */
   .block-card {
     display: flex;
     align-items: flex-start;
     gap: 8px;
     background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 14px;
+    border: none;
+    border-radius: var(--radius-card);
     padding: 10px 10px 10px 8px;
+    box-shadow: var(--shadow-tappable);
   }
 
+  /* 見出しブロック：閲覧画面では面を持たず下線だけなのでカードにしない。
+     掴める範囲を示すため破線で囲む（シャドウ＝タップ面ルールの意図的な例外。
+     編集できることはドラッグハンドルと種別ラベルが示す）。 */
   .block-card.is-heading {
-    background: var(--accent-pale);
-    border-style: dashed;
-    border-color: var(--accent-mid);
+    background: none;
+    border: 1.5px dashed var(--border-warm);
+    border-radius: var(--radius-card);
+    box-shadow: none;
   }
 
+  /* コメントブロック：閲覧画面の .block-comment と同じ面色・同じシャドウ。 */
   .block-card.is-comment {
-    border-left: 3px solid var(--accent-mid);
+    background: var(--accent-mid);
+    border: none;
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-comment);
   }
 
   /* 詳細ページと同じ条件で 1 段インデント（深さに関わらず固定）。 */
@@ -901,11 +913,12 @@
     opacity: 1;
   }
 
+  /* 下線は閲覧画面の .block-heading と同じ太さ・同じ色にする。 */
   .heading-input {
     width: 100%;
     border: none;
-    border-bottom: 2px solid var(--accent-mid);
-    padding: 4px 0;
+    border-bottom: 3px solid var(--accent);
+    padding: 4px 0 8px;
     font-size: 17px;
     font-weight: 800;
     color: var(--ink);
@@ -914,9 +927,10 @@
     box-sizing: border-box;
   }
 
+  /* 下線が常時アクセント色になったので、フォーカスは outline で示す。 */
   .heading-input:focus {
-    outline: none;
-    border-bottom-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   .delete-btn {
