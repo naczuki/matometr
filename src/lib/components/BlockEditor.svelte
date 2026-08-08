@@ -405,7 +405,7 @@
                           shortNpubFromPubkey(rp.parentPubkey)}
                       </div>
                     {/if}
-                    <QuotedNote {eventId} showDate={true} />
+                    <QuotedNote {eventId} showDate={true} bare={true} />
                   {:else}
                     <p class="parse-error">この投稿は表示できません</p>
                   {/if}
