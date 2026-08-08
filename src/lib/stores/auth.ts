@@ -90,7 +90,8 @@ const NOSTR_LOGIN_CSS = `
 
   .nl-button--nsec {
     border: 1.5px solid var(--border2) !important;
-    background-color: #fff !important;
+    /* #fff 固定だとダークテーマで薄い文字色と重なって読めなくなる。 */
+    background-color: var(--surface) !important;
     color: var(--ink2) !important;
     box-shadow: none !important;
     transform: translateY(0) !important;
@@ -129,9 +130,21 @@ const NOSTR_LOGIN_CSS = `
     fill: var(--accent) !important;
   }
 
+  /* テキストボックスは本体と同じ作りに揃える（暖色の枠線のみ・シャドウなし）。
+     Tailwind の rounded-lg / border-transparent / focus ring を打ち消す。 */
+  .nl-input {
+    border: 1.5px solid var(--border-warm) !important;
+    border-radius: var(--radius-card) !important;
+    background-color: var(--surface) !important;
+    color: var(--ink) !important;
+    box-shadow: none !important;
+  }
   .nl-input:focus {
-    border-color: var(--accent) !important;
-    --tw-ring-color: var(--accent) !important;
+    outline: 2px solid var(--accent) !important;
+    outline-offset: 0 !important;
+    border-color: var(--border-warm) !important;
+    box-shadow: none !important;
+    --tw-ring-color: transparent !important;
   }
 
   /* 戻るボタン：オレンジ丸囲み・影付き */
@@ -360,6 +373,13 @@ function translateNostrLogin(sr: ShadowRoot): void {
     const el = input as HTMLInputElement;
     const translated = NOSTR_LOGIN_PLACEHOLDERS[el.placeholder.trim()];
     if (translated) el.placeholder = translated;
+  });
+  // nsec 欄は type="password" のため、ブラウザのパスワードマネージャに
+  // サイトの認証情報として保存され、以後まとめのタイトル欄などにも
+  // 「保存されたユーザー名」として提案されてしまう。保存対象外だと宣言する。
+  // （observer は attributes を監視していないので再発火しない）
+  sr.querySelectorAll('input').forEach((el) => {
+    if (!el.hasAttribute('autocomplete')) el.setAttribute('autocomplete', 'off');
   });
   // <summary> は ▶ 記号が混入するため contains-match で翻訳
   sr.querySelectorAll('summary').forEach((summary) => {
