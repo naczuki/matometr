@@ -235,7 +235,7 @@
           <div class="pending-list">
             {#each pending as item (item.eventId)}
               <div class="pending-card">
-                <QuotedNote eventId={item.eventId} />
+                <QuotedNote eventId={item.eventId} bare={true} />
                 <button
                   class="pending-remove"
                   on:click={() => removePending(item.eventId)}
@@ -440,11 +440,18 @@
   .pending-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    /* QuotedNote の margin をカード側の gap に移すので、候補リストと同じ 8px。 */
+    gap: 8px;
   }
 
+  /* 候補リストと同じくカードとして描く。中の QuotedNote は bare にして
+     囲みが二重にならないようにする。 */
   .pending-card {
     position: relative;
+    background: var(--surface);
+    border-radius: var(--radius-card);
+    padding: 10px 14px;
+    box-shadow: var(--shadow-tappable);
   }
 
   .pending-remove {
