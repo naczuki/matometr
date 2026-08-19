@@ -104,23 +104,19 @@
     text-align: left;
     width: 100%;
     background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 12px;
+    border: none;
+    border-radius: var(--radius-card);
     padding: 10px 12px;
     cursor: pointer;
     font: inherit;
     color: inherit;
-    transition:
-      border-color 0.12s,
-      background 0.12s;
+    /* タップ（選択）できる面。 */
+    box-shadow: var(--shadow-tappable);
   }
 
-  .post:hover {
-    border-color: var(--accent-mid);
-  }
-
+  /* 枠線を外したので、選択中はレイアウトを動かさない outline で示す。 */
   .post.selected {
-    border-color: var(--accent);
+    outline: 2px solid var(--accent);
     background: var(--accent-pale);
   }
 

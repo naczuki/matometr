@@ -86,7 +86,8 @@
 
   .modal {
     background: var(--surface);
-    border-radius: 20px;
+    /* nostr-login 側の .nl-bg と同じ角丸に揃える。 */
+    border-radius: var(--radius-card);
     max-width: 440px;
     width: 100%;
     margin: 20px auto;
@@ -217,7 +218,7 @@
 
   .modal-note {
     background: var(--bg);
-    border-radius: 10px;
+    border-radius: var(--radius-card);
     padding: 11px 14px;
     margin: 0 0 10px;
     font-size: 12px;
@@ -235,7 +236,7 @@
   .modal-nostr-info {
     padding: 12px 14px;
     background: var(--bg);
-    border-radius: 10px;
+    border-radius: var(--radius-card);
     font-size: 12px;
     color: var(--ink2);
     line-height: 1.7;

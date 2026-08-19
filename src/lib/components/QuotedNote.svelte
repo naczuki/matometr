@@ -17,6 +17,8 @@
 
   export let eventId: string;
   export let showDate: boolean = false;
+  /** 呼び出し側が既にカードを描いている場合に、入れ子の囲みを外して直接描く。 */
+  export let bare: boolean = false;
 
   let note: Note | null = null;
   let failed = false;
@@ -132,7 +134,7 @@
   }
 </script>
 
-<div class="quoted">
+<div class="quoted" class:bare>
   {#if failed}
     <div class="quoted-error">この投稿が見つかりませんでした</div>
   {:else if !note}
@@ -219,13 +221,26 @@
 </div>
 
 <style>
+  /* 引用は他人の投稿を持ち込んだ異物で、カードの中に入れ子になる。
+     入れ子だと影が重なって濁るためシャドウは使わず、角丸と暖色の枠線で区別する。
+     周囲が 2px なので、ここだけ角丸を残すのは意図的（統一しないこと）。 */
   .quoted {
     display: block;
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
+    border: 1.5px solid var(--border-warm);
+    border-radius: 14px;
     padding: 10px 14px;
     margin: 6px 0;
     background: var(--bg);
+  }
+
+  /* 編集画面のように呼び出し側自身がカードを描いている場合は、囲みが二重に
+     なるので外し、カードへ直接描く。 */
+  .quoted.bare {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+    background: none;
   }
 
   .quoted-header {

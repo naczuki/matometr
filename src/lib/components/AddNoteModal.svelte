@@ -235,7 +235,7 @@
           <div class="pending-list">
             {#each pending as item (item.eventId)}
               <div class="pending-card">
-                <QuotedNote eventId={item.eventId} />
+                <QuotedNote eventId={item.eventId} bare={true} />
                 <button
                   class="pending-remove"
                   on:click={() => removePending(item.eventId)}
@@ -380,18 +380,19 @@
     flex: 1;
     min-width: 0;
     padding: 10px 12px;
-    border: 1.5px solid var(--border2);
-    border-radius: 10px;
+    /* テキストボックスはシャドウを持たず、暖色の枠線だけで示す。 */
+    border: 1.5px solid var(--border-warm);
+    border-radius: var(--radius-card);
     font-size: 14px;
     color: var(--ink);
-    background: var(--bg);
+    background: var(--surface);
     font-family: var(--font-body);
     box-sizing: border-box;
   }
 
   .paste-input:focus {
-    outline: none;
-    border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
   }
 
   .add-paste-btn {
@@ -440,11 +441,18 @@
   .pending-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    /* QuotedNote の margin をカード側の gap に移すので、候補リストと同じ 8px。 */
+    gap: 8px;
   }
 
+  /* カードとして描くが、面自体は押せない（押せるのは × だけ）ので
+     シャドウは付けない。地がピーチなので面の色だけで分離する。
+     中の QuotedNote は bare にして囲みが二重にならないようにする。 */
   .pending-card {
     position: relative;
+    background: var(--surface);
+    border-radius: var(--radius-card);
+    padding: 10px 14px;
   }
 
   .pending-remove {

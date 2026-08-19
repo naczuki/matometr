@@ -153,7 +153,8 @@
 
   .modal {
     background: var(--surface);
-    border-radius: 20px;
+    /* nostr-login 側の .nl-bg と同じ角丸に揃える。 */
+    border-radius: var(--radius-card);
     max-width: 440px;
     width: 100%;
     margin: 20px auto;

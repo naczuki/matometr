@@ -715,16 +715,11 @@
   .note-card {
     position: relative;
     background: var(--surface);
-    border: 1.5px solid var(--border);
+    /* 読むだけの面なので枠線もシャドウも持たせない。 */
+    border: none;
     border-radius: var(--radius-card);
     padding: 26px 18px 18px;
     margin-bottom: 12px;
-    transition: box-shadow 0.15s;
-  }
-
-  .note-card:hover {
-    box-shadow: var(--shadow-card-note);
-    border-color: var(--accent-mid);
   }
 
   /* 直上が親/兄弟リプのときだけ 1 段（深さに関わらず固定幅）。 */

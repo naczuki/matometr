@@ -1087,7 +1087,8 @@
   /* ===== 詳細ヘッダー ===== */
   .detail-header {
     background: var(--surface);
-    border: 1.5px solid var(--border);
+    /* 読むだけの面。フラットにする。 */
+    border: none;
     border-radius: var(--radius-card);
     padding: 22px 24px;
     margin-bottom: 20px;
@@ -1122,15 +1123,12 @@
     margin-right: 1px;
   }
 
+  /* 説明はまとめの地の文なので、囲みを外してテキストだけにする。 */
   .detail-desc {
     font-size: 16px;
     color: var(--ink2);
     line-height: 1.85;
     margin-bottom: 18px;
-    padding: 14px 16px;
-    background: var(--accent-pale);
-    border-radius: 10px;
-    border-left: 3px solid var(--accent);
     white-space: pre-wrap;
     word-break: break-word;
   }
@@ -1615,9 +1613,7 @@
     margin: 16px 4px 14px 4px;
     white-space: pre-wrap;
     word-break: break-word;
-    box-shadow:
-      0 3px 6px rgba(234, 88, 12, 0.15),
-      0 8px 20px rgba(234, 88, 12, 0.12);
+    box-shadow: var(--shadow-comment);
   }
 
   .block-comment-md {
