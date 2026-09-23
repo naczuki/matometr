@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveReplyParentId } from './nostr';
+import { resolveReplyParentId, isKind1Comment } from './nostr';
 import type { Note } from '$lib/types';
 
 const ID_A = 'a'.repeat(64);
@@ -57,5 +57,69 @@ describe('resolveReplyParentId', () => {
   it('ignores malformed e tag ids', () => {
     const n = note({ tags: [['e', 'not-hex']] });
     expect(resolveReplyParentId(n)).toBeNull();
+  });
+
+  it('returns lowercase e tag for kind:1111 comment rooted at kind:1', () => {
+    const n = note({
+      kind: 1111,
+      tags: [
+        ['E', ID_A, '', '1'.repeat(64)],
+        ['K', '1'],
+        ['e', ID_B, '', '1'.repeat(64)],
+        ['k', '1111']
+      ]
+    });
+    expect(resolveReplyParentId(n)).toBe(ID_B);
+  });
+
+  it('returns null for kind:1111 comment rooted at other kinds', () => {
+    const n = note({
+      kind: 1111,
+      tags: [
+        ['K', '30023'],
+        ['e', ID_B],
+        ['k', '30023']
+      ]
+    });
+    expect(resolveReplyParentId(n)).toBeNull();
+  });
+});
+
+describe('isKind1Comment', () => {
+  it('accepts kind:1111 whose root kind is 1', () => {
+    expect(
+      isKind1Comment(
+        note({
+          kind: 1111,
+          tags: [
+            ['K', '1'],
+            ['k', '1']
+          ]
+        })
+      )
+    ).toBe(true);
+  });
+
+  it('accepts replies to comments within a kind:1 thread', () => {
+    expect(
+      isKind1Comment(
+        note({
+          kind: 1111,
+          tags: [
+            ['K', '1'],
+            ['k', '1111']
+          ]
+        })
+      )
+    ).toBe(true);
+  });
+
+  it('rejects kind:1111 rooted at other kinds or without K tag', () => {
+    expect(isKind1Comment(note({ kind: 1111, tags: [['K', '30023']] }))).toBe(false);
+    expect(isKind1Comment(note({ kind: 1111, tags: [['k', '1']] }))).toBe(false);
+  });
+
+  it('rejects non-1111 kinds', () => {
+    expect(isKind1Comment(note({ kind: 1, tags: [['K', '1']] }))).toBe(false);
   });
 });

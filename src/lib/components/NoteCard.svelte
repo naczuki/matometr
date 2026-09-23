@@ -14,7 +14,7 @@
     resolveTagRefs,
     buildEmojiMap
   } from '$lib/utils/nostrContent';
-  import { shortNpubFromPubkey, resolveRepostTarget } from '$lib/utils/nostr';
+  import { shortNpubFromPubkey, resolveRepostTarget, isKind1Comment } from '$lib/utils/nostr';
   import { openReactions, type ReactionHandle } from '$lib/services/reactions';
   import { groupReactions } from '$lib/utils/reaction';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
@@ -135,7 +135,7 @@
       }, 10_000);
       return;
     }
-    if (n.kind === 1111) {
+    if (n.kind === 1111 && !isKind1Comment(n)) {
       loadError = true;
       return;
     }

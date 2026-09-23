@@ -1,7 +1,12 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { nip19 } from 'nostr-tools';
-  import { parseNostrInput, eventIdFromNevent, resolveRepostTarget } from '$lib/utils/nostr';
+  import {
+    parseNostrInput,
+    eventIdFromNevent,
+    resolveRepostTarget,
+    isKind1Comment
+  } from '$lib/utils/nostr';
   import { fetchNoteById } from '$lib/services/NostrClient';
   import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
   import FollowingFeedTab from '$lib/components/FollowingFeedTab.svelte';
@@ -117,7 +122,7 @@
           pasteLoading = false;
           return;
         }
-        if (note.kind === 1111) {
+        if (note.kind === 1111 && !isKind1Comment(note)) {
           pasteError = 'この種類のイベント（コメント）はまとめに追加できません';
           pasteLoading = false;
           return;
