@@ -145,7 +145,11 @@ export function fetchNotesFromAuthorsWithRelay(
   if (authors.length === 0) return EMPTY;
   const client = getClient();
   const { until, limit = 30, relays } = options;
-  const f = until ? { kinds: [1], authors, limit, until } : { kinds: [1], authors, limit };
+  // kind:1 への返信を kind:1111 で出すクライアントがあるため併せて取得する。
+  // kind:1 起点かどうかは取得後に呼び出し側で判定する（isEmbeddableNote）。
+  const f = until
+    ? { kinds: [1, 1111], authors, limit, until }
+    : { kinds: [1, 1111], authors, limit };
   const rxReq = createRxOneshotReq({ filters: f });
   const useOpts =
     relays && relays.length > 0 ? { on: { relays, defaultReadRelays: false } } : undefined;
@@ -281,10 +285,13 @@ export function fetchTagSearchOneRelay(
   if (!keyword) return EMPTY;
   const client = getClient();
   const { until, limit = 30 } = options;
+  // kind:1111 は kind:1 への返信として出すクライアントがあるため併せて取得する
+  // （kind:1 起点かどうかは呼び出し側で判定）。
+  const kinds = [1, 1111];
   const f =
     mode === 'tag'
-      ? { kinds: [1], '#t': [keyword], limit, ...(until != null ? { until } : {}) }
-      : { kinds: [1], search: keyword, limit, ...(until != null ? { until } : {}) };
+      ? { kinds, '#t': [keyword], limit, ...(until != null ? { until } : {}) }
+      : { kinds, search: keyword, limit, ...(until != null ? { until } : {}) };
   const rxReq = createRxOneshotReq({ filters: f });
   return client
     .use(rxReq, { on: { relays: [relay], defaultReadRelays: false } })

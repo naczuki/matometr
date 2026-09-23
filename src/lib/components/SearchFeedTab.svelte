@@ -7,7 +7,7 @@
   import { DEFAULT_RELAYS, SEARCH_RELAYS } from '$lib/stores/relays';
   import NotePreview from '$lib/components/NotePreview.svelte';
   import FeedList from '$lib/components/FeedList.svelte';
-  import { neventFor } from '$lib/utils/nostr';
+  import { neventFor, isEmbeddableNote } from '$lib/utils/nostr';
 
   export let selectedIds: Set<string>;
   export let onToggle: (eventId: string, nevent: string) => void;
@@ -25,7 +25,10 @@
   const BATCH_SIZE = 30;
   const MAX_INNER_ITERATIONS = 10;
 
+  // 候補として表示する投稿（収録条件を満たすもののみ）。
   const noteById = new Map<string, Note>();
+  // ページング判定用に、条件外も含めて受信済みの id を覚えておく。
+  const seenIds = new Set<string>();
   // 各取得ソース = (mode, relay)。タグ検索は通常リレー、全文検索は検索リレーに対して行う。
   // ソースごとに独立した until カーソルを持ち、watermark 方式でページングする。これにより
   // 1 つのリレー／検索方式に引っ張られて期間がごっそり抜ける問題を防ぐ。
@@ -76,7 +79,7 @@
     const key = sid(s);
     const cursor = cursors.get(key);
     // until は包含なので、境界（前ページ最古と同じ秒）のイベントを取りこぼさないよう
-    // cursor をそのまま使う。重複は noteById と newCount で吸収する。
+    // cursor をそのまま使う。重複は seenIds と newCount で吸収する。
     const until = cursor;
     return new Promise((resolve) => {
       const got: Note[] = [];
@@ -89,8 +92,9 @@
         .pipe(finalize(resolve))
         .subscribe({
           next: ({ note }) => {
-            if (!noteById.has(note.id)) newCount++;
-            noteById.set(note.id, note);
+            if (!seenIds.has(note.id)) newCount++;
+            seenIds.add(note.id);
+            if (isEmbeddableNote(note)) noteById.set(note.id, note);
             got.push(note);
           },
           complete: () => settlePage(key, cursor, got, newCount, false),
@@ -158,6 +162,7 @@
     hasSearched = true;
     reachedEnd = false;
     noteById.clear();
+    seenIds.clear();
     notes = [];
     cursors.clear();
     exhausted.clear();

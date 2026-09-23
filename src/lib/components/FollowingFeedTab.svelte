@@ -12,7 +12,7 @@
   import NotePreview from '$lib/components/NotePreview.svelte';
   import FeedList from '$lib/components/FeedList.svelte';
   import { collectObservable } from '$lib/utils/rxCollect';
-  import { neventFor } from '$lib/utils/nostr';
+  import { neventFor, isEmbeddableNote } from '$lib/utils/nostr';
 
   export let selectedIds: Set<string>;
   export let onToggle: (eventId: string, nevent: string) => void;
@@ -27,7 +27,10 @@
   let reachedEnd = false;
   let subs: Subscription[] = [];
 
+  // 候補として表示する投稿（収録条件を満たすもののみ）。
   const noteById = new Map<string, Note>();
+  // ページング判定用に、条件外も含めて受信済みの id を覚えておく。
+  const seenIds = new Set<string>();
   const cursors = new Map<string, number>();
   const exhaustedRelays = new Set<string>();
 
@@ -89,7 +92,7 @@
   function fetchOne(relay: string): Promise<void> {
     const cursor = cursors.get(relay);
     // until は包含なので、境界（前ページ最古と同じ秒）のイベントを取りこぼさないよう
-    // cursor をそのまま使う。重複は noteById と newCount で吸収する。
+    // cursor をそのまま使う。重複は seenIds と newCount で吸収する。
     const until = cursor;
     return new Promise((resolve) => {
       const events: Note[] = [];
@@ -100,8 +103,9 @@
         relays: [relay]
       }).subscribe({
         next: ({ note }) => {
-          if (!noteById.has(note.id)) newCount++;
-          noteById.set(note.id, note);
+          if (!seenIds.has(note.id)) newCount++;
+          seenIds.add(note.id);
+          if (isEmbeddableNote(note)) noteById.set(note.id, note);
           events.push(note);
         },
         complete: () => {
@@ -135,7 +139,8 @@
           relays: [relay]
         }).subscribe({
           next: ({ note, relay: from }) => {
-            noteById.set(note.id, note);
+            seenIds.add(note.id);
+            if (isEmbeddableNote(note)) noteById.set(note.id, note);
             const normalized = normalizeRelay(from);
             if (!byRelay.has(normalized)) byRelay.set(normalized, []);
             byRelay.get(normalized)!.push(note);
