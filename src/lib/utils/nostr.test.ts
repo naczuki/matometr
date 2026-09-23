@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveReplyParentId, isKind1Comment } from './nostr';
+import { resolveReplyParentId, isKind1Comment, isEmbeddableNote } from './nostr';
 import type { Note } from '$lib/types';
 
 const ID_A = 'a'.repeat(64);
@@ -121,5 +121,19 @@ describe('isKind1Comment', () => {
 
   it('rejects non-1111 kinds', () => {
     expect(isKind1Comment(note({ kind: 1, tags: [['K', '1']] }))).toBe(false);
+  });
+});
+
+describe('isEmbeddableNote', () => {
+  it('accepts kind:1 and kind:1111 rooted at kind:1', () => {
+    expect(isEmbeddableNote(note({ kind: 1 }))).toBe(true);
+    expect(isEmbeddableNote(note({ kind: 1111, tags: [['K', '1']] }))).toBe(true);
+  });
+
+  it('rejects other kinds', () => {
+    for (const kind of [6, 16, 20, 30023]) {
+      expect(isEmbeddableNote(note({ kind }))).toBe(false);
+    }
+    expect(isEmbeddableNote(note({ kind: 1111, tags: [['K', '30023']] }))).toBe(false);
   });
 });

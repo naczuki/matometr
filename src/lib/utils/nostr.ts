@@ -28,6 +28,14 @@ export function isKind1Comment(note: Note): boolean {
 }
 
 /**
+ * まとめに収録できる投稿か。kind:1 と、kind:1 を起点とする kind:1111 のみ。
+ * 追加モーダルの候補一覧・ID 貼り付けはこの条件で絞り込む。
+ */
+export function isEmbeddableNote(note: Note): boolean {
+  return note.kind === 1 || isKind1Comment(note);
+}
+
+/**
  * 返信先（親）イベント id を解決する。
  * - kind:1 は NIP-10：`reply` マーカー優先 → `root` マーカー → マーカー無し旧式は末尾 `e` タグ。
  *   （nostter / lumilumi と同じ規約）

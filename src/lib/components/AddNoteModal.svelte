@@ -5,9 +5,9 @@
     parseNostrInput,
     eventIdFromNevent,
     resolveRepostTarget,
-    isKind1Comment
+    isEmbeddableNote
   } from '$lib/utils/nostr';
-  import { fetchNoteById } from '$lib/services/NostrClient';
+  import { fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
   import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
   import FollowingFeedTab from '$lib/components/FollowingFeedTab.svelte';
   import FavoritesFeedTab from '$lib/components/FavoritesFeedTab.svelte';
@@ -54,12 +54,47 @@
     else pending = [...pending, { eventId, nevent }];
   }
 
-  function parsePasteInput(raw: string): { eventId: string; nevent: string } | null {
+  function parsePasteInput(
+    raw: string
+  ): { eventId: string; nevent: string; relays: string[] | undefined } | null {
     const nevent = parseNostrInput(raw);
     if (!nevent) return null;
     const eventId = eventIdFromNevent(nevent);
     if (!eventId) return null;
-    return { eventId, nevent };
+    let relays: string[] | undefined;
+    try {
+      const decoded = nip19.decode(nevent.replace('nostr:', ''));
+      if (decoded.type === 'nevent') relays = decoded.data.relays;
+    } catch {
+      /* eventIdFromNevent で検証済み */
+    }
+    return { eventId, nevent, relays };
+  }
+
+  // nevent のリレーヒントも使って 1 件取得する。見つからなければ null。
+  function fetchNoteOnce(
+    eventId: string,
+    relays: string[] | undefined
+  ): Promise<import('$lib/types').Note | null> {
+    return new Promise((resolve) => {
+      let done = false;
+      let sub: { unsubscribe(): void } | undefined;
+      const finish = (n: import('$lib/types').Note | null): void => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        sub?.unsubscribe();
+        resolve(n);
+      };
+      const timer = setTimeout(() => finish(null), 8_000);
+      sub = fetchNoteByIdWithRelay(eventId, relays).subscribe({
+        next: ({ note }) => finish(note),
+        error: () => finish(null),
+        complete: () => finish(null)
+      });
+      // 同期的に値が届いた場合は subscribe 後に解除する。
+      if (done) sub.unsubscribe();
+    });
   }
 
   async function addPaste(): Promise<void> {
@@ -76,65 +111,39 @@
 
     pasteLoading = true;
     try {
-      const note = await new Promise<import('$lib/types').Note | null>((resolve) => {
-        let done = false;
-        const sub = fetchNoteById(parsed.eventId).subscribe({
-          next: (n) => {
-            if (!done) {
-              done = true;
-              sub.unsubscribe();
-              resolve(n);
-            }
-          },
-          error: () => {
-            if (!done) {
-              done = true;
-              resolve(null);
-            }
-          },
-          complete: () => {
-            if (!done) {
-              done = true;
-              resolve(null);
-            }
-          }
-        });
-        setTimeout(() => {
-          if (!done) {
-            done = true;
-            sub.unsubscribe();
-            resolve(null);
-          }
-        }, 8_000);
-      });
-
-      if (note) {
-        const repost = resolveRepostTarget(note);
-        if (repost) {
-          if (selectedIds.has(repost.eventId)) {
-            pasteError = '同じ投稿は既に追加されています';
-            pasteLoading = false;
-            return;
-          }
-          const nevent = `nostr:${nip19.neventEncode({ id: repost.eventId, relays: repost.relay ? [repost.relay] : [DEFAULT_RELAYS_JP[0]] })}`;
-          pending = [...pending, { eventId: repost.eventId, nevent }];
-          pasteInput = '';
-          pasteLoading = false;
-          return;
-        }
-        if (note.kind === 1111 && !isKind1Comment(note)) {
-          pasteError = 'この種類のイベント（コメント）はまとめに追加できません';
-          pasteLoading = false;
-          return;
-        }
+      // 種別を確認できない投稿は収録条件を満たすか分からないため追加しない。
+      let note = await fetchNoteOnce(parsed.eventId, parsed.relays);
+      if (!note) {
+        pasteError = '投稿を取得できませんでした';
+        return;
       }
-    } catch {
-      // fetch failed - add as-is
-    }
+      let entry: Pending = { eventId: parsed.eventId, nevent: parsed.nevent };
 
-    pending = [...pending, parsed];
-    pasteInput = '';
-    pasteLoading = false;
+      const repost = resolveRepostTarget(note);
+      if (repost) {
+        if (selectedIds.has(repost.eventId)) {
+          pasteError = '同じ投稿は既に追加されています';
+          return;
+        }
+        note = await fetchNoteOnce(repost.eventId, repost.relay ? [repost.relay] : undefined);
+        if (!note) {
+          pasteError = 'リポスト元の投稿を取得できませんでした';
+          return;
+        }
+        const nevent = `nostr:${nip19.neventEncode({ id: repost.eventId, relays: repost.relay ? [repost.relay] : [DEFAULT_RELAYS_JP[0]] })}`;
+        entry = { eventId: repost.eventId, nevent };
+      }
+
+      if (!isEmbeddableNote(note)) {
+        pasteError = 'この種類のイベントはまとめに追加できません';
+        return;
+      }
+
+      pending = [...pending, entry];
+      pasteInput = '';
+    } finally {
+      pasteLoading = false;
+    }
   }
 
   function removePending(eventId: string): void {
