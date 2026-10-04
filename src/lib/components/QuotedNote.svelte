@@ -11,7 +11,12 @@
     resolveTagRefs,
     buildEmojiMap
   } from '$lib/utils/nostrContent';
-  import { shortNpubFromPubkey, resolveRepostTarget, externalNoteUrl } from '$lib/utils/nostr';
+  import {
+    shortNpubFromPubkey,
+    resolveRepostTarget,
+    externalNoteUrl,
+    isKind1Comment
+  } from '$lib/utils/nostr';
   import { timeAgo } from '$lib/utils/time';
   import Avatar from '$lib/components/Avatar.svelte';
 
@@ -59,7 +64,7 @@
           }, 10_000);
           return;
         }
-        if (n.kind === 1111) {
+        if (n.kind === 1111 && !isKind1Comment(n)) {
           failed = true;
           if (timer) clearTimeout(timer);
           return;

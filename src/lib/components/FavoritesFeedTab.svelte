@@ -12,7 +12,7 @@
   import NotePreview from '$lib/components/NotePreview.svelte';
   import FeedList from '$lib/components/FeedList.svelte';
   import { collectObservable } from '$lib/utils/rxCollect';
-  import { neventFor } from '$lib/utils/nostr';
+  import { neventFor, isEmbeddableNote } from '$lib/utils/nostr';
 
   export let selectedIds: Set<string>;
   export let onToggle: (eventId: string, nevent: string) => void;
@@ -27,6 +27,8 @@
 
   const reactedAtMap = new Map<string, number>();
   const noteById = new Map<string, Note>();
+  // 収録条件を満たさず候補から外したイベント（再取得しないよう覚えておく）。
+  const excludedIds = new Set<string>();
   const cursors = new Map<string, number>();
   const exhaustedRelays = new Set<string>();
 
@@ -58,7 +60,7 @@
   function collectCandidatesAtOrAbove(T: number, displayedIds: Set<string>): Reaction[] {
     const out: Reaction[] = [];
     for (const [eventId, reactedAt] of reactedAtMap) {
-      if (displayedIds.has(eventId)) continue;
+      if (displayedIds.has(eventId) || excludedIds.has(eventId)) continue;
       if (reactedAt >= T) out.push({ eventId, reactedAt });
     }
     return out;
@@ -124,13 +126,17 @@
   }
 
   async function fetchNotesForNewIds(): Promise<void> {
-    const idsToFetch = [...reactedAtMap.keys()].filter((id) => !noteById.has(id));
+    const idsToFetch = [...reactedAtMap.keys()].filter(
+      (id) => !noteById.has(id) && !excludedIds.has(id)
+    );
     if (idsToFetch.length === 0) return;
 
     await new Promise<void>((resolve) => {
       const sub = fetchNotesByIds(idsToFetch, { relays: readRelays }).subscribe({
         next: (n) => {
-          noteById.set(n.id, n);
+          // リアクション先は任意の kind でありうるため、収録できるものだけ候補にする。
+          if (isEmbeddableNote(n)) noteById.set(n.id, n);
+          else excludedIds.add(n.id);
         },
         complete: () => resolve(),
         error: () => resolve()

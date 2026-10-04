@@ -19,12 +19,34 @@ export function resolveRepostTarget(note: Note): { eventId: string; relay: strin
 }
 
 /**
- * NIP-10 に基づき返信先（親）イベント id を解決する。
- * - kind:1 の `e` タグのみ対象（リポスト等は除外）。
- * - `reply` マーカー優先 → `root` マーカー → マーカー無し旧式は末尾 `e` タグ。
+ * kind:1 を起点とする NIP-22 コメント（kind:1111）か。
+ * 一部クライアントが kind:1 への返信を kind:1111 で出すため、これだけはまとめに収録できる。
+ * 判定はルートの種別（`K` タグ）で行い、スレッド内のコメントへの返信（`k`=1111）も含める。
+ */
+export function isKind1Comment(note: Note): boolean {
+  return note.kind === 1111 && note.tags.some((t) => t[0] === 'K' && t[1] === '1');
+}
+
+/**
+ * まとめに収録できる投稿か。kind:1 と、kind:1 を起点とする kind:1111 のみ。
+ * 追加モーダルの候補一覧・ID 貼り付けはこの条件で絞り込む。
+ */
+export function isEmbeddableNote(note: Note): boolean {
+  return note.kind === 1 || isKind1Comment(note);
+}
+
+/**
+ * 返信先（親）イベント id を解決する。
+ * - kind:1 は NIP-10：`reply` マーカー優先 → `root` マーカー → マーカー無し旧式は末尾 `e` タグ。
  *   （nostter / lumilumi と同じ規約）
+ * - kind:1 起点の kind:1111 は NIP-22：小文字 `e` タグが親。
+ * - それ以外（リポスト等）は対象外。
  */
 export function resolveReplyParentId(note: Note): string | null {
+  if (isKind1Comment(note)) {
+    const parent = note.tags.find((t) => t[0] === 'e' && t[1] && HEX_64.test(t[1]));
+    return parent ? parent[1] : null;
+  }
   if (note.kind !== 1) return null;
   const eTags = note.tags.filter((t) => t[0] === 'e' && t[1] && HEX_64.test(t[1]));
   if (eTags.length === 0) return null;
