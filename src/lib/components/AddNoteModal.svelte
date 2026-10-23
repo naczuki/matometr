@@ -5,10 +5,12 @@
     parseNostrInput,
     eventIdFromNevent,
     resolveRepostTarget,
-    isEmbeddableNote
+    isEmbeddableNote,
+    neventFor,
+    relaysFromNevent
   } from '$lib/utils/nostr';
+  import type { Note } from '$lib/types';
   import { fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
-  import { DEFAULT_RELAYS_JP } from '$lib/stores/relays';
   import FollowingFeedTab from '$lib/components/FollowingFeedTab.svelte';
   import FavoritesFeedTab from '$lib/components/FavoritesFeedTab.svelte';
   import SearchFeedTab from '$lib/components/SearchFeedTab.svelte';
@@ -54,9 +56,7 @@
     else pending = [...pending, { eventId, nevent }];
   }
 
-  function parsePasteInput(
-    raw: string
-  ): { eventId: string; nevent: string; relays: string[] | undefined } | null {
+  function parsePasteInput(raw: string): { eventId: string; relays: string[] | undefined } | null {
     const nevent = parseNostrInput(raw);
     if (!nevent) return null;
     const eventId = eventIdFromNevent(nevent);
@@ -68,18 +68,19 @@
     } catch {
       /* eventIdFromNevent で検証済み */
     }
-    return { eventId, nevent, relays };
+    return { eventId, relays };
   }
 
   // nevent のリレーヒントも使って 1 件取得する。見つからなければ null。
+  // 受け取ったリレーは、追加する nevent のリレーヒントに使う。
   function fetchNoteOnce(
     eventId: string,
     relays: string[] | undefined
-  ): Promise<import('$lib/types').Note | null> {
+  ): Promise<{ note: Note; relay: string } | null> {
     return new Promise((resolve) => {
       let done = false;
       let sub: { unsubscribe(): void } | undefined;
-      const finish = (n: import('$lib/types').Note | null): void => {
+      const finish = (n: { note: Note; relay: string } | null): void => {
         if (done) return;
         done = true;
         clearTimeout(timer);
@@ -88,7 +89,7 @@
       };
       const timer = setTimeout(() => finish(null), 8_000);
       sub = fetchNoteByIdWithRelay(eventId, relays).subscribe({
-        next: ({ note }) => finish(note),
+        next: (got) => finish(got),
         error: () => finish(null),
         complete: () => finish(null)
       });
@@ -112,12 +113,13 @@
     pasteLoading = true;
     try {
       // 種別を確認できない投稿は収録条件を満たすか分からないため追加しない。
-      let note = await fetchNoteOnce(parsed.eventId, parsed.relays);
-      if (!note) {
+      let fetched = await fetchNoteOnce(parsed.eventId, parsed.relays);
+      if (!fetched) {
         pasteError = '投稿を取得できませんでした';
         return;
       }
-      let entry: Pending = { eventId: parsed.eventId, nevent: parsed.nevent };
+      let note = fetched.note;
+      let entry: Pending = { eventId: parsed.eventId, nevent: neventFor(note, [fetched.relay]) };
 
       const repost = resolveRepostTarget(note);
       if (repost) {
@@ -125,13 +127,13 @@
           pasteError = '同じ投稿は既に追加されています';
           return;
         }
-        note = await fetchNoteOnce(repost.eventId, repost.relay ? [repost.relay] : undefined);
-        if (!note) {
+        fetched = await fetchNoteOnce(repost.eventId, repost.relay ? [repost.relay] : undefined);
+        if (!fetched) {
           pasteError = 'リポスト元の投稿を取得できませんでした';
           return;
         }
-        const nevent = `nostr:${nip19.neventEncode({ id: repost.eventId, relays: repost.relay ? [repost.relay] : [DEFAULT_RELAYS_JP[0]] })}`;
-        entry = { eventId: repost.eventId, nevent };
+        note = fetched.note;
+        entry = { eventId: repost.eventId, nevent: neventFor(note, [fetched.relay]) };
       }
 
       if (!isEmbeddableNote(note)) {
@@ -249,7 +251,11 @@
           <div class="pending-list">
             {#each pending as item (item.eventId)}
               <div class="pending-card">
-                <QuotedNote eventId={item.eventId} bare={true} />
+                <QuotedNote
+                  eventId={item.eventId}
+                  relays={relaysFromNevent(item.nevent)}
+                  bare={true}
+                />
                 <button
                   class="pending-remove"
                   on:click={() => removePending(item.eventId)}

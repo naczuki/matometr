@@ -29,6 +29,10 @@
   const noteById = new Map<string, Note>();
   // ページング判定用に、条件外も含めて受信済みの id を覚えておく。
   const seenIds = new Set<string>();
+  // 投稿を実際に受け取ったリレー（追加時の nevent のリレーヒントに使う）。全文検索用リレーは
+  // id 指定の REQ に応じないもの（search.nos.today など）があるため、タグ検索で受け取った
+  // 通常リレーだけを記録する。
+  const relayById = new Map<string, string>();
   // 各取得ソース = (mode, relay)。タグ検索は通常リレー、全文検索は検索リレーに対して行う。
   // ソースごとに独立した until カーソルを持ち、watermark 方式でページングする。これにより
   // 1 つのリレー／検索方式に引っ張られて期間がごっそり抜ける問題を防ぐ。
@@ -91,10 +95,11 @@
         // 再検索時の unsubscribe でも必ず resolve し、待ち中の loadMore を固まらせない
         .pipe(finalize(resolve))
         .subscribe({
-          next: ({ note }) => {
+          next: ({ note, relay: from }) => {
             if (!seenIds.has(note.id)) newCount++;
             seenIds.add(note.id);
             if (isEmbeddableNote(note)) noteById.set(note.id, note);
+            if (s.mode === 'tag' && !relayById.has(note.id)) relayById.set(note.id, from);
             got.push(note);
           },
           complete: () => settlePage(key, cursor, got, newCount, false),
@@ -163,6 +168,7 @@
     reachedEnd = false;
     noteById.clear();
     seenIds.clear();
+    relayById.clear();
     notes = [];
     cursors.clear();
     exhausted.clear();
@@ -223,7 +229,8 @@
   onDestroy(() => subs.forEach((s) => s.unsubscribe()));
 
   function handleClick(note: Note): void {
-    onToggle(note.id, neventFor(note));
+    const relay = relayById.get(note.id);
+    onToggle(note.id, neventFor(note, relay ? [relay] : []));
   }
 </script>
 

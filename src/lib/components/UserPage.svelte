@@ -366,7 +366,7 @@
                     >@{mp?.displayName ?? mp?.name ?? seg.pubkey.slice(0, 8) + '…'}</a
                   >
                 {:else if seg.type === 'quote'}
-                  <QuotedNote eventId={seg.eventId} />
+                  <QuotedNote eventId={seg.eventId} relays={seg.relays} />
                 {:else if seg.type === 'url'}
                   <a class="bio-url" href={seg.url} target="_blank" rel="noopener noreferrer"
                     >{seg.url}</a

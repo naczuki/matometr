@@ -1,12 +1,14 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { sortableAction } from '$lib/actions/sortable';
-  import { fetchNotesByIds } from '$lib/services/NostrClient';
+  import { fetchNotesByIds, fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
   import {
     parseNostrInput,
     eventIdFromNevent,
+    relaysFromNevent,
     resolveReplyParentId,
-    shortNpubFromPubkey
+    shortNpubFromPubkey,
+    neventFor
   } from '$lib/utils/nostr';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { renderInlineMarkdown } from '$lib/utils/markdown';
@@ -45,10 +47,21 @@
     .map((b) => eventIdFromNevent(b.nevent))
     .filter((id): id is string => id !== null);
 
+  // まとめ内ポストの nevent に付いたリレーヒント。既定リレーに無い投稿も取れるよう、
+  // メタ情報の取得では既定リレーと併せて問い合わせる。
+  function hintRelaysOfBlocks(): string[] {
+    const relays = new Set<string>();
+    for (const b of blocks) {
+      if (b.type !== 'nevent' || !b.nevent) continue;
+      for (const r of relaysFromNevent(b.nevent)) relays.add(r);
+    }
+    return [...relays];
+  }
+
   function fetchMeta(ids: string[]): void {
     const uncached = ids.filter((id) => !notesCache.has(id));
     if (uncached.length === 0) return;
-    fetchNotesByIds(uncached).subscribe({
+    fetchNotesByIds(uncached, { relays: hintRelaysOfBlocks() }).subscribe({
       next: (n) => notesCache.set(n.id, n),
       complete: () => {
         notesCache = new Map(notesCache);
@@ -217,7 +230,7 @@
       sortLoading = true;
       sortError = '';
       await new Promise<void>((resolve) => {
-        fetchNotesByIds(uncachedIds).subscribe({
+        fetchNotesByIds(uncachedIds, { relays: hintRelaysOfBlocks() }).subscribe({
           next: (n) => notesCache.set(n.id, n),
           complete: resolve,
           error: () => {
@@ -294,7 +307,22 @@
     const parsed = parseNostrInput(raw);
     if (parsed) {
       blocks = blocks.map((b) => (b.id === id ? { ...b, nevent: parsed } : b));
+      replaceHintWithFetchedRelay(id, parsed);
     }
+  }
+
+  // 貼り付けた nevent のリレーヒントを、実際に投稿を受け取ったリレーに置き換える。
+  // 取得できなければ貼り付けたままにする。
+  function replaceHintWithFetchedRelay(id: string, nevent: string): void {
+    const eventId = eventIdFromNevent(nevent);
+    if (!eventId) return;
+    fetchNoteByIdWithRelay(eventId, relaysFromNevent(nevent)).subscribe(({ note, relay }) => {
+      blocks = blocks.map((b) =>
+        b.id === id && b.type === 'nevent' && b.nevent === nevent
+          ? { ...b, nevent: neventFor(note, [relay]) }
+          : b
+      );
+    });
   }
 
   function clearNote(id: string): void {
@@ -405,7 +433,12 @@
                           shortNpubFromPubkey(rp.parentPubkey)}
                       </div>
                     {/if}
-                    <QuotedNote {eventId} showDate={true} bare={true} />
+                    <QuotedNote
+                      {eventId}
+                      relays={relaysFromNevent(block.nevent)}
+                      showDate={true}
+                      bare={true}
+                    />
                   {:else}
                     <p class="parse-error">この投稿は表示できません</p>
                   {/if}

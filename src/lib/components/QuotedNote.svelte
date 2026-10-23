@@ -3,7 +3,7 @@
   import { nip19 } from 'nostr-tools';
   import { base } from '$app/paths';
   import type { Note } from '$lib/types';
-  import { fetchNoteById } from '$lib/services/NostrClient';
+  import { fetchNoteWithHintFallback } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import {
     parseNostrRefs,
@@ -21,6 +21,8 @@
   import Avatar from '$lib/components/Avatar.svelte';
 
   export let eventId: string;
+  /** リレーヒント（nevent から）。既定リレーに無ければここに問い合わせる。 */
+  export let relays: string[] = [];
   export let showDate: boolean = false;
   /** 呼び出し側が既にカードを描いている場合に、入れ子の囲みを外して直接描く。 */
   export let bare: boolean = false;
@@ -30,27 +32,21 @@
 
   let repostSub: { unsubscribe(): void } | null = null;
   let resolvingRepost = false;
-  let repostTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // 既定リレー → リレーヒントの順に探す（段ごとに上限時間があり必ず complete する）。
   onMount(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const sub = fetchNoteById(eventId).subscribe({
-      next: (n) => {
+    const sub = fetchNoteWithHintFallback(eventId, relays).subscribe({
+      next: ({ note: n }) => {
         const repost = resolveRepostTarget(n);
         if (repost) {
           resolvingRepost = true;
-          if (timer) {
-            clearTimeout(timer);
-            timer = null;
-          }
-          repostSub = fetchNoteById(repost.eventId).subscribe({
-            next: (original) => {
+          repostSub = fetchNoteWithHintFallback(
+            repost.eventId,
+            repost.relay ? [repost.relay] : undefined
+          ).subscribe({
+            next: ({ note: original }) => {
               note = original;
               requestProfile(original.pubkey);
-              if (repostTimer) {
-                clearTimeout(repostTimer);
-                repostTimer = null;
-              }
             },
             error: () => {
               failed = true;
@@ -59,19 +55,14 @@
               if (!note) failed = true;
             }
           });
-          repostTimer = setTimeout(() => {
-            if (!note) failed = true;
-          }, 10_000);
           return;
         }
         if (n.kind === 1111 && !isKind1Comment(n)) {
           failed = true;
-          if (timer) clearTimeout(timer);
           return;
         }
         note = n;
         requestProfile(n.pubkey);
-        if (timer) clearTimeout(timer);
       },
       error: () => {
         failed = true;
@@ -80,14 +71,9 @@
         if (!note && !resolvingRepost) failed = true;
       }
     });
-    timer = setTimeout(() => {
-      if (!note && !resolvingRepost) failed = true;
-    }, 10_000);
     return () => {
       sub.unsubscribe();
       repostSub?.unsubscribe();
-      if (timer) clearTimeout(timer);
-      if (repostTimer) clearTimeout(repostTimer);
     };
   });
 

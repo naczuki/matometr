@@ -1,7 +1,9 @@
 import { nip19 } from 'nostr-tools';
 import { ulid } from 'ulid';
 import type { EditorBlock } from '$lib/types';
+import { collectObservable } from '$lib/utils/rxCollect';
 import { sendToRelays } from './nostrCore';
+import { fetchUserWriteRelays } from './nostrFetch';
 
 function splitTextToChunks(text: string): string[] {
   return text
@@ -119,6 +121,12 @@ const CLIENT_TAG = [
   'wss://yabu.me'
 ];
 
+// まとめの保存・編集・削除、ふぁぼ、告知投稿は、既定リレーに加えてユーザーの write リレー
+// （NIP-65）にも送る。kind:10002 が無い・取得できない場合は既定リレーだけになる。
+function userWriteRelays(pubkey: string): Promise<string[]> {
+  return collectObservable(fetchUserWriteRelays(pubkey), []);
+}
+
 export async function publishMatome(params: {
   title: string;
   summary: string;
@@ -129,22 +137,26 @@ export async function publishMatome(params: {
   const pubkey = await window.nostr.getPublicKey();
   const dTag = `matometr-${ulid()}`;
   const now = Math.floor(Date.now() / 1000);
+  const relays = await userWriteRelays(pubkey);
 
-  await sendToRelays({
-    kind: 30023 as const,
-    created_at: now,
-    tags: [
-      ['d', dTag],
-      ['title', params.title],
-      ['summary', params.summary],
-      ['published_at', String(now)],
-      ['t', 'matometr'],
-      CLIENT_TAG,
-      ...buildMentionTags(params.blocks),
-      ...buildLayoutTag(params.blocks)
-    ],
-    content: blocksToContent(params.blocks)
-  });
+  await sendToRelays(
+    {
+      kind: 30023 as const,
+      created_at: now,
+      tags: [
+        ['d', dTag],
+        ['title', params.title],
+        ['summary', params.summary],
+        ['published_at', String(now)],
+        ['t', 'matometr'],
+        CLIENT_TAG,
+        ...buildMentionTags(params.blocks),
+        ...buildLayoutTag(params.blocks)
+      ],
+      content: blocksToContent(params.blocks)
+    },
+    relays
+  );
 
   return nip19.naddrEncode({ kind: 30023, pubkey, identifier: dTag });
 }
@@ -160,22 +172,26 @@ export async function updateMatome(params: {
 
   const pubkey = await window.nostr.getPublicKey();
   const now = Math.floor(Date.now() / 1000);
+  const relays = await userWriteRelays(pubkey);
 
-  await sendToRelays({
-    kind: 30023 as const,
-    created_at: now,
-    tags: [
-      ['d', params.dTag],
-      ['title', params.title],
-      ['summary', params.summary],
-      ['published_at', String(params.publishedAt)],
-      ['t', 'matometr'],
-      CLIENT_TAG,
-      ...buildMentionTags(params.blocks),
-      ...buildLayoutTag(params.blocks)
-    ],
-    content: blocksToContent(params.blocks)
-  });
+  await sendToRelays(
+    {
+      kind: 30023 as const,
+      created_at: now,
+      tags: [
+        ['d', params.dTag],
+        ['title', params.title],
+        ['summary', params.summary],
+        ['published_at', String(params.publishedAt)],
+        ['t', 'matometr'],
+        CLIENT_TAG,
+        ...buildMentionTags(params.blocks),
+        ...buildLayoutTag(params.blocks)
+      ],
+      content: blocksToContent(params.blocks)
+    },
+    relays
+  );
 
   return nip19.naddrEncode({ kind: 30023, pubkey, identifier: params.dTag });
 }
@@ -183,16 +199,21 @@ export async function updateMatome(params: {
 export async function deleteMatome(eventId: string): Promise<void> {
   if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
 
+  const pubkey = await window.nostr.getPublicKey();
   const now = Math.floor(Date.now() / 1000);
-  await sendToRelays({
-    kind: 5,
-    created_at: now,
-    tags: [
-      ['e', eventId],
-      ['k', '30023']
-    ],
-    content: ''
-  });
+  const relays = await userWriteRelays(pubkey);
+  await sendToRelays(
+    {
+      kind: 5,
+      created_at: now,
+      tags: [
+        ['e', eventId],
+        ['k', '30023']
+      ],
+      content: ''
+    },
+    relays
+  );
 }
 
 export async function publishReaction(params: {
@@ -203,29 +224,39 @@ export async function publishReaction(params: {
 }): Promise<void> {
   if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
 
+  const pubkey = await window.nostr.getPublicKey();
   const now = Math.floor(Date.now() / 1000);
   const aTagValue = `${params.kind}:${params.eventPubkey}:${params.dTag}`;
-  await sendToRelays({
-    kind: 7,
-    created_at: now,
-    tags: [
-      ['e', params.eventId],
-      ['p', params.eventPubkey],
-      ['a', aTagValue],
-      ['k', String(params.kind)]
-    ],
-    content: '+'
-  });
+  const relays = await userWriteRelays(pubkey);
+  await sendToRelays(
+    {
+      kind: 7,
+      created_at: now,
+      tags: [
+        ['e', params.eventId],
+        ['p', params.eventPubkey],
+        ['a', aTagValue],
+        ['k', String(params.kind)]
+      ],
+      content: '+'
+    },
+    relays
+  );
 }
 
 export async function publishAnnouncement(content: string): Promise<void> {
   if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
+  const pubkey = await window.nostr.getPublicKey();
   const now = Math.floor(Date.now() / 1000);
   const tTags = extractHashtags(content).map((tag) => ['t', tag]);
-  await sendToRelays({
-    kind: 1,
-    created_at: now,
-    tags: [CLIENT_TAG, ...tTags],
-    content
-  });
+  const relays = await userWriteRelays(pubkey);
+  await sendToRelays(
+    {
+      kind: 1,
+      created_at: now,
+      tags: [CLIENT_TAG, ...tTags],
+      content
+    },
+    relays
+  );
 }

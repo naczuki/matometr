@@ -5,7 +5,7 @@
   import {
     fetchFavoriteReactionsWithRelay,
     fetchUserReadRelays,
-    fetchNotesByIds
+    fetchNotesByIdsWithRelay
   } from '$lib/services/NostrClient';
   import { currentUser } from '$lib/stores/auth';
   import { DEFAULT_RELAYS } from '$lib/stores/relays';
@@ -27,6 +27,8 @@
 
   const reactedAtMap = new Map<string, number>();
   const noteById = new Map<string, Note>();
+  // 投稿を実際に受け取ったリレー（追加時の nevent のリレーヒントに使う）。
+  const relayById = new Map<string, string>();
   // 収録条件を満たさず候補から外したイベント（再取得しないよう覚えておく）。
   const excludedIds = new Set<string>();
   const cursors = new Map<string, number>();
@@ -132,11 +134,13 @@
     if (idsToFetch.length === 0) return;
 
     await new Promise<void>((resolve) => {
-      const sub = fetchNotesByIds(idsToFetch, { relays: readRelays }).subscribe({
-        next: (n) => {
+      const sub = fetchNotesByIdsWithRelay(idsToFetch, { relays: readRelays }).subscribe({
+        next: ({ note: n, relay }) => {
           // リアクション先は任意の kind でありうるため、収録できるものだけ候補にする。
-          if (isEmbeddableNote(n)) noteById.set(n.id, n);
-          else excludedIds.add(n.id);
+          if (isEmbeddableNote(n)) {
+            noteById.set(n.id, n);
+            relayById.set(n.id, relay);
+          } else excludedIds.add(n.id);
         },
         complete: () => resolve(),
         error: () => resolve()
@@ -273,7 +277,8 @@
   }
 
   function handleClick(note: Note): void {
-    onToggle(note.id, neventFor(note, readRelays));
+    const relay = relayById.get(note.id);
+    onToggle(note.id, neventFor(note, relay ? [relay] : []));
   }
 </script>
 
