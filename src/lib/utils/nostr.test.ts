@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { nip19 } from 'nostr-tools';
-import { resolveReplyParentId, isKind1Comment, isEmbeddableNote, relaysFromNevent } from './nostr';
+import {
+  resolveReplyParentId,
+  resolveRepostTarget,
+  isKind1Comment,
+  isEmbeddableNote,
+  relaysFromNevent,
+  authorFromNevent
+} from './nostr';
 import type { Note } from '$lib/types';
 
 const ID_A = 'a'.repeat(64);
@@ -156,5 +163,47 @@ describe('relaysFromNevent', () => {
   it('returns an empty array for invalid input', () => {
     expect(relaysFromNevent('nostr:nevent1invalid')).toEqual([]);
     expect(relaysFromNevent('')).toEqual([]);
+  });
+});
+
+describe('authorFromNevent', () => {
+  it('returns the author of a nevent', () => {
+    const nevent = nip19.neventEncode({ id: ID_A, author: ID_B });
+    expect(authorFromNevent(`nostr:${nevent}`)).toBe(ID_B);
+  });
+
+  it('returns undefined when the nevent has no author', () => {
+    const nevent = nip19.neventEncode({ id: ID_A });
+    expect(authorFromNevent(`nostr:${nevent}`)).toBeUndefined();
+  });
+
+  it('returns undefined for invalid input', () => {
+    expect(authorFromNevent('nostr:nevent1invalid')).toBeUndefined();
+  });
+});
+
+describe('resolveRepostTarget', () => {
+  it('returns the reposted event with its relay hint and author', () => {
+    const n = note({
+      kind: 6,
+      tags: [
+        ['e', ID_A, 'wss://r.example/'],
+        ['p', ID_B]
+      ]
+    });
+    expect(resolveRepostTarget(n)).toEqual({
+      eventId: ID_A,
+      relay: 'wss://r.example/',
+      author: ID_B
+    });
+  });
+
+  it('leaves author undefined without a p tag', () => {
+    const n = note({ kind: 6, tags: [['e', ID_A]] });
+    expect(resolveRepostTarget(n)).toEqual({ eventId: ID_A, relay: '', author: undefined });
+  });
+
+  it('returns null for non-repost kinds', () => {
+    expect(resolveRepostTarget(note({ kind: 1, tags: [['e', ID_A]] }))).toBeNull();
   });
 });

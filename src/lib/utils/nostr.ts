@@ -4,18 +4,23 @@ import type { Note } from '$lib/types';
 
 const HEX_64 = /^[0-9a-f]{64}$/;
 
-export function resolveRepostTarget(note: Note): { eventId: string; relay: string } | null {
+// author はリポスト元の作者（p タグ、NIP-18）。無ければ undefined。
+export function resolveRepostTarget(
+  note: Note
+): { eventId: string; relay: string; author?: string } | null {
   if (note.kind !== 6 && note.kind !== 16) return null;
   let targetId = '';
   let relay = '';
+  let author: string | undefined;
   for (const tag of note.tags) {
     if (tag[0] === 'e' && tag[1] && HEX_64.test(tag[1])) {
       targetId = tag[1];
       relay = tag[2] ?? '';
     }
+    if (tag[0] === 'p' && !author && tag[1] && HEX_64.test(tag[1])) author = tag[1];
   }
   if (!targetId) return null;
-  return { eventId: targetId, relay };
+  return { eventId: targetId, relay, author };
 }
 
 /**
@@ -96,6 +101,19 @@ export function relaysFromNevent(neventStr: string): string[] {
     /* invalid */
   }
   return [];
+}
+
+/** nevent に含まれる作者の pubkey。無い・解釈できない場合は undefined。 */
+export function authorFromNevent(neventStr: string): string | undefined {
+  const m = neventStr.match(/nostr:(nevent1[a-z0-9]+)/);
+  if (!m) return undefined;
+  try {
+    const decoded = nip19.decode(m[1]);
+    if (decoded.type === 'nevent') return decoded.data.author;
+  } catch {
+    /* invalid */
+  }
+  return undefined;
 }
 
 export function shortNpubFromPubkey(pubkey: string): string {
