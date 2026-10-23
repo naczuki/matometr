@@ -241,7 +241,7 @@
   $: parsedContent = note
     ? extractImages(resolveTagRefs(note.content, note.tags))
     : { text: '', urls: [], videoUrls: [] };
-  $: segments = parseNostrRefs(parsedContent.text, emojiMap);
+  $: segments = parseNostrRefs(parsedContent.text, emojiMap, note?.tags ?? []);
 
   type ImetaInfo = { poster?: string; w?: number; h?: number };
 
@@ -433,7 +433,7 @@
                 )}</a
               >
             {:else if segment.type === 'quote'}
-              <QuotedNote eventId={segment.eventId} />
+              <QuotedNote eventId={segment.eventId} relays={segment.relays} />
             {:else if segment.type === 'naddr'}
               <a class="naddr-link" href="{base}/{segment.naddr}"
                 >nostr:{shortenNaddr(segment.naddr)}</a

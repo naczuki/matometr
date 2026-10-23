@@ -2,7 +2,8 @@ import { nip19 } from 'nostr-tools';
 
 export type TextSegment = { type: 'text'; content: string };
 export type MentionSegment = { type: 'mention'; pubkey: string };
-export type QuoteSegment = { type: 'quote'; eventId: string };
+// relays は引用先のリレーヒント（表示時、既定リレーに無ければここに問い合わせる）。
+export type QuoteSegment = { type: 'quote'; eventId: string; relays: string[] };
 export type NaddrSegment = { type: 'naddr'; naddr: string };
 export type UrlSegment = { type: 'url'; url: string };
 export type EmojiSegment = { type: 'emoji'; shortcode: string; url: string };
@@ -59,10 +60,11 @@ export function extractImages(content: string): {
 }
 
 const TAG_REF_RE = /#\[(\d+)\]/g;
+const RELAY_URL_RE = /^wss?:\/\//i;
 
 /**
  * NIP-08 廃止形式 #[N] をノート自身の tags[N] を使って展開する。
- * e タグ → nostr:nevent1…、p タグ → nostr:npub1…、それ以外 → 除去。
+ * e タグ → nostr:nevent1…（e タグのリレーヒント付き）、p タグ → nostr:npub1…、それ以外 → 除去。
  */
 export function resolveTagRefs(content: string, tags: string[][]): string {
   return content.replace(TAG_REF_RE, (_match, indexStr: string) => {
@@ -71,7 +73,8 @@ export function resolveTagRefs(content: string, tags: string[][]): string {
     if (!tag || tag.length < 2) return '';
     if (tag[0] === 'e' && tag[1]) {
       try {
-        return `nostr:${nip19.neventEncode({ id: tag[1] })}`;
+        const relays = tag[2] && RELAY_URL_RE.test(tag[2]) ? [tag[2]] : undefined;
+        return `nostr:${nip19.neventEncode({ id: tag[1], relays })}`;
       } catch {
         return '';
       }
@@ -91,7 +94,22 @@ export function resolveTagRefs(content: string, tags: string[][]): string {
 const CONTENT_RE =
   /nostr:(npub1[a-z0-9]+|nprofile1[a-z0-9]+|nevent1[a-z0-9]+|note1[a-z0-9]+|naddr1[a-z0-9]+)|(https?:\/\/[^\s<>"]+)|:([a-zA-Z0-9_]+):/gi;
 
-export function parseNostrRefs(text: string, emojiMap?: Map<string, string>): ContentSegment[] {
+// 引用のリレーヒント：nevent のヒントに、引用元の投稿の q タグ（NIP-18）のヒントを足す。
+function quoteRelays(eventId: string, neventRelays: string[], tags: string[][]): string[] {
+  const relays = [...neventRelays];
+  for (const [k, id, relay] of tags) {
+    if (k !== 'q' || id !== eventId || !relay || !RELAY_URL_RE.test(relay)) continue;
+    if (!relays.includes(relay)) relays.push(relay);
+  }
+  return relays;
+}
+
+/** tags には引用元の投稿のタグを渡す（引用のリレーヒントを q タグから補うため）。 */
+export function parseNostrRefs(
+  text: string,
+  emojiMap?: Map<string, string>,
+  tags: string[][] = []
+): ContentSegment[] {
   const segments: ContentSegment[] = [];
   let lastIndex = 0;
 
@@ -137,10 +155,18 @@ export function parseNostrRefs(text: string, emojiMap?: Map<string, string>): Co
           segments.push({ type: 'mention', pubkey: decoded.data.pubkey });
           break;
         case 'nevent':
-          segments.push({ type: 'quote', eventId: decoded.data.id });
+          segments.push({
+            type: 'quote',
+            eventId: decoded.data.id,
+            relays: quoteRelays(decoded.data.id, decoded.data.relays ?? [], tags)
+          });
           break;
         case 'note':
-          segments.push({ type: 'quote', eventId: decoded.data as string });
+          segments.push({
+            type: 'quote',
+            eventId: decoded.data as string,
+            relays: quoteRelays(decoded.data as string, [], tags)
+          });
           break;
         case 'naddr':
           segments.push({ type: 'naddr', naddr: encoded });
