@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { resolveReplyParentId, isKind1Comment, isEmbeddableNote } from './nostr';
+import { nip19 } from 'nostr-tools';
+import { resolveReplyParentId, isKind1Comment, isEmbeddableNote, relaysFromNevent } from './nostr';
 import type { Note } from '$lib/types';
 
 const ID_A = 'a'.repeat(64);
@@ -135,5 +136,25 @@ describe('isEmbeddableNote', () => {
       expect(isEmbeddableNote(note({ kind }))).toBe(false);
     }
     expect(isEmbeddableNote(note({ kind: 1111, tags: [['K', '30023']] }))).toBe(false);
+  });
+});
+
+describe('relaysFromNevent', () => {
+  it('returns relay hints of a nevent', () => {
+    const nevent = nip19.neventEncode({
+      id: ID_A,
+      relays: ['wss://a.example/', 'wss://b.example/']
+    });
+    expect(relaysFromNevent(`nostr:${nevent}`)).toEqual(['wss://a.example/', 'wss://b.example/']);
+  });
+
+  it('returns an empty array when the nevent has no hints', () => {
+    const nevent = nip19.neventEncode({ id: ID_A });
+    expect(relaysFromNevent(`nostr:${nevent}`)).toEqual([]);
+  });
+
+  it('returns an empty array for invalid input', () => {
+    expect(relaysFromNevent('nostr:nevent1invalid')).toEqual([]);
+    expect(relaysFromNevent('')).toEqual([]);
   });
 });

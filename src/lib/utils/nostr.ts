@@ -85,6 +85,19 @@ export function eventIdFromNevent(neventStr: string): string | null {
   return null;
 }
 
+/** nevent のリレーヒント。無い・解釈できない場合は空配列。 */
+export function relaysFromNevent(neventStr: string): string[] {
+  const m = neventStr.match(/nostr:(nevent1[a-z0-9]+)/);
+  if (!m) return [];
+  try {
+    const decoded = nip19.decode(m[1]);
+    if (decoded.type === 'nevent') return decoded.data.relays ?? [];
+  } catch {
+    /* invalid */
+  }
+  return [];
+}
+
 export function shortNpubFromPubkey(pubkey: string): string {
   if (!pubkey) return '…';
   try {

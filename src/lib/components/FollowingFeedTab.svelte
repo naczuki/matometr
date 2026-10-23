@@ -31,6 +31,8 @@
   const noteById = new Map<string, Note>();
   // ページング判定用に、条件外も含めて受信済みの id を覚えておく。
   const seenIds = new Set<string>();
+  // 投稿を実際に受け取ったリレー（追加時の nevent のリレーヒントに使う）。
+  const relayById = new Map<string, string>();
   const cursors = new Map<string, number>();
   const exhaustedRelays = new Set<string>();
 
@@ -102,10 +104,11 @@
         limit: BATCH_SIZE,
         relays: [relay]
       }).subscribe({
-        next: ({ note }) => {
+        next: ({ note, relay: from }) => {
           if (!seenIds.has(note.id)) newCount++;
           seenIds.add(note.id);
           if (isEmbeddableNote(note)) noteById.set(note.id, note);
+          if (!relayById.has(note.id)) relayById.set(note.id, from);
           events.push(note);
         },
         complete: () => {
@@ -141,6 +144,7 @@
           next: ({ note, relay: from }) => {
             seenIds.add(note.id);
             if (isEmbeddableNote(note)) noteById.set(note.id, note);
+            if (!relayById.has(note.id)) relayById.set(note.id, from);
             const normalized = normalizeRelay(from);
             if (!byRelay.has(normalized)) byRelay.set(normalized, []);
             byRelay.get(normalized)!.push(note);
@@ -263,7 +267,8 @@
   }
 
   function handleClick(note: Note): void {
-    onToggle(note.id, neventFor(note, readRelays));
+    const relay = relayById.get(note.id);
+    onToggle(note.id, neventFor(note, relay ? [relay] : []));
   }
 </script>
 

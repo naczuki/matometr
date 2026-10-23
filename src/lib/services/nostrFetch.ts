@@ -1,6 +1,6 @@
 import { createRxOneshotReq, uniq } from 'rx-nostr';
-import { EMPTY, merge, Observable, forkJoin, Subscription } from 'rxjs';
-import { map, filter, take, scan, distinctUntilChanged } from 'rxjs';
+import { EMPTY, merge, concat, timer, Observable, forkJoin, Subscription } from 'rxjs';
+import { map, filter, take, scan, distinctUntilChanged, takeUntil, defaultIfEmpty } from 'rxjs';
 import { nip19 } from 'nostr-tools';
 import type { AddressPointer } from 'nostr-tools/nip19';
 import { DEFAULT_RELAYS, SEARCH_RELAYS } from '$lib/stores/relays';
@@ -86,6 +86,67 @@ export function fetchNoteByIdWithRelay(
   );
 }
 
+// 表示用取得の 1 段あたりの上限。rx-nostr の eoseTimeout は他の購読のイベント受信でも
+// リセットされるため、応答しないリレーがあると段が閉じず次の段へ進めないことがある。
+const DISPLAY_STAGE_LIMIT_MS = 6_000;
+
+const sameRelay = (a: string, b: string): boolean =>
+  a.replace(/\/+$/, '') === b.replace(/\/+$/, '');
+
+/**
+ * 投稿の表示用取得。まず既定リレーで探し、見つからなければ nevent のリレーヒント
+ * （既定リレーと重なるものは除く）だけに問い合わせる。どこにも無ければ何も流さず complete する。
+ */
+export function fetchNoteWithHintFallback(
+  eventId: string,
+  hintRelays?: string[]
+): Observable<{ note: Note; relay: string }> {
+  const client = getClient();
+  const filters = { ids: [eventId], limit: 1 };
+  const hints = (hintRelays ?? []).filter((h) => !DEFAULT_RELAYS.some((d) => sameRelay(d, h)));
+
+  const fromDefaults = client
+    .use(createRxOneshotReq({ filters }))
+    .pipe(takeUntil(timer(DISPLAY_STAGE_LIMIT_MS)));
+  const fromHints =
+    hints.length > 0
+      ? client
+          .use(createRxOneshotReq({ filters }), {
+            on: { relays: hints, defaultReadRelays: false }
+          })
+          .pipe(takeUntil(timer(DISPLAY_STAGE_LIMIT_MS)))
+      : EMPTY;
+
+  // concat は前段が complete してから次段を購読するので、ヒントへの REQ は既定リレーで
+  // 見つからなかったときだけ飛ぶ。
+  return concat(fromDefaults, fromHints).pipe(
+    take(1),
+    map(({ event, from }) => ({ note: toNote(event), relay: from }))
+  );
+}
+
+/**
+ * 投稿に作者本人の削除要求（NIP-09 の kind:5）があるか。既定リレーとリレーヒントに問い合わせる。
+ * 作者以外の kind:5 は削除として扱わない。
+ */
+export function fetchHasDeletion(
+  eventId: string,
+  author: string,
+  hintRelays?: string[]
+): Observable<boolean> {
+  const client = getClient();
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [5], authors: [author], '#e': [eventId], limit: 1 }
+  });
+  return client.use(rxReq, withRelays(hintRelays)).pipe(
+    takeUntil(timer(DISPLAY_STAGE_LIMIT_MS)),
+    filter(({ event }) => event.pubkey === author),
+    take(1),
+    map(() => true),
+    defaultIfEmpty(false)
+  );
+}
+
 export function fetchFollowList(pubkey: string): Observable<string[]> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
@@ -103,23 +164,33 @@ export function fetchFollowList(pubkey: string): Observable<string[]> {
   );
 }
 
-export function fetchUserReadRelays(pubkey: string): Observable<string[]> {
+// NIP-65（kind:10002）の r タグから read / write 用のリレーを取り出す。マーカー無しは両用。
+function fetchUserRelays(pubkey: string, usage: 'read' | 'write'): Observable<string[]> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
     filters: { kinds: [10002], authors: [pubkey], limit: 1 }
   });
+  const other = usage === 'read' ? 'write' : 'read';
   return client.use(rxReq).pipe(
     latestByCreatedAt(),
     map(({ event }) => {
       const relays: string[] = [];
       for (const tag of event.tags) {
         if (tag[0] !== 'r' || !tag[1]) continue;
-        if (tag[2] === 'write') continue;
+        if (tag[2] === other) continue;
         relays.push(tag[1]);
       }
       return relays;
     })
   );
+}
+
+export function fetchUserReadRelays(pubkey: string): Observable<string[]> {
+  return fetchUserRelays(pubkey, 'read');
+}
+
+export function fetchUserWriteRelays(pubkey: string): Observable<string[]> {
+  return fetchUserRelays(pubkey, 'write');
 }
 
 export function fetchNotesFromAuthors(
@@ -223,6 +294,23 @@ export function fetchNotesByIds(
   return client.use(rxReq, withRelays(relays)).pipe(
     uniq(),
     map(({ event }) => toNote(event))
+  );
+}
+
+export function fetchNotesByIdsWithRelay(
+  ids: string[],
+  options: { relays?: string[] } = {}
+): Observable<{ note: Note; relay: string }> {
+  if (ids.length === 0) return EMPTY;
+  const client = getClient();
+  const { relays } = options;
+  const rxReq = createRxOneshotReq({
+    filters: { ids, limit: ids.length }
+  });
+
+  return client.use(rxReq, withRelays(relays)).pipe(
+    uniq(),
+    map(({ event, from }) => ({ note: toNote(event), relay: from }))
   );
 }
 

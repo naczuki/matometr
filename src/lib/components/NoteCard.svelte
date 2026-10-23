@@ -5,7 +5,7 @@
   import { pushState, replaceState } from '$app/navigation';
   import { page } from '$app/stores';
   import type { Note } from '$lib/types';
-  import { fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
+  import { fetchNoteWithHintFallback, fetchHasDeletion } from '$lib/services/NostrClient';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { formatAbsoluteTime } from '$lib/utils/time';
   import {
@@ -35,6 +35,8 @@
 
   let note: Note | null = null;
   let loadError = false;
+  // 取得できなかった投稿に、作者本人の削除要求（kind:5）が見つかったか。
+  let deleted = false;
   let fetchedFrom = '';
 
   let menuOpen = false;
@@ -45,7 +47,7 @@
   let removeDocListener: (() => void) | null = null;
 
   let repostSub: { unsubscribe(): void } | null = null;
-  let repostTimer: ReturnType<typeof setTimeout> | null = null;
+  let deletionSub: { unsubscribe(): void } | null = null;
   let destroyed = false;
 
   // リアクション/リポスト（タップ展開・lumilumi 式。開くまで購読しない）
@@ -109,7 +111,7 @@
   function handleFetchedNote(n: Note, relay: string): void {
     const repost = resolveRepostTarget(n);
     if (repost) {
-      repostSub = fetchNoteByIdWithRelay(
+      repostSub = fetchNoteWithHintFallback(
         repost.eventId,
         repost.relay ? [repost.relay] : undefined
       ).subscribe({
@@ -118,10 +120,6 @@
           note = original;
           fetchedFrom = r;
           requestProfile(original.pubkey);
-          if (repostTimer) {
-            clearTimeout(repostTimer);
-            repostTimer = null;
-          }
         },
         error: () => {
           if (!destroyed) loadError = true;
@@ -130,9 +128,6 @@
           if (!destroyed && !note) loadError = true;
         }
       });
-      repostTimer = setTimeout(() => {
-        if (!destroyed && !note) loadError = true;
-      }, 10_000);
       return;
     }
     if (n.kind === 1111 && !isKind1Comment(n)) {
@@ -148,11 +143,13 @@
     const str = nevent.replace('nostr:', '');
     let eventId: string;
     let hintRelays: string[] | undefined;
+    let author: string | undefined;
     try {
       const decoded = nip19.decode(str);
       if (decoded.type === 'nevent') {
         eventId = decoded.data.id;
         hintRelays = decoded.data.relays;
+        author = decoded.data.author;
       } else if (decoded.type === 'note') eventId = decoded.data;
       else {
         loadError = true;
@@ -163,23 +160,30 @@
       return;
     }
 
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const sub = fetchNoteByIdWithRelay(eventId, hintRelays).subscribe({
+    // 既定リレー → リレーヒントの順に探す。どこにも無ければ、作者本人の削除要求が
+    // あるかで「削除された」か「取得できなかった」かを出し分ける（作者不明なら後者）。
+    let found = false;
+    const sub = fetchNoteWithHintFallback(eventId, hintRelays).subscribe({
       next: ({ note: n, relay }) => {
+        found = true;
         noteFetched?.(n); // 生イベントを親に通知（NIP-10 解決用）
         handleFetchedNote(n, relay);
-        if (timer) {
-          clearTimeout(timer);
-          timer = null;
-        }
       },
       error: () => {
         loadError = true;
+      },
+      complete: () => {
+        if (found || destroyed) return;
+        if (!author) {
+          loadError = true;
+          return;
+        }
+        deletionSub = fetchHasDeletion(eventId, author, hintRelays).subscribe((has) => {
+          deleted = has;
+          loadError = true;
+        });
       }
     });
-    timer = setTimeout(() => {
-      if (!note) loadError = true;
-    }, 10_000);
 
     // 可視性監視（リアクション欄の画面外停止/復帰のトリガー）
     let io: IntersectionObserver | null = null;
@@ -197,10 +201,9 @@
       destroyed = true;
       sub.unsubscribe();
       repostSub?.unsubscribe();
+      deletionSub?.unsubscribe();
       stopReactions();
       io?.disconnect();
-      if (timer) clearTimeout(timer);
-      if (repostTimer) clearTimeout(repostTimer);
     };
   });
 
@@ -238,7 +241,7 @@
   $: parsedContent = note
     ? extractImages(resolveTagRefs(note.content, note.tags))
     : { text: '', urls: [], videoUrls: [] };
-  $: segments = parseNostrRefs(parsedContent.text, emojiMap);
+  $: segments = parseNostrRefs(parsedContent.text, emojiMap, note?.tags ?? []);
 
   type ImetaInfo = { poster?: string; w?: number; h?: number };
 
@@ -378,7 +381,9 @@
   {/if}
 
   {#if loadError}
-    <div class="load-error">この投稿は取得できませんでした</div>
+    <div class="load-error">
+      {deleted ? '削除された投稿です' : 'この投稿は取得できませんでした'}
+    </div>
   {:else if !note}
     <div class="load-placeholder">取得中…</div>
   {:else}
@@ -428,7 +433,7 @@
                 )}</a
               >
             {:else if segment.type === 'quote'}
-              <QuotedNote eventId={segment.eventId} />
+              <QuotedNote eventId={segment.eventId} relays={segment.relays} />
             {:else if segment.type === 'naddr'}
               <a class="naddr-link" href="{base}/{segment.naddr}"
                 >nostr:{shortenNaddr(segment.naddr)}</a
