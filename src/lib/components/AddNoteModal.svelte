@@ -6,7 +6,8 @@
     eventIdFromNevent,
     resolveRepostTarget,
     isEmbeddableNote,
-    neventFor
+    neventFor,
+    relaysFromNevent
   } from '$lib/utils/nostr';
   import type { Note } from '$lib/types';
   import { fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
@@ -250,7 +251,11 @@
           <div class="pending-list">
             {#each pending as item (item.eventId)}
               <div class="pending-card">
-                <QuotedNote eventId={item.eventId} bare={true} />
+                <QuotedNote
+                  eventId={item.eventId}
+                  relays={relaysFromNevent(item.nevent)}
+                  bare={true}
+                />
                 <button
                   class="pending-remove"
                   on:click={() => removePending(item.eventId)}

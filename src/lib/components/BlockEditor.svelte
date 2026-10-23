@@ -1,11 +1,11 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { nip19 } from 'nostr-tools';
   import { sortableAction } from '$lib/actions/sortable';
   import { fetchNotesByIds, fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
   import {
     parseNostrInput,
     eventIdFromNevent,
+    relaysFromNevent,
     resolveReplyParentId,
     shortNpubFromPubkey,
     neventFor
@@ -47,10 +47,21 @@
     .map((b) => eventIdFromNevent(b.nevent))
     .filter((id): id is string => id !== null);
 
+  // まとめ内ポストの nevent に付いたリレーヒント。既定リレーに無い投稿も取れるよう、
+  // メタ情報の取得では既定リレーと併せて問い合わせる。
+  function hintRelaysOfBlocks(): string[] {
+    const relays = new Set<string>();
+    for (const b of blocks) {
+      if (b.type !== 'nevent' || !b.nevent) continue;
+      for (const r of relaysFromNevent(b.nevent)) relays.add(r);
+    }
+    return [...relays];
+  }
+
   function fetchMeta(ids: string[]): void {
     const uncached = ids.filter((id) => !notesCache.has(id));
     if (uncached.length === 0) return;
-    fetchNotesByIds(uncached).subscribe({
+    fetchNotesByIds(uncached, { relays: hintRelaysOfBlocks() }).subscribe({
       next: (n) => notesCache.set(n.id, n),
       complete: () => {
         notesCache = new Map(notesCache);
@@ -219,7 +230,7 @@
       sortLoading = true;
       sortError = '';
       await new Promise<void>((resolve) => {
-        fetchNotesByIds(uncachedIds).subscribe({
+        fetchNotesByIds(uncachedIds, { relays: hintRelaysOfBlocks() }).subscribe({
           next: (n) => notesCache.set(n.id, n),
           complete: resolve,
           error: () => {
@@ -305,14 +316,7 @@
   function replaceHintWithFetchedRelay(id: string, nevent: string): void {
     const eventId = eventIdFromNevent(nevent);
     if (!eventId) return;
-    let hints: string[] | undefined;
-    try {
-      const decoded = nip19.decode(nevent.replace(/^nostr:/, ''));
-      if (decoded.type === 'nevent') hints = decoded.data.relays;
-    } catch {
-      /* eventIdFromNevent で検証済み */
-    }
-    fetchNoteByIdWithRelay(eventId, hints).subscribe(({ note, relay }) => {
+    fetchNoteByIdWithRelay(eventId, relaysFromNevent(nevent)).subscribe(({ note, relay }) => {
       blocks = blocks.map((b) =>
         b.id === id && b.type === 'nevent' && b.nevent === nevent
           ? { ...b, nevent: neventFor(note, [relay]) }
@@ -429,7 +433,12 @@
                           shortNpubFromPubkey(rp.parentPubkey)}
                       </div>
                     {/if}
-                    <QuotedNote {eventId} showDate={true} bare={true} />
+                    <QuotedNote
+                      {eventId}
+                      relays={relaysFromNevent(block.nevent)}
+                      showDate={true}
+                      bare={true}
+                    />
                   {:else}
                     <p class="parse-error">この投稿は表示できません</p>
                   {/if}
