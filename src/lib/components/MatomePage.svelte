@@ -770,15 +770,19 @@
         {#if block.type === 'heading'}
           <div class="block-heading">{block.content}</div>
         {:else if block.type === 'note'}
-          <NoteCard
-            nevent={block.nevent}
-            num={block.num}
-            total={matome.postCount}
-            anchorId={block.eventId ?? ''}
-            replyTo={block.eventId ? (replyByEventId.get(block.eventId) ?? null) : null}
-            indent={indentFlags[i] ?? false}
-            noteFetched={handleNoteFetched}
-          />
+          <!-- NoteCard は nevent を onMount でしか読まないため、新しい版のまとめが届いて
+               nevent（リレーヒント等）が変わったら作り直して取得し直す。 -->
+          {#key block.nevent}
+            <NoteCard
+              nevent={block.nevent}
+              num={block.num}
+              total={matome.postCount}
+              anchorId={block.eventId ?? ''}
+              replyTo={block.eventId ? (replyByEventId.get(block.eventId) ?? null) : null}
+              indent={indentFlags[i] ?? false}
+              noteFetched={handleNoteFetched}
+            />
+          {/key}
         {:else if block.type === 'naddr'}
           <NaddrCard ref={'nostr:' + block.naddr} />
         {:else if block.type === 'mention'}
@@ -804,7 +808,9 @@
             <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized via DOMPurify in parseMarkdownContent -->
             {@html seg.html}
           {:else if seg.type === 'nevent'}
-            <NoteCard nevent={seg.ref} />
+            {#key seg.ref}
+              <NoteCard nevent={seg.ref} />
+            {/key}
           {:else if seg.type === 'naddr'}
             <NaddrCard ref={seg.ref} />
           {/if}
