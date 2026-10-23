@@ -287,6 +287,23 @@ export function fetchNotesByIds(
   );
 }
 
+export function fetchNotesByIdsWithRelay(
+  ids: string[],
+  options: { relays?: string[] } = {}
+): Observable<{ note: Note; relay: string }> {
+  if (ids.length === 0) return EMPTY;
+  const client = getClient();
+  const { relays } = options;
+  const rxReq = createRxOneshotReq({
+    filters: { ids, limit: ids.length }
+  });
+
+  return client.use(rxReq, withRelays(relays)).pipe(
+    uniq(),
+    map(({ event, from }) => ({ note: toNote(event), relay: from }))
+  );
+}
+
 export function fetchTagSearch(
   keyword: string,
   options: { until?: number; limit?: number; since?: number } = {}

@@ -1,12 +1,14 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import { nip19 } from 'nostr-tools';
   import { sortableAction } from '$lib/actions/sortable';
-  import { fetchNotesByIds } from '$lib/services/NostrClient';
+  import { fetchNotesByIds, fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
   import {
     parseNostrInput,
     eventIdFromNevent,
     resolveReplyParentId,
-    shortNpubFromPubkey
+    shortNpubFromPubkey,
+    neventFor
   } from '$lib/utils/nostr';
   import { profiles, requestProfile } from '$lib/stores/profiles';
   import { renderInlineMarkdown } from '$lib/utils/markdown';
@@ -294,7 +296,29 @@
     const parsed = parseNostrInput(raw);
     if (parsed) {
       blocks = blocks.map((b) => (b.id === id ? { ...b, nevent: parsed } : b));
+      replaceHintWithFetchedRelay(id, parsed);
     }
+  }
+
+  // 貼り付けた nevent のリレーヒントを、実際に投稿を受け取ったリレーに置き換える。
+  // 取得できなければ貼り付けたままにする。
+  function replaceHintWithFetchedRelay(id: string, nevent: string): void {
+    const eventId = eventIdFromNevent(nevent);
+    if (!eventId) return;
+    let hints: string[] | undefined;
+    try {
+      const decoded = nip19.decode(nevent.replace(/^nostr:/, ''));
+      if (decoded.type === 'nevent') hints = decoded.data.relays;
+    } catch {
+      /* eventIdFromNevent で検証済み */
+    }
+    fetchNoteByIdWithRelay(eventId, hints).subscribe(({ note, relay }) => {
+      blocks = blocks.map((b) =>
+        b.id === id && b.type === 'nevent' && b.nevent === nevent
+          ? { ...b, nevent: neventFor(note, [relay]) }
+          : b
+      );
+    });
   }
 
   function clearNote(id: string): void {
