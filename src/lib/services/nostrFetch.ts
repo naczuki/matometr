@@ -164,23 +164,33 @@ export function fetchFollowList(pubkey: string): Observable<string[]> {
   );
 }
 
-export function fetchUserReadRelays(pubkey: string): Observable<string[]> {
+// NIP-65（kind:10002）の r タグから read / write 用のリレーを取り出す。マーカー無しは両用。
+function fetchUserRelays(pubkey: string, usage: 'read' | 'write'): Observable<string[]> {
   const client = getClient();
   const rxReq = createRxOneshotReq({
     filters: { kinds: [10002], authors: [pubkey], limit: 1 }
   });
+  const other = usage === 'read' ? 'write' : 'read';
   return client.use(rxReq).pipe(
     latestByCreatedAt(),
     map(({ event }) => {
       const relays: string[] = [];
       for (const tag of event.tags) {
         if (tag[0] !== 'r' || !tag[1]) continue;
-        if (tag[2] === 'write') continue;
+        if (tag[2] === other) continue;
         relays.push(tag[1]);
       }
       return relays;
     })
   );
+}
+
+export function fetchUserReadRelays(pubkey: string): Observable<string[]> {
+  return fetchUserRelays(pubkey, 'read');
+}
+
+export function fetchUserWriteRelays(pubkey: string): Observable<string[]> {
+  return fetchUserRelays(pubkey, 'write');
 }
 
 export function fetchNotesFromAuthors(
