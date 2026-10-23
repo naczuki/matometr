@@ -121,8 +121,8 @@ const CLIENT_TAG = [
   'wss://yabu.me'
 ];
 
-// まとめの保存・編集・削除では、既定リレーに加えてユーザーの write リレー（NIP-65）にも送る。
-// kind:10002 が無い・取得できない場合は既定リレーだけになる。
+// まとめの保存・編集・削除、ふぁぼ、告知投稿は、既定リレーに加えてユーザーの write リレー
+// （NIP-65）にも送る。kind:10002 が無い・取得できない場合は既定リレーだけになる。
 function userWriteRelays(pubkey: string): Promise<string[]> {
   return collectObservable(fetchUserWriteRelays(pubkey), []);
 }
@@ -224,29 +224,39 @@ export async function publishReaction(params: {
 }): Promise<void> {
   if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
 
+  const pubkey = await window.nostr.getPublicKey();
   const now = Math.floor(Date.now() / 1000);
   const aTagValue = `${params.kind}:${params.eventPubkey}:${params.dTag}`;
-  await sendToRelays({
-    kind: 7,
-    created_at: now,
-    tags: [
-      ['e', params.eventId],
-      ['p', params.eventPubkey],
-      ['a', aTagValue],
-      ['k', String(params.kind)]
-    ],
-    content: '+'
-  });
+  const relays = await userWriteRelays(pubkey);
+  await sendToRelays(
+    {
+      kind: 7,
+      created_at: now,
+      tags: [
+        ['e', params.eventId],
+        ['p', params.eventPubkey],
+        ['a', aTagValue],
+        ['k', String(params.kind)]
+      ],
+      content: '+'
+    },
+    relays
+  );
 }
 
 export async function publishAnnouncement(content: string): Promise<void> {
   if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
+  const pubkey = await window.nostr.getPublicKey();
   const now = Math.floor(Date.now() / 1000);
   const tTags = extractHashtags(content).map((tag) => ['t', tag]);
-  await sendToRelays({
-    kind: 1,
-    created_at: now,
-    tags: [CLIENT_TAG, ...tTags],
-    content
-  });
+  const relays = await userWriteRelays(pubkey);
+  await sendToRelays(
+    {
+      kind: 1,
+      created_at: now,
+      tags: [CLIENT_TAG, ...tTags],
+      content
+    },
+    relays
+  );
 }
