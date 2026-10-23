@@ -130,7 +130,7 @@ Nostrのキュレーションサイト。投稿を集めて、コメント・見
 | 見出し      | content内に `## `                                                           |
 | d-tag       | `matometr-{ULID}`                                                           |
 | clientタグ  | `["client", "matometr"]`（NIP-89）                                          |
-| 削除        | NIP-09（kind:5、`["e", id], ["k", "30023"]`）                               |
+| 削除        | NIP-09（kind:5、`["e", id], ["a", "30023:{pubkey}:{d}"], ["k", "30023"]`）  |
 
 ### コンテンツ記法（マークダウン）
 

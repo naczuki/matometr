@@ -10,12 +10,15 @@
   import BlockEditor from '$lib/components/BlockEditor.svelte';
   import AnnounceModal from '$lib/components/AnnounceModal.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import { matomeBlocksToEditorBlocks } from '$lib/utils/editorBlocks';
+  import type { Matome } from '$lib/entities/Matome';
   import type { EditorBlock } from '$lib/types';
 
   $: naddr = $page.params.naddr;
 
   let loading = true;
   let error = '';
+  let loaded: Matome | null = null;
   let title = '';
   let summary = '';
   let blocks: EditorBlock[] = [];
@@ -56,30 +59,13 @@
       const pointer = decoded.data as AddressPointer;
       const sub = fetchMatomeByAddress(pointer).subscribe({
         next: (m) => {
-          if (!m.isMatometr) {
-            error = 'このまとめはまとめたーで編集できません';
-            loading = false;
-            return;
-          }
-          if ($currentUser && m.pubkey !== $currentUser.pubkey) {
-            error = '自分のまとめのみ編集できます';
-            loading = false;
-            return;
-          }
+          // より新しい版が届けば差し替わる。編集可否は下の denyReason で判定する
+          loaded = m;
           title = m.title;
           summary = m.summary;
           origDTag = m.dTag;
           origPublishedAt = m.publishedAt;
-          const converted: EditorBlock[] = [];
-          for (const b of m.blocks) {
-            if (b.type === 'nevent')
-              converted.push({ id: crypto.randomUUID(), type: 'nevent', nevent: b.content });
-            else if (b.type === 'comment')
-              converted.push({ id: crypto.randomUUID(), type: 'comment', text: b.content });
-            else if (b.type === 'heading')
-              converted.push({ id: crypto.randomUUID(), type: 'heading', text: b.content });
-          }
-          blocks = converted;
+          blocks = matomeBlocksToEditorBlocks(m.blocks);
           initialSnapshot = computeSnapshot();
         },
         complete: () => {
@@ -97,6 +83,18 @@
       loading = false;
     }
   });
+
+  // ログイン状態は取得後に復元・切り替えされうるため、取得時の一度きりではなく
+  // $currentUser が変わるたびに判定し直す（取得後のログインで他人のまとめを開けていた）。
+  $: denyReason = !loaded
+    ? loading
+      ? ''
+      : 'まとめが見つかりませんでした'
+    : !loaded.isMatometrEditable
+      ? 'このまとめはまとめたーで編集できません'
+      : $currentUser && loaded.pubkey !== $currentUser.pubkey
+        ? '自分のまとめのみ編集できます'
+        : '';
 
   function handleBeforeUnload(e: BeforeUnloadEvent): string | void {
     if (checkDirty() && !publishing) {
@@ -192,9 +190,9 @@
   <div class="gate">
     <p class="gate-msg">読み込み中…</p>
   </div>
-{:else if error}
+{:else if error || denyReason}
   <div class="gate">
-    <p class="gate-msg">{error}</p>
+    <p class="gate-msg">{error || denyReason}</p>
     <a href="{base}/" class="btn-back">トップへ戻る</a>
   </div>
 {:else}

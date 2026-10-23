@@ -82,6 +82,7 @@
     loading = true;
     menuOpen = false;
     editMenuOpen = false;
+    kindTipOpen = false;
     showDeleteConfirm = false;
     showJson = false;
     faved = false;
@@ -249,8 +250,11 @@
   }
   $: indentFlags = buildIndentFlags(renderPlan, replyByEventId);
 
+  // まとめたー・nosli のまとめと判定できないものは長文記事（Markdown）として描画する
+  $: isLongForm = !!matome && !matome.isMatometr && !matome.isNosli;
+
   let mdSegments: ContentSegment[] = [];
-  $: if (matome && !matome.isMatometr && !matome.isNosli) {
+  $: if (matome && isLongForm) {
     mdSegments = parseMarkdownContent(matome.content);
   }
 
@@ -359,9 +363,18 @@
     editMenuOpen = !editMenuOpen;
   }
 
+  // 長文記事ラベルの「?」チップス。マウスオーバーは CSS、タップはこのフラグで開く
+  let kindTipOpen = false;
+
+  function handleKindTipToggle(e: MouseEvent): void {
+    e.stopPropagation();
+    kindTipOpen = !kindTipOpen;
+  }
+
   function handleDocClick(): void {
     menuOpen = false;
     editMenuOpen = false;
+    kindTipOpen = false;
   }
 
   async function copyNaddr(): Promise<void> {
@@ -404,7 +417,7 @@
     deleting = true;
     deleteError = '';
     try {
-      await deleteMatome(matome.id);
+      await deleteMatome({ eventId: matome.id, pubkey: matome.pubkey, dTag: matome.dTag });
       markDeleted(matome.id);
       await goto(`${base}/`);
     } catch (e) {
@@ -439,7 +452,7 @@
 <div class="wrap">
   <div class="nav-row">
     <a href="{base}/" class="back-btn">← まとめ一覧にもどる</a>
-    {#if matome && isMine && matome.isMatometr}
+    {#if matome && isMine && matome.isMatometrEditable}
       <div class="mgmt-btns">
         <a href="{base}/edit/{matome.naddr}" class="mgmt-btn mgmt-btn-edit">
           <svg
@@ -578,7 +591,37 @@
     </div>
   {:else}
     <div class="detail-header">
-      <div class="detail-title">{matome.title}</div>
+      <div class="detail-title">
+        {matome.title}
+        {#if isLongForm}
+          <span class="kind-label">
+            長文記事
+            <span class="kind-help" class:is-open={kindTipOpen}>
+              <button
+                type="button"
+                class="kind-help-btn"
+                aria-label="長文記事として表示している理由"
+                aria-expanded={kindTipOpen}
+                aria-describedby="kind-tip"
+                on:click={handleKindTipToggle}>?</button
+              >
+              <span id="kind-tip" class="kind-tip" role="tooltip">
+                <span class="kind-tip-lead"
+                  >まとめとして認識できないため、長文記事として表示しています。</span
+                >
+                <span class="kind-tip-item"
+                  >まとめと判定する t タグ（matometr / nosli）がありません</span
+                >
+                {#if !matome.dTag.startsWith('matometr-')}
+                  <span class="kind-tip-item"
+                    >d タグがまとめたーの形式（matometr-）ではありません</span
+                  >
+                {/if}
+              </span>
+            </span>
+          </span>
+        {/if}
+      </div>
 
       <div class="detail-count" title="ノート{matome.postCount}件">
         <svg
@@ -765,7 +808,7 @@
       </div>
     </div>
 
-    {#if matome.isMatometr || matome.isNosli}
+    {#if !isLongForm}
       {#each renderPlan as block, i}
         {#if block.type === 'heading'}
           <div class="block-heading">{block.content}</div>
@@ -1100,13 +1143,88 @@
     margin-bottom: 20px;
   }
 
+  /* app.css の太字対策 transform で .detail-title と後続の作者名がそれぞれ重なりの層を作るため、
+     z-index で一段上げて長文記事のチップスが作者名の下に潜らないようにする。 */
   .detail-title {
+    position: relative;
+    z-index: 1;
     font-family: var(--font-ui);
     font-size: 20px;
     font-weight: 800;
     color: var(--ink);
     line-height: 1.4;
     margin-bottom: 7px;
+  }
+
+  /* 長文記事ラベル。チップスは .detail-title 基準で配置し、狭い画面でもはみ出さない。 */
+  .kind-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 6px;
+    vertical-align: baseline;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink3);
+    white-space: nowrap;
+  }
+
+  .kind-help-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    border: 1.5px solid var(--ink3);
+    border-radius: 50%;
+    background: none;
+    color: var(--ink3);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+    cursor: help;
+  }
+
+  .kind-tip {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 50;
+    max-width: min(340px, 100%);
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-popover);
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.7;
+    color: var(--ink2);
+    white-space: normal;
+  }
+
+  .kind-help:hover .kind-tip,
+  .kind-help.is-open .kind-tip,
+  .kind-help-btn:focus-visible + .kind-tip {
+    display: block;
+  }
+
+  .kind-tip-lead,
+  .kind-tip-item {
+    display: block;
+  }
+
+  .kind-tip-item {
+    padding-left: 1em;
+    text-indent: -1em;
+  }
+
+  .kind-tip-item::before {
+    content: '・';
   }
 
   .detail-count {
