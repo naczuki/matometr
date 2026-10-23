@@ -73,6 +73,12 @@ export class Matome {
     return this.rawEvent.tags.some(([k, v]) => k === 't' && v === 'matometr');
   }
 
+  // 他クライアントでの上書きで t:matometr が外れても、まとめたーが採番した d タグなら
+  // まとめたーで編集できるようにする（保存し直すと t:matometr と matome_layout が付き直る）。
+  get isMatometrEditable(): boolean {
+    return this.isMatometr || this.dTag.startsWith('matometr-');
+  }
+
   get postCount(): number {
     return this.blocks.filter((b) => b.type === 'nevent').length;
   }

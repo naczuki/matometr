@@ -4,6 +4,7 @@ import type { NostrEvent } from 'nostr-tools';
 import { Matome } from './Matome';
 import type { EditorBlock } from '$lib/types';
 import { blocksToContent, buildLayoutTag } from '$lib/services/nostrPublish';
+import { matomeBlocksToEditorBlocks } from '$lib/utils/editorBlocks';
 
 // エディタのブロック列 → content + matome_layout タグ → Matome.fromEvent → ブロック列
 // のラウンドトリップを検証する。v1 レイアウトは種別を内容から推測していたため
@@ -106,5 +107,38 @@ describe('Matome レイアウトのラウンドトリップ', () => {
     const matome = Matome.fromEvent(event);
     expect(matome).not.toBeNull();
     expect(matome!.blocks.length).toBeGreaterThan(0);
+  });
+});
+
+// 他クライアントでの上書きで t:matometr や matome_layout が外れたまとめを、
+// 本人がまとめたーで編集し直して復旧できるようにするための判定と変換。
+describe('他クライアントで上書きされたまとめの救済', () => {
+  function overwritten(blocks: EditorBlock[], dTag: string): NostrEvent {
+    const event = makeEvent(blocks);
+    event.tags = [
+      ['d', dTag],
+      ['title', 'テストまとめ'],
+      ['client', 'other-client']
+    ];
+    return event;
+  }
+
+  it('まとめたーが採番した d タグなら t:matometr が無くても編集できる', () => {
+    const matome = Matome.fromEvent(overwritten([nb(neventStr)], 'matometr-01ABC'));
+    expect(matome!.isMatometr).toBe(false);
+    expect(matome!.isMatometrEditable).toBe(true);
+  });
+
+  it('d タグも t タグも無関係な長文記事は編集できない', () => {
+    const matome = Matome.fromEvent(overwritten([nb(neventStr)], 'my-article'));
+    expect(matome!.isMatometrEditable).toBe(false);
+  });
+
+  it('matome_layout が外れても編集画面への変換でコメントの本文が失われない', () => {
+    const blocks = [hb('見出し'), nb(neventStr), cb('一行目\n二行目'), cb('段落A\n\n段落B')];
+    const matome = Matome.fromEvent(overwritten(blocks, 'matometr-01ABC'));
+    const editor = matomeBlocksToEditorBlocks(matome!.blocks);
+    const texts = editor.map((b) => (b.type === 'nevent' ? b.nevent : b.text));
+    expect(texts).toEqual(['見出し', neventStr, '一行目', '二行目', '段落A', '段落B']);
   });
 });

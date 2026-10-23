@@ -404,7 +404,7 @@
     deleting = true;
     deleteError = '';
     try {
-      await deleteMatome(matome.id);
+      await deleteMatome({ eventId: matome.id, pubkey: matome.pubkey, dTag: matome.dTag });
       markDeleted(matome.id);
       await goto(`${base}/`);
     } catch (e) {
@@ -439,7 +439,7 @@
 <div class="wrap">
   <div class="nav-row">
     <a href="{base}/" class="back-btn">← まとめ一覧にもどる</a>
-    {#if matome && isMine && matome.isMatometr}
+    {#if matome && isMine && matome.isMatometrEditable}
       <div class="mgmt-btns">
         <a href="{base}/edit/{matome.naddr}" class="mgmt-btn mgmt-btn-edit">
           <svg

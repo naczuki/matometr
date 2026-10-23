@@ -10,7 +10,8 @@
   import BlockEditor from '$lib/components/BlockEditor.svelte';
   import AnnounceModal from '$lib/components/AnnounceModal.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
-  import type { EditorBlock, MatomeBlock } from '$lib/types';
+  import { matomeBlocksToEditorBlocks } from '$lib/utils/editorBlocks';
+  import type { EditorBlock } from '$lib/types';
 
   let title = '';
   let summary = '';
@@ -117,22 +118,6 @@
       allowNavigate = true;
       goto(target);
     }
-  }
-
-  function matomeBlocksToEditorBlocks(matomeBlocks: MatomeBlock[]): EditorBlock[] {
-    const result: EditorBlock[] = [];
-    for (const b of matomeBlocks) {
-      if (b.type === 'nevent') {
-        result.push({ id: crypto.randomUUID(), type: 'nevent', nevent: b.content });
-      } else if (b.type === 'comment') {
-        result.push({ id: crypto.randomUUID(), type: 'comment', text: b.content });
-      } else if (b.type === 'heading') {
-        result.push({ id: crypto.randomUUID(), type: 'heading', text: b.content });
-      } else if (b.type === 'paragraph' && b.content.trim()) {
-        result.push({ id: crypto.randomUUID(), type: 'comment', text: b.content });
-      }
-    }
-    return result;
   }
 
   async function handlePublish(): Promise<void> {

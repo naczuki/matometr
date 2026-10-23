@@ -180,15 +180,22 @@ export async function updateMatome(params: {
   return nip19.naddrEncode({ kind: 30023, pubkey, identifier: params.dTag });
 }
 
-export async function deleteMatome(eventId: string): Promise<void> {
+export async function deleteMatome(params: {
+  eventId: string;
+  pubkey: string;
+  dTag: string;
+}): Promise<void> {
   if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
 
   const now = Math.floor(Date.now() / 1000);
+  // e タグは指定した版しか消えず、古い版を持つリレーで復活しうる。
+  // a タグは NIP-09 で「その時点までの全バージョンを削除」と定められているので併記する。
   await sendToRelays({
     kind: 5,
     created_at: now,
     tags: [
-      ['e', eventId],
+      ['e', params.eventId],
+      ['a', `30023:${params.pubkey}:${params.dTag}`],
       ['k', '30023']
     ],
     content: ''
