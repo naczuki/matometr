@@ -610,7 +610,7 @@
                   >まとめとして認識できないため、長文記事として表示しています。</span
                 >
                 <span class="kind-tip-item"
-                  >まとめを示す t タグ（matometr / nosli）がありません</span
+                  >まとめと判定する t タグ（matometr / nosli）がありません</span
                 >
                 {#if !matome.dTag.startsWith('matometr-')}
                   <span class="kind-tip-item"
@@ -1156,7 +1156,7 @@
     align-items: center;
     gap: 4px;
     margin-left: 6px;
-    vertical-align: 3px;
+    vertical-align: baseline;
     font-size: 12px;
     font-weight: 700;
     color: var(--ink3);
