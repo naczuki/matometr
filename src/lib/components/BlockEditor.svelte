@@ -1,11 +1,13 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { sortableAction } from '$lib/actions/sortable';
-  import { fetchNotesByIds, fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
+  import { fetchNotesByIds, fetchNoteWithRelayListFallback } from '$lib/services/NostrClient';
+  import { currentUser } from '$lib/stores/auth';
   import {
     parseNostrInput,
     eventIdFromNevent,
     relaysFromNevent,
+    authorFromNevent,
     resolveReplyParentId,
     shortNpubFromPubkey,
     neventFor
@@ -312,11 +314,16 @@
   }
 
   // 貼り付けた nevent のリレーヒントを、実際に投稿を受け取ったリレーに置き換える。
+  // 既定リレー＋ヒントに無ければ、投稿の作者の write リレー → まとめ作成者の read リレーも探す。
   // 取得できなければ貼り付けたままにする。
   function replaceHintWithFetchedRelay(id: string, nevent: string): void {
     const eventId = eventIdFromNevent(nevent);
     if (!eventId) return;
-    fetchNoteByIdWithRelay(eventId, relaysFromNevent(nevent)).subscribe(({ note, relay }) => {
+    fetchNoteWithRelayListFallback(eventId, {
+      hintRelays: relaysFromNevent(nevent),
+      author: authorFromNevent(nevent),
+      reader: $currentUser?.pubkey
+    }).subscribe(({ note, relay }) => {
       blocks = blocks.map((b) =>
         b.id === id && b.type === 'nevent' && b.nevent === nevent
           ? { ...b, nevent: neventFor(note, [relay]) }

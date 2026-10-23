@@ -1,6 +1,16 @@
 import { createRxOneshotReq, uniq } from 'rx-nostr';
-import { EMPTY, merge, concat, timer, Observable, forkJoin, Subscription } from 'rxjs';
-import { map, filter, take, scan, distinctUntilChanged, takeUntil, defaultIfEmpty } from 'rxjs';
+import { EMPTY, merge, concat, defer, timer, Observable, forkJoin, Subscription } from 'rxjs';
+import {
+  map,
+  filter,
+  take,
+  scan,
+  reduce,
+  switchMap,
+  distinctUntilChanged,
+  takeUntil,
+  defaultIfEmpty
+} from 'rxjs';
 import { nip19 } from 'nostr-tools';
 import type { AddressPointer } from 'nostr-tools/nip19';
 import { DEFAULT_RELAYS, SEARCH_RELAYS } from '$lib/stores/relays';
@@ -60,38 +70,12 @@ export function fetchMatomeByAddress(pointer: AddressPointer): Observable<Matome
   );
 }
 
-export function fetchNoteById(eventId: string): Observable<Note> {
-  const client = getClient();
-  const rxReq = createRxOneshotReq({
-    filters: { ids: [eventId], limit: 1 }
-  });
-  return client.use(rxReq).pipe(
-    map(({ event }) => toNote(event)),
-    take(1)
-  );
-}
-
-export function fetchNoteByIdWithRelay(
-  eventId: string,
-  relays?: string[]
-): Observable<{ note: Note; relay: string }> {
-  const client = getClient();
-  const rxReq = createRxOneshotReq({
-    filters: { ids: [eventId], limit: 1 }
-  });
-  // nevent に埋め込まれたリレーヒントがあれば既定リレーに足す（無ければ既定のみ）
-  return client.use(rxReq, withRelays(relays)).pipe(
-    map(({ event, from }) => ({ note: toNote(event), relay: from })),
-    take(1)
-  );
-}
-
-// 表示用取得の 1 段あたりの上限。rx-nostr の eoseTimeout は他の購読のイベント受信でも
+// 段階取得の 1 段あたりの上限。rx-nostr の eoseTimeout は他の購読のイベント受信でも
 // リセットされるため、応答しないリレーがあると段が閉じず次の段へ進めないことがある。
-const DISPLAY_STAGE_LIMIT_MS = 6_000;
+const STAGE_LIMIT_MS = 6_000;
 
-const sameRelay = (a: string, b: string): boolean =>
-  a.replace(/\/+$/, '') === b.replace(/\/+$/, '');
+const relayKey = (url: string): string => url.replace(/\/+$/, '');
+const sameRelay = (a: string, b: string): boolean => relayKey(a) === relayKey(b);
 
 /**
  * 投稿の表示用取得。まず既定リレーで探し、見つからなければ nevent のリレーヒント
@@ -107,14 +91,14 @@ export function fetchNoteWithHintFallback(
 
   const fromDefaults = client
     .use(createRxOneshotReq({ filters }))
-    .pipe(takeUntil(timer(DISPLAY_STAGE_LIMIT_MS)));
+    .pipe(takeUntil(timer(STAGE_LIMIT_MS)));
   const fromHints =
     hints.length > 0
       ? client
           .use(createRxOneshotReq({ filters }), {
             on: { relays: hints, defaultReadRelays: false }
           })
-          .pipe(takeUntil(timer(DISPLAY_STAGE_LIMIT_MS)))
+          .pipe(takeUntil(timer(STAGE_LIMIT_MS)))
       : EMPTY;
 
   // concat は前段が complete してから次段を購読するので、ヒントへの REQ は既定リレーで
@@ -139,7 +123,7 @@ export function fetchHasDeletion(
     filters: { kinds: [5], authors: [author], '#e': [eventId], limit: 1 }
   });
   return client.use(rxReq, withRelays(hintRelays)).pipe(
-    takeUntil(timer(DISPLAY_STAGE_LIMIT_MS)),
+    takeUntil(timer(STAGE_LIMIT_MS)),
     filter(({ event }) => event.pubkey === author),
     take(1),
     map(() => true),
@@ -191,6 +175,53 @@ export function fetchUserReadRelays(pubkey: string): Observable<string[]> {
 
 export function fetchUserWriteRelays(pubkey: string): Observable<string[]> {
   return fetchUserRelays(pubkey, 'write');
+}
+
+/**
+ * ID 貼り付け用の取得。既定リレー＋リレーヒント → 投稿の作者の write リレー → まとめ作成者
+ * （reader）の read リレー の順に探す。後ろの段は前の段で見つからなかったときだけリレーリスト
+ * （NIP-65）を引き、まだ問い合わせていないリレーにだけ問い合わせる。どこにも無ければ何も流さず
+ * complete する。
+ */
+export function fetchNoteWithRelayListFallback(
+  eventId: string,
+  options: { hintRelays?: string[]; author?: string; reader?: string } = {}
+): Observable<{ note: Note; relay: string }> {
+  const { hintRelays = [], author, reader } = options;
+  return defer(() => {
+    const client = getClient();
+    const filters = { ids: [eventId], limit: 1 };
+    const asked = new Set([...DEFAULT_RELAYS, ...hintRelays].map(relayKey));
+
+    const fromRelayList = (pubkey: string | undefined, usage: 'read' | 'write') =>
+      pubkey
+        ? fetchUserRelays(pubkey, usage).pipe(
+            takeUntil(timer(STAGE_LIMIT_MS)),
+            reduce((_prev, relays) => relays, [] as string[]),
+            switchMap((relays) => {
+              const fresh = relays.filter((r) => !asked.has(relayKey(r)));
+              for (const r of fresh) asked.add(relayKey(r));
+              if (fresh.length === 0) return EMPTY;
+              return client
+                .use(createRxOneshotReq({ filters }), {
+                  on: { relays: fresh, defaultReadRelays: false }
+                })
+                .pipe(takeUntil(timer(STAGE_LIMIT_MS)));
+            })
+          )
+        : EMPTY;
+
+    return concat(
+      client
+        .use(createRxOneshotReq({ filters }), withRelays(hintRelays))
+        .pipe(takeUntil(timer(STAGE_LIMIT_MS))),
+      fromRelayList(author, 'write'),
+      fromRelayList(reader, 'read')
+    ).pipe(
+      take(1),
+      map(({ event, from }) => ({ note: toNote(event), relay: from }))
+    );
+  });
 }
 
 export function fetchNotesFromAuthors(

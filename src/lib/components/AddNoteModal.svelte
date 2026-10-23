@@ -10,7 +10,8 @@
     relaysFromNevent
   } from '$lib/utils/nostr';
   import type { Note } from '$lib/types';
-  import { fetchNoteByIdWithRelay } from '$lib/services/NostrClient';
+  import { fetchNoteWithRelayListFallback } from '$lib/services/NostrClient';
+  import { currentUser } from '$lib/stores/auth';
   import FollowingFeedTab from '$lib/components/FollowingFeedTab.svelte';
   import FavoritesFeedTab from '$lib/components/FavoritesFeedTab.svelte';
   import SearchFeedTab from '$lib/components/SearchFeedTab.svelte';
@@ -56,45 +57,46 @@
     else pending = [...pending, { eventId, nevent }];
   }
 
-  function parsePasteInput(raw: string): { eventId: string; relays: string[] | undefined } | null {
+  function parsePasteInput(
+    raw: string
+  ): { eventId: string; relays: string[] | undefined; author: string | undefined } | null {
     const nevent = parseNostrInput(raw);
     if (!nevent) return null;
     const eventId = eventIdFromNevent(nevent);
     if (!eventId) return null;
     let relays: string[] | undefined;
+    let author: string | undefined;
     try {
       const decoded = nip19.decode(nevent.replace('nostr:', ''));
-      if (decoded.type === 'nevent') relays = decoded.data.relays;
+      if (decoded.type === 'nevent') {
+        relays = decoded.data.relays;
+        author = decoded.data.author;
+      }
     } catch {
       /* eventIdFromNevent で検証済み */
     }
-    return { eventId, relays };
+    return { eventId, relays, author };
   }
 
-  // nevent のリレーヒントも使って 1 件取得する。見つからなければ null。
-  // 受け取ったリレーは、追加する nevent のリレーヒントに使う。
+  // 既定リレー＋リレーヒント → 投稿の作者の write リレー → まとめ作成者の read リレー の順に
+  // 探して 1 件取得する。見つからなければ null。受け取ったリレーは、追加する nevent の
+  // リレーヒントに使う。各段に上限時間があるので必ず完了する。
   function fetchNoteOnce(
     eventId: string,
-    relays: string[] | undefined
+    relays: string[] | undefined,
+    author: string | undefined
   ): Promise<{ note: Note; relay: string } | null> {
     return new Promise((resolve) => {
-      let done = false;
-      let sub: { unsubscribe(): void } | undefined;
-      const finish = (n: { note: Note; relay: string } | null): void => {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        sub?.unsubscribe();
-        resolve(n);
-      };
-      const timer = setTimeout(() => finish(null), 8_000);
-      sub = fetchNoteByIdWithRelay(eventId, relays).subscribe({
-        next: (got) => finish(got),
-        error: () => finish(null),
-        complete: () => finish(null)
+      let got: { note: Note; relay: string } | null = null;
+      fetchNoteWithRelayListFallback(eventId, {
+        hintRelays: relays,
+        author,
+        reader: $currentUser?.pubkey
+      }).subscribe({
+        next: (g) => (got = g),
+        error: () => resolve(null),
+        complete: () => resolve(got)
       });
-      // 同期的に値が届いた場合は subscribe 後に解除する。
-      if (done) sub.unsubscribe();
     });
   }
 
@@ -113,7 +115,7 @@
     pasteLoading = true;
     try {
       // 種別を確認できない投稿は収録条件を満たすか分からないため追加しない。
-      let fetched = await fetchNoteOnce(parsed.eventId, parsed.relays);
+      let fetched = await fetchNoteOnce(parsed.eventId, parsed.relays, parsed.author);
       if (!fetched) {
         pasteError = '投稿を取得できませんでした';
         return;
@@ -127,7 +129,11 @@
           pasteError = '同じ投稿は既に追加されています';
           return;
         }
-        fetched = await fetchNoteOnce(repost.eventId, repost.relay ? [repost.relay] : undefined);
+        fetched = await fetchNoteOnce(
+          repost.eventId,
+          repost.relay ? [repost.relay] : undefined,
+          repost.author
+        );
         if (!fetched) {
           pasteError = 'リポスト元の投稿を取得できませんでした';
           return;
