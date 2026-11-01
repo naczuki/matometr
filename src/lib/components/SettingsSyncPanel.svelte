@@ -13,13 +13,19 @@
   import { formatAbsoluteTime } from '$lib/utils/time';
 
   // 設定画面上部の「Nostr で同期」。保存はボタンで、読み込みはログイン時に自動＋ボタンで行う。
-  // 別の端末の保存とこの端末の未保存の変更が競合したら、どちらを使うか選んでもらう。
+  // 他の端末の保存とこの端末の未保存の変更が競合したら、どちらを使うか選んでもらう。
 
   $: pubkey = $currentUser?.pubkey ?? null;
   $: record = pubkey ? $settingsSyncRecords[pubkey] : undefined;
   $: unsaved = hasUnsavedChanges($localSettings, record);
   $: busy = $settingsSyncStatus.busy;
   $: conflict = $settingsSyncStatus.conflict;
+  // 競合時のボタンに出す保存日時。この端末は最後に設定を変えた時刻、他の端末は Nostr の created_at。
+  $: localSavedAt =
+    $localSettings.updatedAt > 0
+      ? formatAbsoluteTime(Math.floor($localSettings.updatedAt / 1000))
+      : '';
+  $: remoteSavedAt = conflict ? formatAbsoluteTime(conflict.remoteCreatedAt) : '';
   // 結果の表示は、その後に設定を変えたら消す（「保存しました」が未保存の変更と並ばないように）
   $: current = $settingsSyncStatus.at === $localSettings.updatedAt;
 
@@ -70,7 +76,7 @@
       {:else if busy === 'save'}
         Nostr に保存しています…
       {:else if conflict}
-        あとから別の端末で保存した設定があります。どちらを使いますか？
+        他の設定データがあります。どちらを使いますか？
       {:else if unsaved}
         この端末に、Nostr へ保存していない変更があります。
       {:else if record}
@@ -83,10 +89,10 @@
     <div class="sync-actions">
       {#if conflict}
         <button class="btn-save" disabled={busy !== null} on:click={handleUseLocal}>
-          この端末の設定を使う
+          この端末の設定{localSavedAt ? `（${localSavedAt} に保存）` : ''}
         </button>
         <button class="btn-load" disabled={busy !== null} on:click={handleUseRemote}>
-          別の端末の設定を使う
+          他の端末の設定（{remoteSavedAt} に保存）
         </button>
       {:else}
         <button class="btn-save" disabled={!unsaved || busy !== null} on:click={handleSave}>

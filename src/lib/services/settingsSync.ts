@@ -30,11 +30,11 @@ export interface SyncUiState {
   error: string;
   /** message / error を出したときの設定の updatedAt。その後に設定を変えたら表示しない */
   at: number;
-  /** 別の端末で保存した設定と、この端末の未保存の変更が競合している */
-  conflict: boolean;
+  /** 他の端末で保存した設定と、この端末の未保存の変更が競合している（null = 競合なし） */
+  conflict: { remoteCreatedAt: number } | null;
 }
 
-const IDLE: SyncUiState = { busy: null, message: '', error: '', at: 0, conflict: false };
+const IDLE: SyncUiState = { busy: null, message: '', error: '', at: 0, conflict: null };
 const _status = writable<SyncUiState>(IDLE);
 export const settingsSyncStatus = { subscribe: _status.subscribe };
 
@@ -74,7 +74,9 @@ async function decrypt(pubkey: string, content: string): Promise<ClientSettingsD
   return data;
 }
 
-export type PullResult = 'applied' | 'none' | 'up-to-date' | 'conflict';
+export type PullResult =
+  | { kind: 'applied' | 'none' | 'up-to-date' }
+  | { kind: 'conflict'; remoteCreatedAt: number };
 
 /**
  * Nostr に保存した設定を読み込む。
@@ -85,16 +87,17 @@ export type PullResult = 'applied' | 'none' | 'up-to-date' | 'conflict';
  */
 export async function pullSettings(pubkey: string, force: boolean): Promise<PullResult> {
   const remote = await fetchLatest(pubkey);
-  if (!remote) return 'none';
+  if (!remote) return { kind: 'none' };
 
   if (!force) {
     const decision = decideAutoPull(remote.createdAt, getLocalSettings(), getSyncRecord(pubkey));
-    if (decision !== 'apply') return decision;
+    if (decision === 'conflict') return { kind: 'conflict', remoteCreatedAt: remote.createdAt };
+    if (decision === 'up-to-date') return { kind: 'up-to-date' };
   }
 
   const data = await decrypt(pubkey, remote.content);
   applyRemoteSettings(pubkey, data, remote.createdAt);
-  return 'applied';
+  return { kind: 'applied' };
 }
 
 /**
@@ -105,11 +108,11 @@ export async function pullSettings(pubkey: string, force: boolean): Promise<Pull
 export async function pushSettings(
   pubkey: string,
   checkConflict: boolean
-): Promise<'saved' | 'conflict'> {
+): Promise<{ kind: 'saved' } | { kind: 'conflict'; remoteCreatedAt: number }> {
   const remote = await fetchLatest(pubkey);
   const record = getSyncRecord(pubkey);
   if (checkConflict && remote && remoteChangedSinceSync(remote.createdAt, record)) {
-    return 'conflict';
+    return { kind: 'conflict', remoteCreatedAt: remote.createdAt };
   }
 
   const local = getLocalSettings();
@@ -130,15 +133,15 @@ export async function pushSettings(
   );
   await publishAppData({ dTag: SETTINGS_D_TAG, content, createdAt });
   markSynced(pubkey, createdAt, local.updatedAt);
-  return 'saved';
+  return { kind: 'saved' };
 }
 
-function finish(message: string, error = '', conflict = false): void {
+function finish(message: string, error = '', conflict: SyncUiState['conflict'] = null): void {
   _status.set({ busy: null, message, error, at: getLocalSettings().updatedAt, conflict });
 }
 
-function showConflict(): void {
-  finish('', '', true);
+function showConflict(remoteCreatedAt: number): void {
+  finish('', '', { remoteCreatedAt });
 }
 
 function isBusy(): boolean {
@@ -150,8 +153,9 @@ export async function saveSettingsToNostr(pubkey: string): Promise<void> {
   if (isBusy()) return;
   _status.set({ ...IDLE, busy: 'save' });
   try {
-    if ((await pushSettings(pubkey, true)) === 'conflict') {
-      showConflict();
+    const result = await pushSettings(pubkey, true);
+    if (result.kind === 'conflict') {
+      showConflict(result.remoteCreatedAt);
       return;
     }
     finish('Nostr に保存しました');
@@ -167,7 +171,7 @@ export async function loadSettingsFromNostr(pubkey: string): Promise<void> {
   try {
     const result = await pullSettings(pubkey, true);
     finish(
-      result === 'none' ? 'Nostr に保存された設定はありません' : 'Nostr の設定を読み込みました'
+      result.kind === 'none' ? 'Nostr に保存された設定はありません' : 'Nostr の設定を読み込みました'
     );
   } catch (e) {
     finish('', `読み込めませんでした：${errorText(e)}`);
@@ -180,41 +184,43 @@ export async function autoPullSettings(pubkey: string): Promise<void> {
   _status.set({ ...IDLE, busy: 'load' });
   try {
     const result = await pullSettings(pubkey, false);
-    if (result === 'conflict') {
-      showConflict();
+    if (result.kind === 'conflict') {
+      showConflict(result.remoteCreatedAt);
       return;
     }
-    finish(result === 'applied' ? '別の端末で保存した設定を読み込みました' : '');
+    finish(result.kind === 'applied' ? '別の端末で保存した設定を読み込みました' : '');
   } catch (e) {
     finish('', `Nostr の設定を読み込めませんでした：${errorText(e)}`);
   }
 }
 
-/** 競合の解決：「この端末の設定を使う」（Nostr に保存して、別の端末の設定を上書きする） */
+/** 競合の解決：「この端末の設定」を使う（Nostr に保存して、他の端末の設定を上書きする） */
 export async function useLocalSettings(pubkey: string): Promise<void> {
   if (isBusy()) return;
-  _status.set({ ...IDLE, busy: 'save', conflict: true });
+  const conflict = get(_status).conflict;
+  _status.set({ ...IDLE, busy: 'save', conflict });
   try {
     await pushSettings(pubkey, false);
     finish('この端末の設定を保存しました');
   } catch (e) {
-    finish('', `保存できませんでした：${errorText(e)}`, true);
+    finish('', `保存できませんでした：${errorText(e)}`, conflict);
   }
 }
 
-/** 競合の解決：「別の端末の設定を使う」（読み込んで、この端末の未保存の変更を捨てる） */
+/** 競合の解決：「他の端末の設定」を使う（読み込んで、この端末の未保存の変更を捨てる） */
 export async function useRemoteSettings(pubkey: string): Promise<void> {
   if (isBusy()) return;
-  _status.set({ ...IDLE, busy: 'load', conflict: true });
+  const conflict = get(_status).conflict;
+  _status.set({ ...IDLE, busy: 'load', conflict });
   try {
     const result = await pullSettings(pubkey, true);
     finish(
-      result === 'none'
+      result.kind === 'none'
         ? 'Nostr に保存された設定はありません'
-        : '別の端末で保存した設定を読み込みました'
+        : '他の端末の設定を読み込みました'
     );
   } catch (e) {
-    finish('', `読み込めませんでした：${errorText(e)}`, true);
+    finish('', `読み込めませんでした：${errorText(e)}`, conflict);
   }
 }
 
