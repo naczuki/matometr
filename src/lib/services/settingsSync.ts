@@ -30,20 +30,25 @@ import { publishAppData } from './nostrPublish';
 //   - 設定画面で「保存」：他の端末にも送る（あとから保存した方が残る）
 //   - 設定画面を開いている間に他の端末で保存されたとき：編集中でなければ黙って読み込み、
 //     編集中なら「他の端末で保存した設定があります」と［読み込む］を出す
-// - 「他の端末で保存した設定があります。同期しますか？」のダイアログ
-//   - 同期オフ・初期状態の端末でログインしたとき
-//   - 設定を変えてある端末でトグルをオンにしたとき
+// - ダイアログ
+//   - 同期オフ・初期状態の端末でログインしたとき：
+//     「他の端末で保存した設定があります。同期しますか？」［同期する］［同期しない］
+//   - 設定を変えてある端末でトグルをオンにしたとき（どちらの設定を使うか決める必要がある）：
+//     「他の設定データがあります。どちらを使いますか？」
+//     ［この端末の設定（日時 に保存）］［他の端末の設定（日時 に保存）］
 
 export const SETTINGS_D_TAG = 'matometr/settings';
 
-/** 「他の端末で保存した設定があります。同期しますか？」 */
-export interface SyncDialog {
+/**
+ * 同期についての確認ダイアログ。
+ * login = 同期オフの初期状態の端末でログインしたとき（同期しますか？）
+ * choose = 設定を変えてある端末でトグルをオンにしたとき（どちらの設定を使いますか？）
+ */
+export type SyncDialog = {
   pubkey: string;
-  /** login = 同期オフの端末でログインしたとき、enable = トグルをオンにしたとき */
-  context: 'login' | 'enable';
   busy: boolean;
   error: string;
-}
+} & ({ context: 'login' } | { context: 'choose'; remoteCreatedAt: number });
 
 const _dialog = writable<SyncDialog | null>(null);
 export const settingsSyncDialog = { subscribe: _dialog.subscribe };
@@ -237,7 +242,13 @@ export async function enableSync(pubkey: string): Promise<void> {
     );
     if (decision === 'ask') {
       setStatus({ syncBusy: false });
-      _dialog.set({ pubkey, context: 'enable', busy: false, error: '' });
+      _dialog.set({
+        pubkey,
+        context: 'choose',
+        remoteCreatedAt: remote?.createdAt ?? 0,
+        busy: false,
+        error: ''
+      });
       return;
     }
     if (decision === 'push') await pushSettings(pubkey, remote);
@@ -279,14 +290,12 @@ export async function saveSettings(pubkey: string | null, data: ClientSettingsDa
   }
 }
 
-/** ダイアログの［同期する］：他の端末の設定を読み込み、同期をオンにする */
-export async function acceptSync(): Promise<void> {
+async function runDialogAction(action: (pubkey: string) => Promise<void>): Promise<void> {
   const d = get(_dialog);
   if (!d || d.busy) return;
   _dialog.set({ ...d, busy: true, error: '' });
   try {
-    const remote = await fetchLatest(d.pubkey);
-    if (remote) await applyRemote(d.pubkey, remote);
+    await action(d.pubkey);
     setSyncPref(d.pubkey, { enabled: true });
     _dialog.set(null);
   } catch (e) {
@@ -294,13 +303,30 @@ export async function acceptSync(): Promise<void> {
   }
 }
 
-/** ダイアログの［同期しない］：同期はオフのまま。ログイン時の確認なら次からは聞かない */
+/**
+ * ［同期する］［他の端末の設定］：他の端末の設定を読み込み、同期をオンにする
+ * （この端末の設定は置き換わる）
+ */
+export function useRemoteSettings(): Promise<void> {
+  return runDialogAction(async (pubkey) => {
+    const remote = await fetchLatest(pubkey);
+    if (remote) await applyRemote(pubkey, remote);
+  });
+}
+
+/** ［この端末の設定］：この端末の設定を送り、同期をオンにする（他の端末の設定は上書きする） */
+export function useLocalSettings(): Promise<void> {
+  return runDialogAction(async (pubkey) => {
+    const remote = await fetchLatest(pubkey);
+    await pushSettings(pubkey, remote);
+  });
+}
+
+/** ［同期しない］：同期はオフのまま。次からは聞かない */
 export function declineSync(): void {
   const d = get(_dialog);
   if (!d || d.busy) return;
-  if (d.context === 'login') {
-    setSyncPref(d.pubkey, { ...getSyncPref(d.pubkey), declined: true });
-  }
+  setSyncPref(d.pubkey, { ...getSyncPref(d.pubkey), declined: true });
   _dialog.set(null);
 }
 
