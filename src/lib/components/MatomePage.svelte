@@ -32,6 +32,7 @@
   import NaddrCard from '$lib/components/NaddrCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import ShareDialog from '$lib/components/ShareDialog.svelte';
   import LoginModal from '$lib/components/LoginModal.svelte';
   import NostrLoginModal from '$lib/components/NostrLoginModal.svelte';
   import type { StartScreens } from '@konemono/nostr-login/dist/types';
@@ -347,6 +348,8 @@
   }
 
   $: shareText = matome ? `${matome.title} #まとめたー\n${shareUrl}\nnostr:${matome.naddr}` : '';
+  // Nos ボタンのシェア先選択（一覧は設定画面で編集できる）
+  let showShareDialog = false;
 
   // ⋮ menu
   let menuOpen = false;
@@ -704,8 +707,16 @@
         </button>
 
         <div class="stat-share-row">
-          <!-- Nos: nostr-share-component（スロットでテキスト上書き） -->
-          <nostr-share data-text={shareText}><span class="nos-label">Nos</span></nostr-share>
+          <!-- Nos: シェア先クライアントを選ぶダイアログを開く -->
+          <button
+            class="nos-btn"
+            title="Nostrクライアントでシェア"
+            aria-label="Nostrクライアントでシェア"
+            aria-haspopup="dialog"
+            on:click={() => (showShareDialog = true)}
+          >
+            <span class="nos-label">Nos</span>
+          </button>
 
           <!-- X -->
           <button class="share-btn" title="Xでシェア" aria-label="Xでシェア" on:click={shareX}>
@@ -862,6 +873,8 @@
     {/if}
   {/if}
 </div>
+
+<ShareDialog open={showShareDialog} text={shareText} on:close={() => (showShareDialog = false)} />
 
 {#if showFavLoginModal}
   <LoginModal
@@ -1495,8 +1508,8 @@
     background: #b91c1c;
   }
 
-  /* nostr-share-component: Mochiy Pop One・横長・オレンジ */
-  :global(nostr-share::part(button)) {
+  /* Nos ボタン: Mochiy Pop One・横長・オレンジ */
+  .nos-btn {
     background: var(--accent);
     color: white;
     border: none;
@@ -1512,7 +1525,7 @@
     align-items: center;
   }
 
-  :global(nostr-share::part(button):hover) {
+  .nos-btn:hover {
     background: var(--accent-dark);
     transform: translateY(-1px);
     box-shadow: var(--shadow-btn);

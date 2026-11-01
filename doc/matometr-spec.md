@@ -221,12 +221,12 @@ document.dispatchEvent(
 
 詳細画面の統計欄に4つのボタンを配置：
 
-| ボタン        | アイコン               | 機能                                         |
-| ------------- | ---------------------- | -------------------------------------------- |
-| Nos           | "Nos" (Mochiy Pop One) | nostr-share-componentでNostrクライアント選択 |
-| X             | Xロゴ                  | X（旧Twitter）の投稿画面を開く               |
-| コピー        | コピーアイコン         | タイトル＋URLをクリップボードへ              |
-| 縦3点メニュー | ⋮                      | サブメニュー展開                             |
+| ボタン        | アイコン               | 機能                                        |
+| ------------- | ---------------------- | ------------------------------------------- |
+| Nos           | "Nos" (Mochiy Pop One) | シェア先のNostrクライアントを選ぶダイアログ |
+| X             | Xロゴ                  | X（旧Twitter）の投稿画面を開く              |
+| コピー        | コピーアイコン         | タイトル＋URLをクリップボードへ             |
+| 縦3点メニュー | ⋮                      | サブメニュー展開                            |
 
 全部 **オレンジ背景＋白アイコン** で統一。Xロゴは白塗りで規約クリア。
 
@@ -241,17 +241,24 @@ document.dispatchEvent(
 - naddr1をコピー
 - JSONを表示
 
-### nostr-share-component
+### Nos ボタンのシェア先
 
-```html
-<script src="https://cdn.jsdelivr.net/npm/@konemono/nostr-share-component@latest/dist/nostr-share-component.min.js"></script>
-<nostr-share
-  data-text="まとめタイトル #まとめたー
-nostr:naddr1..."
->
-  <span style="font-family:'Mochiy Pop One';color:white;">Nos</span>
-</nostr-share>
-```
+以前は nostr-share-component を使っていたが、シェア先を設定で編集できるよう独自のダイアログ（`ShareDialog.svelte`）に置き換えた。
+既定のシェア先は nostr-share-component の一覧（eHagaki / nokakoi / Nos Haiku / nostter / Lumilumi）と同じ。
+
+## 設定（/settings）
+
+ヘッダーのユーザーメニュー「設定」から開く。変更はその場で localStorage（キー `matometr:client-links`）に保存し、このブラウザだけで有効。
+
+| 項目                       | URL のプレースホルダ                                                     |
+| -------------------------- | ------------------------------------------------------------------------ |
+| シェア先（Nos ボタン）     | `{text}`：シェアする文章（URL エンコード済み）                           |
+| 投稿メニューの「○○で開く」 | `{nevent}`（nevent1…）/ `{note}`（note1…）/ `{id}`（16 進のイベント ID） |
+
+- クライアント名・URL の追加・編集・削除、メニューへの表示・非表示（チェックボックス）ができる
+- 「デフォルトに戻す」で項目ごとに既定値へ戻す（保存していた設定を消す）
+- 一度も変更していない項目は保存せず、既定値を使う（既定値の更新がそのまま反映される）
+- URL は `https://` / `http://` で始まり、プレースホルダを含むものだけメニューに出す
 
 ---
 
