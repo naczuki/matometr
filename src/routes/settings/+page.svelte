@@ -130,7 +130,7 @@
   <section class="sync">
     <label class="switch-row" class:disabled={!pubkey || status.syncBusy}>
       <span class="switch-text">
-        他の端末と同期する{pubkey ? '' : '（ログインすると使えます）'}
+        設定を他の端末と同期する{pubkey ? '' : '（ログインすると使えます）'}
       </span>
       <input
         class="switch"

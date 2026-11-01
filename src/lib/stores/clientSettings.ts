@@ -12,7 +12,7 @@ import {
 } from '$lib/utils/clientLinks';
 
 // シェア先・「○○で開く」の設定。設定画面の「保存」でこのブラウザの localStorage に保存し、
-// 「他の端末と同期する」がオンなら Nostr（$lib/services/settingsSync）とも同期する。
+// 「設定を他の端末と同期する」がオンなら Nostr（$lib/services/settingsSync）とも同期する。
 // 触っていない種類は保存せず（null）、既定値を使う。こうしておくと、
 // 既定値をアプリ側で更新したとき、設定を変えていない人にはそのまま反映される。
 
@@ -20,7 +20,7 @@ const STORAGE_KEY = 'matometr:client-links';
 const SYNC_KEY = 'matometr:client-links-sync';
 const SYNC_PREFS_KEY = 'matometr:client-links-sync-prefs';
 
-/** アカウントごとの「他の端末と同期する」の設定 */
+/** アカウントごとの「設定を他の端末と同期する」の設定 */
 export interface SyncPref {
   /** 他の端末と同期する */
   enabled: boolean;
@@ -160,7 +160,7 @@ export function getSyncRecord(pubkey: string): SyncRecord | undefined {
   return get(syncRecords)[pubkey];
 }
 
-/** アカウントごとの「他の端末と同期する」の設定 */
+/** アカウントごとの「設定を他の端末と同期する」の設定 */
 export const settingsSyncPrefs = { subscribe: syncPrefs.subscribe };
 
 export function getSyncPref(pubkey: string): SyncPref {
