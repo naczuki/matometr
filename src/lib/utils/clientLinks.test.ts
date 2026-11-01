@@ -145,10 +145,10 @@ describe('clientIconCandidates', () => {
     const haiku = DEFAULT_SHARE_CLIENTS.find((c) => c.id === 'noshaiku')!;
     expect(clientIconCandidates(haiku, api)).toEqual([
       'https://nos-haiku.vercel.app/favicon.png',
-      '/api/favicon?url=' + encodeURIComponent('https://nos-haiku.vercel.app/antenna')
+      '/api/favicon?url=' + encodeURIComponent('https://nos-haiku.vercel.app/antenna') + '&v=2'
     ]);
     expect(clientIconCandidates({ ...haiku, url: 'https://other.example/?t={text}' }, api)).toEqual(
-      ['/api/favicon?url=' + encodeURIComponent('https://other.example/')]
+      ['/api/favicon?url=' + encodeURIComponent('https://other.example/') + '&v=2']
     );
   });
 

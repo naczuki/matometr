@@ -9,7 +9,8 @@ import { isAllowedTarget, resolveFavicon } from '$lib/server/favicon';
 export const prerender = false;
 
 const FOUND_MAX_AGE = 7 * 24 * 60 * 60;
-const NOT_FOUND_MAX_AGE = 24 * 60 * 60;
+// 見つからなかった結果は、一時的な失敗（相手の応答が遅いなど）もあるので短めにする
+const NOT_FOUND_MAX_AGE = 60 * 60;
 
 type EdgeCache = {
   match(request: Request): Promise<Response | undefined>;

@@ -195,6 +195,12 @@ export function iconPageUrl(template: string): string | null {
 }
 
 /**
+ * /api/favicon の結果はブラウザとサーバーにキャッシュされる。探し方を直したときに古い結果
+ * （見つからなかった結果など）を使い続けないよう、URL に版を付ける。探し方を変えたら上げる。
+ */
+const ICON_API_VERSION = '2';
+
+/**
  * アイコンの候補を、試す順に返す。
  * 1. 既定のアイコン（クライアントと同じサイトのときだけ）
  * 2. まとめたーのサーバーでページから探したアイコン（apiPath = /api/favicon）
@@ -207,7 +213,7 @@ export function clientIconCandidates(link: ClientLink, apiPath: string): string[
     candidates.push(link.icon);
   }
   const page = iconPageUrl(link.url);
-  if (page) candidates.push(`${apiPath}?url=${encodeURIComponent(page)}`);
+  if (page) candidates.push(`${apiPath}?url=${encodeURIComponent(page)}&v=${ICON_API_VERSION}`);
   return candidates;
 }
 

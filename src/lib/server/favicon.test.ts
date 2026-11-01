@@ -79,7 +79,11 @@ type Route = {
 
 function mockFetch(routes: Record<string, Route>) {
   const calls: string[] = [];
-  const fn = (async (input: RequestInfo | URL, init?: RequestInit) => {
+  // Cloudflare Workers の fetch と同じく、this が global 以外で呼ばれたら失敗させる
+  const fn = async function (this: unknown, input: RequestInfo | URL, init?: RequestInit) {
+    if (this !== undefined && this !== globalThis) {
+      throw new TypeError('Illegal invocation: function called with incorrect `this` reference');
+    }
     const url = typeof input === 'string' ? input : input.toString();
     calls.push(url);
     expect(init?.redirect).toBe('manual');
@@ -101,7 +105,7 @@ function mockFetch(routes: Record<string, Route>) {
         })
       : (route.body ?? 'x');
     return new Response(body, { status: route.status ?? 200, headers });
-  }) as typeof fetch;
+  } as typeof fetch;
   return { fn, calls };
 }
 

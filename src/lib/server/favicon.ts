@@ -97,24 +97,21 @@ export function findIconHref(html: string): string | null {
   return touchIcon;
 }
 
-/** 1 回の問い合わせの中で使う fetch。読みに行く先の確認・リダイレクト・期限をまとめて扱う */
-class Fetcher {
-  constructor(
-    private readonly fetchFn: FetchFn,
-    private readonly signal: AbortSignal
-  ) {}
+/** url を読み、最後にたどり着いた URL と一緒に返す（読みに行けない先なら null） */
+type Getter = (url: string) => Promise<{ res: Response; url: string } | null>;
 
-  /**
-   * url を読む。リダイレクトは 1 回ごとに読みに行く先を確かめて追う。
-   * 読めなければ null。返すのはレスポンスと、最後にたどり着いた URL。
-   */
-  async get(url: string): Promise<{ res: Response; url: string } | null> {
+/**
+ * 1 回の問い合わせの中で使う読み込み関数を作る。読みに行く先の確認・リダイレクト・期限をまとめて扱う。
+ * fetch はメソッドとして呼ばない（Cloudflare Workers では this が違うと Illegal invocation になる）。
+ */
+function createGetter(fetchFn: FetchFn, signal: AbortSignal): Getter {
+  return async (url) => {
     let current = url;
     for (let i = 0; i <= MAX_REDIRECTS; i++) {
       if (!isAllowedTarget(current)) return null;
-      const res = await this.fetchFn(current, {
+      const res = await fetchFn(current, {
         redirect: 'manual',
-        signal: this.signal,
+        signal,
         headers: { accept: 'text/html,image/*;q=0.9,*/*;q=0.8' }
       });
       const location = res.headers.get('location');
@@ -126,7 +123,7 @@ class Fetcher {
       return { res, url: current };
     }
     return null;
-  }
+  };
 }
 
 /** 本文を MAX_HTML_BYTES まで読む。期限が来たら読み込みも止まる（fetch と同じ signal を使うため） */
@@ -150,9 +147,9 @@ async function readLimitedText(res: Response): Promise<string> {
 }
 
 /** アイコンとして読めるか（画像を返すか）。ページの代わりに HTML を返すサイトがあるので確かめる */
-async function isImage(fetcher: Fetcher, url: string): Promise<boolean> {
+async function isImage(get: Getter, url: string): Promise<boolean> {
   try {
-    const got = await fetcher.get(url);
+    const got = await get(url);
     if (!got) return false;
     await got.res.body?.cancel().catch(() => {});
     if (!got.res.ok) return false;
@@ -163,9 +160,9 @@ async function isImage(fetcher: Fetcher, url: string): Promise<boolean> {
   }
 }
 
-async function iconFromPage(fetcher: Fetcher, pageUrl: string): Promise<string | null> {
+async function iconFromPage(get: Getter, pageUrl: string): Promise<string | null> {
   try {
-    const got = await fetcher.get(pageUrl);
+    const got = await get(pageUrl);
     if (!got) return null;
     const { res } = got;
     const type = (res.headers.get('content-type') ?? '').toLowerCase();
@@ -176,7 +173,7 @@ async function iconFromPage(fetcher: Fetcher, pageUrl: string): Promise<string |
     const href = findIconHref(await readLimitedText(res));
     if (!href) return null;
     const icon = new URL(href, got.url).toString();
-    return (await isImage(fetcher, icon)) ? icon : null;
+    return (await isImage(get, icon)) ? icon : null;
   } catch {
     return null;
   }
@@ -194,16 +191,16 @@ export async function resolveFavicon(
   if (!isAllowedTarget(pageUrl)) return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? TIMEOUT_MS);
-  const fetcher = new Fetcher(options.fetchFn ?? fetch, controller.signal);
+  const get = createGetter(options.fetchFn ?? fetch, controller.signal);
   try {
     const origin = new URL(pageUrl).origin;
     for (const page of new Set([pageUrl, `${origin}/`])) {
-      const icon = await iconFromPage(fetcher, page);
+      const icon = await iconFromPage(get, page);
       if (icon) return icon;
       if (controller.signal.aborted) return null;
     }
     const fallback = `${origin}/favicon.ico`;
-    return (await isImage(fetcher, fallback)) ? fallback : null;
+    return (await isImage(get, fallback)) ? fallback : null;
   } finally {
     clearTimeout(timer);
     controller.abort();
