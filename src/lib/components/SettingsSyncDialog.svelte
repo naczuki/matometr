@@ -1,25 +1,16 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { localSettings } from '$lib/stores/clientSettings';
   import {
-    acceptRemoteSettings,
-    chooseLocalSettings,
-    chooseRemoteSettings,
+    acceptSync,
     closeSyncDialog,
-    declineRemoteSettings,
+    declineSync,
     settingsSyncDialog
   } from '$lib/services/settingsSync';
-  import { formatAbsoluteTime } from '$lib/utils/time';
 
-  // 他の端末の設定についての確認（競合 / 初期状態の端末での読み込み）。どのページでも出る。
+  // 「他の端末で保存した設定があります。同期しますか？」。どのページでも出る。
 
   $: dialog = $settingsSyncDialog;
   $: busy = dialog?.busy ?? false;
-  $: localSavedAt =
-    $localSettings.updatedAt > 0
-      ? formatAbsoluteTime(Math.floor($localSettings.updatedAt / 1000))
-      : '';
-  $: remoteSavedAt = dialog ? formatAbsoluteTime(dialog.remoteCreatedAt) : '';
 
   let boxEl: HTMLDivElement | null = null;
   $: if (dialog) {
@@ -55,29 +46,11 @@
         </svg>
       </button>
 
-      {#if dialog.type === 'conflict'}
-        <p class="title" id="sync-dialog-title">他の設定データがあります。どちらを使いますか？</p>
-        <div class="choices">
-          <button class="btn-primary" disabled={busy} on:click={chooseLocalSettings}>
-            この端末の設定{localSavedAt ? `（${localSavedAt} に保存）` : ''}
-          </button>
-          <button class="btn-secondary" disabled={busy} on:click={chooseRemoteSettings}>
-            他の端末の設定（{remoteSavedAt} に保存）
-          </button>
-        </div>
-      {:else}
-        <p class="title" id="sync-dialog-title">
-          他の端末で保存した設定があります。読み込みますか？
-        </p>
-        <div class="choices">
-          <button class="btn-primary" disabled={busy} on:click={acceptRemoteSettings}>
-            読み込む
-          </button>
-          <button class="btn-secondary" disabled={busy} on:click={declineRemoteSettings}>
-            読み込まない
-          </button>
-        </div>
-      {/if}
+      <p class="title" id="sync-dialog-title">他の端末で保存した設定があります。同期しますか？</p>
+      <div class="choices">
+        <button class="btn-primary" disabled={busy} on:click={acceptSync}>同期する</button>
+        <button class="btn-secondary" disabled={busy} on:click={declineSync}>同期しない</button>
+      </div>
 
       {#if dialog.error}
         <p class="error" role="alert">{dialog.error}</p>

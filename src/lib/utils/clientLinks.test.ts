@@ -12,7 +12,8 @@ import {
   settingsDataFromJson,
   settingsDataToJson,
   hasUnsavedChanges,
-  decideAutoPull,
+  decideOnOpen,
+  decideOnEnable,
   remoteChangedSinceSync,
   emptySettingsData,
   updateLink,
@@ -186,35 +187,58 @@ describe('hasUnsavedChanges', () => {
   });
 });
 
-describe('decideAutoPull', () => {
+describe('decideOnOpen', () => {
   const untouched: LocalSettingsState = { data: emptySettingsData(), updatedAt: 0 };
+  const editedAt = (sec: number): LocalSettingsState => ({
+    data: { share: [], open: null },
+    updatedAt: sec * 1000
+  });
 
-  it('前回そろえた後に Nostr 側が更新されていなければ読み込まない', () => {
+  it('前回そろえた後に他の端末で保存されていなければ何もしない', () => {
     const record = { remoteCreatedAt: 100, localUpdatedAt: 0 };
-    expect(decideAutoPull(100, untouched, record)).toBe('up-to-date');
-    expect(decideAutoPull(90, untouched, record)).toBe('up-to-date');
-    expect(decideAutoPull(101, untouched, record)).toBe('apply');
+    expect(decideOnOpen(100, untouched, record)).toBe('up-to-date');
+    expect(decideOnOpen(90, untouched, record)).toBe('up-to-date');
+    expect(decideOnOpen(101, untouched, record)).toBe('apply');
   });
 
-  it('両方が更新されていれば、時刻の新旧にかかわらず競合', () => {
+  it('送れていない変更があれば、新しい方を使う', () => {
     const record = { remoteCreatedAt: 100, localUpdatedAt: 1000 };
-    const editedAt = (sec: number): LocalSettingsState => ({
-      data: { share: [], open: null },
-      updatedAt: sec * 1000
-    });
-    expect(decideAutoPull(200, editedAt(300), record)).toBe('conflict');
-    expect(decideAutoPull(200, editedAt(150), record)).toBe('conflict');
-    // Nostr 側が更新されていなければ、未保存の変更があっても競合ではない
-    expect(decideAutoPull(100, editedAt(300), record)).toBe('up-to-date');
+    expect(decideOnOpen(200, editedAt(300), record)).toBe('keep-local');
+    expect(decideOnOpen(200, editedAt(150), record)).toBe('apply');
   });
 
-  it('この端末で同期したことが無く、設定を変えていれば競合', () => {
-    const edited: LocalSettingsState = { data: { share: [], open: null }, updatedAt: 5000 };
-    expect(decideAutoPull(100, edited, undefined)).toBe('conflict');
+  it('この端末で同期したことが無ければ読み込む', () => {
+    expect(decideOnOpen(100, untouched, undefined)).toBe('apply');
+  });
+});
+
+describe('decideOnEnable', () => {
+  const untouched: LocalSettingsState = { data: emptySettingsData(), updatedAt: 0 };
+  const edited: LocalSettingsState = { data: { share: [], open: null }, updatedAt: 5000 };
+
+  it('他の端末の設定が無ければ、この端末の設定を送る', () => {
+    expect(decideOnEnable(null, edited, undefined)).toBe('push');
+    expect(decideOnEnable(null, untouched, undefined)).toBe('push');
   });
 
-  it('この端末で同期したことが無く、設定も変えていなければ読み込む', () => {
-    expect(decideAutoPull(100, untouched, undefined)).toBe('apply');
+  it('この端末が初期状態なら、他の端末の設定を読み込む', () => {
+    expect(decideOnEnable(100, untouched, undefined)).toBe('apply');
+  });
+
+  it('設定を変えてある端末で初めて同期をオンにするときは聞く', () => {
+    expect(decideOnEnable(100, edited, undefined)).toBe('ask');
+  });
+
+  it('前に同期していた端末', () => {
+    const record = { remoteCreatedAt: 100, localUpdatedAt: 5000 };
+    // どちらも変わっていない
+    expect(decideOnEnable(100, edited, record)).toBe('none');
+    // 他の端末だけ変わった
+    expect(decideOnEnable(200, edited, record)).toBe('apply');
+    // この端末だけ変わった
+    expect(decideOnEnable(100, { ...edited, updatedAt: 6000 }, record)).toBe('push');
+    // どちらも変わった
+    expect(decideOnEnable(200, { ...edited, updatedAt: 6000 }, record)).toBe('ask');
   });
 });
 

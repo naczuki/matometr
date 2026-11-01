@@ -250,18 +250,43 @@ export function remoteChangedSinceSync(
 }
 
 /**
- * Nostr の設定（created_at 秒）とこの端末の設定をどうするか。
- * - up-to-date: 前回そろえた後に Nostr 側が更新されていない（復号もしない）
- * - apply: Nostr 側だけが更新されている → 読み込む
- * - conflict: 両方が更新されている → どちらを使うか利用者に選んでもらう
+ * 同期オンの端末を開いたとき、他の端末で保存した設定（created_at 秒）をどうするか。
+ * 新しい方を使う。
+ * - up-to-date: 前回そろえた後に他の端末で保存されていない（復号もしない）
+ * - keep-local: この端末の送れていない変更の方が新しい（読み込まない。次の保存で送る）
+ * - apply: 他の端末の設定の方が新しい → 読み込む
  */
-export function decideAutoPull(
+export function decideOnOpen(
   remoteCreatedAt: number,
   state: LocalSettingsState,
   record: SyncRecord | undefined
-): 'apply' | 'up-to-date' | 'conflict' {
+): 'up-to-date' | 'keep-local' | 'apply' {
   if (!remoteChangedSinceSync(remoteCreatedAt, record)) return 'up-to-date';
-  return hasUnsavedChanges(state, record) ? 'conflict' : 'apply';
+  if (hasUnsavedChanges(state, record) && state.updatedAt > remoteCreatedAt * 1000) {
+    return 'keep-local';
+  }
+  return 'apply';
+}
+
+/**
+ * 同期をオンにしたとき、どうするか。remoteCreatedAt は他の端末で保存した設定（無ければ null）。
+ * - push: 他の端末の設定が無い、またはこの端末の方が進んでいるだけ → この端末の設定を送る
+ * - apply: この端末が初期状態、または前回そろえた後に変えていない → 他の端末の設定を読み込む
+ * - none: すでにそろっている
+ * - ask: この端末にも他の端末にも、相手に無い変更がある → 同期するか聞く
+ */
+export function decideOnEnable(
+  remoteCreatedAt: number | null,
+  state: LocalSettingsState,
+  record: SyncRecord | undefined
+): 'push' | 'apply' | 'none' | 'ask' {
+  if (remoteCreatedAt === null) return 'push';
+  if (isInitialState(state)) return 'apply';
+  const remoteChanged = remoteChangedSinceSync(remoteCreatedAt, record);
+  const localChanged = hasUnsavedChanges(state, record);
+  if (!localChanged) return remoteChanged ? 'apply' : 'none';
+  if (!remoteChanged) return 'push';
+  return 'ask';
 }
 
 // ---- 設定画面の下書き（保存ボタンを押すまで反映しない）を書き換える関数 ----

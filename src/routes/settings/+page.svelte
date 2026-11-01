@@ -10,14 +10,24 @@
     settingsSyncPrefs,
     settingsSyncRecords
   } from '$lib/stores/clientSettings';
-  import { clearSaveMessage, saveSettings, settingsSaveStatus } from '$lib/services/settingsSync';
+  import {
+    checkRemoteOnSettings,
+    clearSettingsMessages,
+    disableSync,
+    enableSync,
+    loadPendingRemote,
+    saveSettings,
+    settingsSyncStatus
+  } from '$lib/services/settingsSync';
   import {
     hasUnsavedChanges,
     sameSettingsData,
     type ClientSettingsData
   } from '$lib/utils/clientLinks';
+  import { formatAbsoluteTime } from '$lib/utils/time';
 
   // 設定の変更は下書き（draft）に入れ、画面下の「保存」を押したときに反映する。
+  // 他の端末との同期は、一番上のトグルで切り替える（切り替えた時点で効く）。
 
   let draft: ClientSettingsData = get(localSettings).data;
   // 保存済みの設定が変わったら（他の端末の設定を読み込んだときなど）、
@@ -31,27 +41,49 @@
   }
 
   $: pubkey = $currentUser?.pubkey ?? null;
-  $: savedSync = pubkey ? ($settingsSyncPrefs[pubkey]?.enabled ?? false) : false;
-  let syncChecked = false;
-  let lastSavedSync: boolean | null = null;
-  $: if (savedSync !== lastSavedSync) {
-    syncChecked = savedSync;
-    lastSavedSync = savedSync;
+  $: syncOn = pubkey ? ($settingsSyncPrefs[pubkey]?.enabled ?? false) : false;
+  $: record = pubkey ? $settingsSyncRecords[pubkey] : undefined;
+  $: status = $settingsSyncStatus;
+
+  $: dirty = !sameSettingsData(draft, $localSettings.data);
+  // 同期オンで、前に送れなかった変更が残っていれば、保存で送り直せるようにする
+  $: unsent = syncOn && hasUnsavedChanges($localSettings, record);
+  $: canSave = !status.saveBusy && (dirty || unsent);
+
+  // 設定画面を開いたとき・タブに戻ってきたときに、他の端末で保存されていないか確認する
+  let checkedPubkey: string | null = null;
+  $: if (pubkey && syncOn && pubkey !== checkedPubkey) {
+    checkedPubkey = pubkey;
+    void checkRemoteOnSettings(pubkey, dirty);
   }
 
-  $: record = pubkey ? $settingsSyncRecords[pubkey] : undefined;
-  $: draftChanged = !sameSettingsData(draft, $localSettings.data);
-  $: syncChanged = syncChecked !== savedSync;
-  // 同期オンで、前に同期できなかった変更が残っていれば、保存でやり直せるようにする
-  $: syncPending = pubkey !== null && syncChecked && hasUnsavedChanges($localSettings, record);
-  $: dirty = draftChanged || syncChanged;
-  $: canSave = !$settingsSaveStatus.busy && (dirty || syncPending);
+  function handleVisibility(): void {
+    if (document.visibilityState === 'visible' && pubkey && syncOn) {
+      void checkRemoteOnSettings(pubkey, dirty);
+    }
+  }
 
-  onMount(() => clearSaveMessage());
+  onMount(() => clearSettingsMessages());
+
+  function handleToggle(e: Event & { currentTarget: HTMLInputElement }): void {
+    if (!pubkey) return;
+    const on = e.currentTarget.checked;
+    // 表示は保存されている状態に戻し、処理が終わったら（同期オンになったら）切り替わるようにする
+    e.currentTarget.checked = syncOn;
+    if (on) void enableSync(pubkey);
+    else disableSync(pubkey);
+  }
+
+  async function handleLoadPending(): Promise<void> {
+    if (!pubkey) return;
+    await loadPendingRemote(pubkey);
+    // 読み込んだ設定で下書きも置き換える
+    draft = get(localSettings).data;
+  }
 
   function handleSave(): void {
     if (!canSave) return;
-    void saveSettings(pubkey, draft, syncChecked);
+    void saveSettings(pubkey, draft);
   }
 
   // 保存していない変更があるときは、ページを離れる前に確認する
@@ -86,6 +118,7 @@
 </script>
 
 <svelte:window on:beforeunload={handleBeforeUnload} />
+<svelte:document on:visibilitychange={handleVisibility} />
 
 <svelte:head>
   <title>設定 | まとめたー</title>
@@ -93,6 +126,38 @@
 
 <div class="page">
   <h1 class="page-title">設定</h1>
+
+  <section class="sync">
+    <label class="switch-row" class:disabled={!pubkey || status.syncBusy}>
+      <span class="switch-text">
+        他の端末と同期する{pubkey ? '' : '（ログインすると使えます）'}
+      </span>
+      <input
+        class="switch"
+        type="checkbox"
+        role="switch"
+        checked={syncOn}
+        disabled={!pubkey || status.syncBusy}
+        on:change={handleToggle}
+      />
+    </label>
+    <p class="sync-note">追加の確認ダイアログが出ることがあります</p>
+
+    {#if syncOn && status.pendingRemoteAt > 0}
+      <div class="pending">
+        <span class="pending-text">
+          他の端末で保存した設定があります（{formatAbsoluteTime(status.pendingRemoteAt)} に保存）
+        </span>
+        <button class="btn-load" disabled={status.syncBusy} on:click={handleLoadPending}>
+          読み込む
+        </button>
+      </div>
+    {/if}
+
+    {#if status.syncError}
+      <p class="sync-error" role="alert">{status.syncError}</p>
+    {/if}
+  </section>
 
   <ClientLinkEditor
     kind="share"
@@ -118,23 +183,14 @@
   </ClientLinkEditor>
 
   <div class="save-bar">
-    <div class="sync-option">
-      <label class="sync-toggle" class:disabled={!pubkey}>
-        <input type="checkbox" bind:checked={syncChecked} disabled={!pubkey} />
-        他の端末と同期する{pubkey ? '' : '（ログインすると使えます）'}
-      </label>
-      <p class="sync-note">追加の確認ダイアログが出ることがあります</p>
-    </div>
-    <div class="save-action">
-      {#if $settingsSaveStatus.error}
-        <p class="save-error" role="alert">{$settingsSaveStatus.error}</p>
-      {:else if $settingsSaveStatus.message && !dirty}
-        <p class="save-message" aria-live="polite">{$settingsSaveStatus.message}</p>
-      {/if}
-      <button class="btn-save" disabled={!canSave} on:click={handleSave}>
-        {$settingsSaveStatus.busy ? '保存中…' : '保存'}
-      </button>
-    </div>
+    {#if status.saveError}
+      <p class="save-error" role="alert">{status.saveError}</p>
+    {:else if status.saveMessage && !dirty}
+      <p class="save-message" aria-live="polite">{status.saveMessage}</p>
+    {/if}
+    <button class="btn-save" disabled={!canSave} on:click={handleSave}>
+      {status.saveBusy ? '保存中…' : '保存'}
+    </button>
   </div>
 </div>
 
@@ -165,57 +221,144 @@
     margin: 0 0 20px;
   }
 
-  /* 保存ボタンの帯（ページの一番下）。 */
-  .save-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px 16px;
-    flex-wrap: wrap;
+  /* 一番上の同期ブロック */
+  .sync {
     background: var(--surface);
     border-radius: var(--radius-card);
     padding: 16px 18px;
+    margin-bottom: 20px;
   }
 
-  .sync-option {
-    min-width: 0;
-  }
-
-  .sync-toggle {
-    display: inline-flex;
+  .switch-row {
+    display: flex;
     align-items: center;
-    gap: 8px;
-    font-family: var(--font-ui);
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--ink);
+    justify-content: space-between;
+    gap: 12px;
     cursor: pointer;
   }
 
-  .sync-toggle.disabled {
-    color: var(--ink3);
+  .switch-row.disabled {
     cursor: not-allowed;
   }
 
-  .sync-toggle input {
+  .switch-text {
+    font-family: var(--font-ui);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .switch-row.disabled .switch-text {
+    color: var(--ink3);
+  }
+
+  /* トグルスイッチ（チェックボックスを描き直す） */
+  .switch {
+    appearance: none;
+    flex-shrink: 0;
+    position: relative;
+    width: 44px;
+    height: 24px;
+    margin: 0;
+    border-radius: 12px;
+    background: var(--border2);
+    cursor: inherit;
+    transition: background 0.15s;
+  }
+
+  .switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
     width: 18px;
     height: 18px;
-    accent-color: var(--accent);
-    cursor: inherit;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform 0.15s;
+  }
+
+  .switch:checked {
+    background: var(--accent);
+  }
+
+  .switch:checked::after {
+    transform: translateX(20px);
+  }
+
+  .switch:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .switch:disabled {
+    opacity: 0.5;
   }
 
   .sync-note {
     font-size: 12px;
     color: var(--ink3);
-    margin: 2px 0 0 26px;
+    margin: 4px 0 0;
   }
 
-  .save-action {
+  .pending {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .pending-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-dark);
+    font-family: var(--font-ui);
+  }
+
+  .btn-load {
+    flex-shrink: 0;
+    padding: 7px 18px;
+    border: 1.5px solid var(--accent);
+    border-radius: var(--radius-btn);
+    background: var(--accent-pale);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+
+  .btn-load:not(:disabled):hover {
+    background: var(--accent-mid);
+  }
+
+  .btn-load:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .sync-error {
+    font-size: 12px;
+    color: #dc2626;
+    margin: 10px 0 0;
+  }
+
+  /* 保存ボタン（ページの一番下） */
+  .save-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     gap: 12px;
-    margin-left: auto;
-    min-width: 0;
+    flex-wrap: wrap;
+    background: var(--surface);
+    border-radius: var(--radius-card);
+    padding: 16px 18px;
   }
 
   .save-message {
@@ -228,7 +371,8 @@
     font-size: 12px;
     color: #dc2626;
     margin: 0;
-    max-width: 320px;
+    flex: 1;
+    min-width: 0;
   }
 
   .btn-save {
