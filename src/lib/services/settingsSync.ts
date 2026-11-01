@@ -2,6 +2,7 @@ import { get, writable } from 'svelte/store';
 import { collectObservable } from '$lib/utils/rxCollect';
 import {
   decideAutoPull,
+  isInitialState,
   remoteChangedSinceSync,
   settingsDataFromJson,
   settingsDataToJson,
@@ -10,33 +11,53 @@ import {
 import {
   applyRemoteSettings,
   getLocalSettings,
+  getSyncPref,
   getSyncRecord,
-  markSynced
+  markSynced,
+  saveSettingsData,
+  setSyncPref
 } from '$lib/stores/clientSettings';
 import { fetchAppData, fetchUserWriteRelays } from './nostrFetch';
 import { publishAppData } from './nostrPublish';
 
-// 設定（シェア先・「○○で開く」）を Nostr と同期する。
+// 設定（シェア先・「○○で開く」）を他の端末と同期する。
 // NIP-78 の kind:30078（d タグ = SETTINGS_D_TAG）に、設定の JSON を NIP-44 で自分宛てに
-// 暗号化して保存する。保存は設定画面のボタンから、読み込みはログイン時に自動と設定画面のボタンから。
-// 前回そろえた後に、この端末と別の端末の両方で設定が変わっていたら（競合）、どちらも上書きせず
-// 設定画面でどちらを使うか選んでもらう。
+// 暗号化して保存する。
+//
+// - 保存：設定画面の「保存」。「他の端末と同期する」がオンなら Nostr にも保存する
+// - 読み込み：まとめたーを開いたとき（ログインしたとき）に確認する
+//   - 同期オン：他の端末で保存した設定があれば黙って読み込む
+//   - 同期オフ：この端末が初期状態で、他の端末で保存した設定があれば、読み込むかをダイアログで聞く
+// - 競合：前回そろえた後に、他の端末での保存とこの端末の未同期の変更の両方があれば、
+//   どちらも上書きせず、どちらを使うかをダイアログで聞く
 
 export const SETTINGS_D_TAG = 'matometr/settings';
 
-export interface SyncUiState {
-  busy: 'load' | 'save' | null;
+/** 他の端末の設定についての確認ダイアログ */
+export type SyncDialog = {
+  pubkey: string;
+  /** 他の端末で保存した設定の created_at（秒） */
+  remoteCreatedAt: number;
+  busy: boolean;
+  error: string;
+} & (
+  | { type: 'conflict' } // どちらを使うか
+  | { type: 'initial' } // 初期状態の端末で、読み込むか
+);
+
+const _dialog = writable<SyncDialog | null>(null);
+export const settingsSyncDialog = { subscribe: _dialog.subscribe };
+
+/** 設定画面の「保存」ボタンまわりの表示 */
+export interface SaveStatus {
+  busy: boolean;
   message: string;
   error: string;
-  /** message / error を出したときの設定の updatedAt。その後に設定を変えたら表示しない */
-  at: number;
-  /** 他の端末で保存した設定と、この端末の未保存の変更が競合している（null = 競合なし） */
-  conflict: { remoteCreatedAt: number } | null;
 }
 
-const IDLE: SyncUiState = { busy: null, message: '', error: '', at: 0, conflict: null };
-const _status = writable<SyncUiState>(IDLE);
-export const settingsSyncStatus = { subscribe: _status.subscribe };
+const SAVE_IDLE: SaveStatus = { busy: false, message: '', error: '' };
+const _save = writable<SaveStatus>(SAVE_IDLE);
+export const settingsSaveStatus = { subscribe: _save.subscribe };
 
 function nip44(): NonNullable<NonNullable<Window['nostr']>['nip44']> {
   const n = window.nostr?.nip44;
@@ -74,38 +95,21 @@ async function decrypt(pubkey: string, content: string): Promise<ClientSettingsD
   return data;
 }
 
-export type PullResult =
-  | { kind: 'applied' | 'none' | 'up-to-date' }
-  | { kind: 'conflict'; remoteCreatedAt: number };
-
-/**
- * Nostr に保存した設定を読み込む。
- * force = false（ログイン時の自動読み込み）は、前回そろえた後に Nostr 側だけが更新されて
- * いるときに置き換える。この端末にも未保存の変更があれば 'conflict' を返し、何もしない。
- * 復号は置き換えるときだけ行う。
- * force = true（読み込みボタン・競合の解決）は、Nostr にあれば必ず置き換える。
- */
-export async function pullSettings(pubkey: string, force: boolean): Promise<PullResult> {
+/** 他の端末で保存した最新の設定を読み込む（無ければ false） */
+async function pullLatest(pubkey: string): Promise<boolean> {
   const remote = await fetchLatest(pubkey);
-  if (!remote) return { kind: 'none' };
-
-  if (!force) {
-    const decision = decideAutoPull(remote.createdAt, getLocalSettings(), getSyncRecord(pubkey));
-    if (decision === 'conflict') return { kind: 'conflict', remoteCreatedAt: remote.createdAt };
-    if (decision === 'up-to-date') return { kind: 'up-to-date' };
-  }
-
+  if (!remote) return false;
   const data = await decrypt(pubkey, remote.content);
   applyRemoteSettings(pubkey, data, remote.createdAt);
-  return { kind: 'applied' };
+  return true;
 }
 
 /**
  * この端末の設定を暗号化して Nostr に保存する。
- * checkConflict = true（保存ボタン）は、前回そろえた後に別の端末で保存されていたら
- * 上書きせず 'conflict' を返す。false（競合の解決で「この端末の設定を使う」）は必ず保存する。
+ * checkConflict = true は、前回そろえた後に他の端末で保存されていたら上書きせず
+ * 'conflict' を返す。false（競合で「この端末の設定」を選んだとき）は必ず保存する。
  */
-export async function pushSettings(
+async function pushSettings(
   pubkey: string,
   checkConflict: boolean
 ): Promise<{ kind: 'saved' } | { kind: 'conflict'; remoteCreatedAt: number }> {
@@ -125,7 +129,7 @@ export async function pushSettings(
     throw new Error(`暗号化できませんでした（${errorText(e)}）`);
   }
   // 置き換え可能イベントは created_at が新しい方が残る。前回の自分の保存や、
-  // 時計が進んでいる別の端末の保存と同じ秒・それ以前にならないようにする。
+  // 時計が進んでいる他の端末の保存と同じ秒・それ以前にならないようにする。
   const createdAt = Math.max(
     Math.floor(Date.now() / 1000),
     (record?.remoteCreatedAt ?? 0) + 1,
@@ -136,95 +140,139 @@ export async function pushSettings(
   return { kind: 'saved' };
 }
 
-function finish(message: string, error = '', conflict: SyncUiState['conflict'] = null): void {
-  _status.set({ busy: null, message, error, at: getLocalSettings().updatedAt, conflict });
+function openDialog(type: SyncDialog['type'], pubkey: string, remoteCreatedAt: number): void {
+  _dialog.set({ type, pubkey, remoteCreatedAt, busy: false, error: '' });
 }
 
-function showConflict(remoteCreatedAt: number): void {
-  finish('', '', { remoteCreatedAt });
+/** まとめたーを開いたとき（ログインしたとき）の確認 */
+export async function autoSyncSettings(pubkey: string): Promise<void> {
+  let remote: Awaited<ReturnType<typeof fetchLatest>>;
+  try {
+    remote = await fetchLatest(pubkey);
+  } catch {
+    return;
+  }
+  if (!remote) return;
+
+  const pref = getSyncPref(pubkey);
+  const local = getLocalSettings();
+  const record = getSyncRecord(pubkey);
+
+  if (!pref.enabled) {
+    if (!pref.declined && !record && isInitialState(local)) {
+      openDialog('initial', pubkey, remote.createdAt);
+    }
+    return;
+  }
+
+  const decision = decideAutoPull(remote.createdAt, local, record);
+  if (decision === 'up-to-date') return;
+  if (decision === 'conflict') {
+    openDialog('conflict', pubkey, remote.createdAt);
+    return;
+  }
+  try {
+    const data = await decrypt(pubkey, remote.content);
+    applyRemoteSettings(pubkey, data, remote.createdAt);
+  } catch (e) {
+    _save.set({ ...SAVE_IDLE, error: `他の端末の設定を読み込めませんでした：${errorText(e)}` });
+  }
 }
 
-function isBusy(): boolean {
-  return get(_status).busy !== null;
-}
-
-/** 設定画面の「Nostr に保存」 */
-export async function saveSettingsToNostr(pubkey: string): Promise<void> {
-  if (isBusy()) return;
-  _status.set({ ...IDLE, busy: 'save' });
+/**
+ * 設定画面の「保存」。この端末に保存し、同期オンなら Nostr にも保存する。
+ * pubkey が null（未ログイン）なら、この端末にだけ保存する。
+ */
+export async function saveSettings(
+  pubkey: string | null,
+  data: ClientSettingsData,
+  syncEnabled: boolean
+): Promise<void> {
+  if (get(_save).busy) return;
+  _save.set({ ...SAVE_IDLE, busy: true });
+  saveSettingsData(data);
+  if (!pubkey) {
+    _save.set({ ...SAVE_IDLE, message: '保存しました' });
+    return;
+  }
+  setSyncPref(pubkey, { ...getSyncPref(pubkey), enabled: syncEnabled });
+  if (!syncEnabled) {
+    _save.set({ ...SAVE_IDLE, message: '保存しました' });
+    return;
+  }
   try {
     const result = await pushSettings(pubkey, true);
     if (result.kind === 'conflict') {
-      showConflict(result.remoteCreatedAt);
+      _save.set(SAVE_IDLE);
+      openDialog('conflict', pubkey, result.remoteCreatedAt);
       return;
     }
-    finish('Nostr に保存しました');
+    _save.set({ ...SAVE_IDLE, message: '保存しました' });
   } catch (e) {
-    finish('', `保存できませんでした：${errorText(e)}`);
+    _save.set({
+      ...SAVE_IDLE,
+      error: `この端末には保存しました。他の端末との同期に失敗しました：${errorText(e)}`
+    });
   }
 }
 
-/** 設定画面の「Nostr から読み込む」 */
-export async function loadSettingsFromNostr(pubkey: string): Promise<void> {
-  if (isBusy()) return;
-  _status.set({ ...IDLE, busy: 'load' });
+async function runDialogAction(action: (d: SyncDialog) => Promise<void>): Promise<void> {
+  const d = get(_dialog);
+  if (!d || d.busy) return;
+  _dialog.set({ ...d, busy: true, error: '' });
   try {
-    const result = await pullSettings(pubkey, true);
-    finish(
-      result.kind === 'none' ? 'Nostr に保存された設定はありません' : 'Nostr の設定を読み込みました'
-    );
+    await action(d);
+    _dialog.set(null);
   } catch (e) {
-    finish('', `読み込めませんでした：${errorText(e)}`);
+    _dialog.set({ ...d, busy: false, error: errorText(e) });
   }
 }
 
-/** ログイン時の自動読み込み。新しい設定があったときだけ知らせる */
-export async function autoPullSettings(pubkey: string): Promise<void> {
-  if (isBusy()) return;
-  _status.set({ ...IDLE, busy: 'load' });
-  try {
-    const result = await pullSettings(pubkey, false);
-    if (result.kind === 'conflict') {
-      showConflict(result.remoteCreatedAt);
-      return;
-    }
-    finish(result.kind === 'applied' ? '別の端末で保存した設定を読み込みました' : '');
-  } catch (e) {
-    finish('', `Nostr の設定を読み込めませんでした：${errorText(e)}`);
-  }
+/** 競合ダイアログ：「この端末の設定」を使う（他の端末の設定を上書きする） */
+export function chooseLocalSettings(): Promise<void> {
+  return runDialogAction(async (d) => {
+    await pushSettings(d.pubkey, false);
+    _save.set({ ...SAVE_IDLE, message: '保存しました' });
+  });
 }
 
-/** 競合の解決：「この端末の設定」を使う（Nostr に保存して、他の端末の設定を上書きする） */
-export async function useLocalSettings(pubkey: string): Promise<void> {
-  if (isBusy()) return;
-  const conflict = get(_status).conflict;
-  _status.set({ ...IDLE, busy: 'save', conflict });
-  try {
-    await pushSettings(pubkey, false);
-    finish('この端末の設定を保存しました');
-  } catch (e) {
-    finish('', `保存できませんでした：${errorText(e)}`, conflict);
-  }
+/** 競合ダイアログ：「他の端末の設定」を使う（この端末の未同期の変更は捨てる） */
+export function chooseRemoteSettings(): Promise<void> {
+  return runDialogAction(async (d) => {
+    await pullLatest(d.pubkey);
+    _save.set(SAVE_IDLE);
+  });
 }
 
-/** 競合の解決：「他の端末の設定」を使う（読み込んで、この端末の未保存の変更を捨てる） */
-export async function useRemoteSettings(pubkey: string): Promise<void> {
-  if (isBusy()) return;
-  const conflict = get(_status).conflict;
-  _status.set({ ...IDLE, busy: 'load', conflict });
-  try {
-    const result = await pullSettings(pubkey, true);
-    finish(
-      result.kind === 'none'
-        ? 'Nostr に保存された設定はありません'
-        : '他の端末の設定を読み込みました'
-    );
-  } catch (e) {
-    finish('', `読み込めませんでした：${errorText(e)}`, conflict);
-  }
+/** 初期状態の確認ダイアログ：読み込む（この端末でも同期をオンにする） */
+export function acceptRemoteSettings(): Promise<void> {
+  return runDialogAction(async (d) => {
+    await pullLatest(d.pubkey);
+    setSyncPref(d.pubkey, { enabled: true });
+  });
+}
+
+/** 初期状態の確認ダイアログ：読み込まない（次からは聞かない） */
+export function declineRemoteSettings(): void {
+  const d = get(_dialog);
+  if (!d || d.busy) return;
+  setSyncPref(d.pubkey, { ...getSyncPref(d.pubkey), declined: true });
+  _dialog.set(null);
+}
+
+/** ダイアログを閉じる（何もしない。次に開いたときにまた確認する） */
+export function closeSyncDialog(): void {
+  const d = get(_dialog);
+  if (d && !d.busy) _dialog.set(null);
 }
 
 /** ログアウト・アカウント切り替え時に、前のアカウントの表示を消す */
 export function clearSettingsSyncStatus(): void {
-  _status.set(IDLE);
+  _dialog.set(null);
+  _save.set(SAVE_IDLE);
+}
+
+/** 設定画面を開いたときに、前の保存結果の表示を消す */
+export function clearSaveMessage(): void {
+  if (!get(_save).busy) _save.set(SAVE_IDLE);
 }

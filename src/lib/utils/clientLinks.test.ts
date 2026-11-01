@@ -15,6 +15,12 @@ import {
   decideAutoPull,
   remoteChangedSinceSync,
   emptySettingsData,
+  updateLink,
+  addLink,
+  removeLink,
+  resetKind,
+  sameSettingsData,
+  isInitialState,
   type ClientLink,
   type LocalSettingsState
 } from './clientLinks';
@@ -221,5 +227,49 @@ describe('remoteChangedSinceSync', () => {
     const record = { remoteCreatedAt: 100, localUpdatedAt: 0 };
     expect(remoteChangedSinceSync(100, record)).toBe(false);
     expect(remoteChangedSinceSync(101, record)).toBe(true);
+  });
+});
+
+describe('下書きの編集（updateLink / addLink / removeLink / resetKind）', () => {
+  it('既定値のままの種類を編集すると、既定値から始めて書き換える', () => {
+    const edited = updateLink(emptySettingsData(), 'open', 'nostter', { enabled: false });
+    expect(edited.open).toEqual([{ ...DEFAULT_OPEN_CLIENTS[0], enabled: false }]);
+    expect(edited.share).toBeNull();
+  });
+
+  it('追加・削除・デフォルトに戻す', () => {
+    let data = addLink(emptySettingsData(), 'open', {
+      id: 'x',
+      name: ' njump ',
+      url: ' https://njump.me/{nevent} '
+    });
+    expect(data.open?.map((c) => [c.id, c.name, c.url, c.enabled])).toEqual([
+      ['nostter', 'nostter', 'https://nostter.app/{nevent}', true],
+      ['x', 'njump', 'https://njump.me/{nevent}', true]
+    ]);
+    data = removeLink(data, 'open', 'nostter');
+    expect(data.open?.map((c) => c.id)).toEqual(['x']);
+    expect(resetKind(data, 'open').open).toBeNull();
+  });
+
+  it('元のデータは書き換えない', () => {
+    const original = { share: null, open: [{ ...DEFAULT_OPEN_CLIENTS[0] }] };
+    updateLink(original, 'open', 'nostter', { name: '変更' });
+    expect(original.open[0].name).toBe('nostter');
+  });
+});
+
+describe('sameSettingsData / isInitialState', () => {
+  it('内容が同じなら別オブジェクトでも同じ', () => {
+    const a = addLink(emptySettingsData(), 'open', { id: 'x', name: 'a', url: 'https://a/{id}' });
+    const b = addLink(emptySettingsData(), 'open', { id: 'x', name: 'a', url: 'https://a/{id}' });
+    expect(sameSettingsData(a, b)).toBe(true);
+    expect(sameSettingsData(a, emptySettingsData())).toBe(false);
+  });
+
+  it('一度も変えていない端末だけが初期状態', () => {
+    expect(isInitialState({ data: emptySettingsData(), updatedAt: 0 })).toBe(true);
+    expect(isInitialState({ data: emptySettingsData(), updatedAt: 1 })).toBe(false);
+    expect(isInitialState({ data: { share: [], open: null }, updatedAt: 0 })).toBe(false);
   });
 });

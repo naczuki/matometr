@@ -263,3 +263,58 @@ export function decideAutoPull(
   if (!remoteChangedSinceSync(remoteCreatedAt, record)) return 'up-to-date';
   return hasUnsavedChanges(state, record) ? 'conflict' : 'apply';
 }
+
+// ---- 設定画面の下書き（保存ボタンを押すまで反映しない）を書き換える関数 ----
+
+/** 指定の種類の一覧を書き換えた新しい設定データを返す（既定値のままなら既定値から始める） */
+function withList(
+  data: ClientSettingsData,
+  kind: ClientLinkKind,
+  fn: (list: ClientLink[]) => ClientLink[]
+): ClientSettingsData {
+  const current = data[kind] ?? cloneDefaults(kind);
+  return { ...data, [kind]: fn(current.map((c) => ({ ...c }))) };
+}
+
+export function updateLink(
+  data: ClientSettingsData,
+  kind: ClientLinkKind,
+  id: string,
+  patch: Partial<Pick<ClientLink, 'name' | 'url' | 'enabled'>>
+): ClientSettingsData {
+  return withList(data, kind, (list) => list.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+}
+
+export function addLink(
+  data: ClientSettingsData,
+  kind: ClientLinkKind,
+  link: Pick<ClientLink, 'id' | 'name' | 'url'>
+): ClientSettingsData {
+  return withList(data, kind, (list) => [
+    ...list,
+    { id: link.id, name: link.name.trim(), url: link.url.trim(), enabled: true }
+  ]);
+}
+
+export function removeLink(
+  data: ClientSettingsData,
+  kind: ClientLinkKind,
+  id: string
+): ClientSettingsData {
+  return withList(data, kind, (list) => list.filter((c) => c.id !== id));
+}
+
+/** 指定の種類をデフォルトに戻す（変更していない扱いにする） */
+export function resetKind(data: ClientSettingsData, kind: ClientLinkKind): ClientSettingsData {
+  return { ...data, [kind]: null };
+}
+
+/** 2 つの設定データが同じ内容か */
+export function sameSettingsData(a: ClientSettingsData, b: ClientSettingsData): boolean {
+  return JSON.stringify(settingsDataToJson(a)) === JSON.stringify(settingsDataToJson(b));
+}
+
+/** この端末の設定が初期状態（一度も変えていない）か */
+export function isInitialState(state: LocalSettingsState): boolean {
+  return state.updatedAt === 0 && state.data.share === null && state.data.open === null;
+}

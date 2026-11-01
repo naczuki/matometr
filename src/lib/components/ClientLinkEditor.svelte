@@ -1,31 +1,42 @@
 <script lang="ts">
+  import { ulid } from 'ulid';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import {
-    clientLinks,
-    addClient,
-    updateClient,
-    removeClient,
-    resetClients
-  } from '$lib/stores/clientSettings';
-  import {
     NAME_MAX_LENGTH,
+    addLink,
+    cloneDefaults,
+    removeLink,
+    resetKind,
+    updateLink,
     validateName,
     validateUrl,
-    type ClientLinkKind
+    type ClientLink,
+    type ClientLinkKind,
+    type ClientSettingsData
   } from '$lib/utils/clientLinks';
 
-  // 設定画面の 1 セクション（シェア先 / 「○○で開く」）。変更はその場で保存する。
+  // 設定画面の 1 セクション（シェア先 / 「○○で開く」）。
+  // 変更は data（設定画面の下書き）にだけ入れ、画面下の「保存」で反映する。
   export let kind: ClientLinkKind;
   export let title: string;
   export let resetTitle: string;
   export let urlPlaceholder: string;
+  export let data: ClientSettingsData;
 
-  $: list = $clientLinks[kind];
+  $: list = data[kind] ?? cloneDefaults(kind);
 
   let newName = '';
   let newUrl = '';
   let addError = '';
   let showResetConfirm = false;
+
+  function update(id: string, patch: Partial<Pick<ClientLink, 'name' | 'url' | 'enabled'>>): void {
+    data = updateLink(data, kind, id, patch);
+  }
+
+  function remove(id: string): void {
+    data = removeLink(data, kind, id);
+  }
 
   function handleAdd(): void {
     const error = validateName(newName) ?? validateUrl(kind, newUrl);
@@ -33,14 +44,14 @@
       addError = error;
       return;
     }
-    addClient(kind, newName, newUrl);
+    data = addLink(data, kind, { id: ulid(), name: newName, url: newUrl });
     newName = '';
     newUrl = '';
     addError = '';
   }
 
   function handleReset(): void {
-    resetClients(kind);
+    data = resetKind(data, kind);
     showResetConfirm = false;
   }
 
@@ -69,7 +80,7 @@
               type="checkbox"
               checked={client.enabled}
               aria-label="{rowLabel(client.name)}をメニューに表示"
-              on:change={(e) => updateClient(kind, client.id, { enabled: e.currentTarget.checked })}
+              on:change={(e) => update(client.id, { enabled: e.currentTarget.checked })}
             />
             <span class="toggle-text">表示</span>
           </label>
@@ -84,7 +95,7 @@
               placeholder="クライアント名"
               aria-label="{rowLabel(client.name)}のクライアント名"
               value={client.name}
-              on:input={(e) => updateClient(kind, client.id, { name: e.currentTarget.value })}
+              on:input={(e) => update(client.id, { name: e.currentTarget.value })}
             />
             <input
               class="field-input url-input"
@@ -95,7 +106,7 @@
               placeholder={urlPlaceholder}
               aria-label="{rowLabel(client.name)}のURL"
               value={client.url}
-              on:input={(e) => updateClient(kind, client.id, { url: e.currentTarget.value })}
+              on:input={(e) => update(client.id, { url: e.currentTarget.value })}
             />
             {#if nameError || urlError}
               <p class="row-error">
@@ -108,7 +119,7 @@
             class="btn-delete"
             title="削除"
             aria-label="{rowLabel(client.name)}を削除"
-            on:click={() => removeClient(kind, client.id)}
+            on:click={() => remove(client.id)}
           >
             <svg
               width="16"
@@ -165,7 +176,6 @@
 <ConfirmDialog
   open={showResetConfirm}
   title={resetTitle}
-  note="追加・編集・削除した内容は元に戻せません。"
   confirmText="戻す"
   cancelText="やめる"
   on:confirm={handleReset}
@@ -332,7 +342,7 @@
     align-items: center;
     justify-content: center;
     border: none;
-    border-radius: 50%;
+    border-radius: var(--radius-btn);
     background: transparent;
     color: var(--ink3);
     cursor: pointer;

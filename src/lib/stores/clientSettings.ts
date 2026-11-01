@@ -1,25 +1,32 @@
 import { derived, get, writable } from 'svelte/store';
-import { ulid } from 'ulid';
 import {
   cloneDefaults,
   emptySettingsData,
   isUsable,
+  sameSettingsData,
   settingsDataFromJson,
   settingsDataToJson,
-  type ClientLink,
-  type ClientLinkKind,
   type ClientSettingsData,
   type LocalSettingsState,
   type SyncRecord
 } from '$lib/utils/clientLinks';
 
-// シェア先・「○○で開く」の設定。まずこのブラウザの localStorage に保存し、
-// ログイン中なら Nostr（$lib/services/settingsSync）とも同期できる。
+// シェア先・「○○で開く」の設定。設定画面の「保存」でこのブラウザの localStorage に保存し、
+// 「他の端末と同期する」がオンなら Nostr（$lib/services/settingsSync）とも同期する。
 // 触っていない種類は保存せず（null）、既定値を使う。こうしておくと、
 // 既定値をアプリ側で更新したとき、設定を変えていない人にはそのまま反映される。
 
 const STORAGE_KEY = 'matometr:client-links';
 const SYNC_KEY = 'matometr:client-links-sync';
+const SYNC_PREFS_KEY = 'matometr:client-links-sync-prefs';
+
+/** アカウントごとの「他の端末と同期する」の設定 */
+export interface SyncPref {
+  /** 他の端末と同期する */
+  enabled: boolean;
+  /** 初期状態のときの「他の端末で保存した設定を読み込むか」に「読み込まない」と答えた */
+  declined?: boolean;
+}
 
 type LocalState = LocalSettingsState;
 
@@ -84,14 +91,44 @@ function saveSyncRecords(records: Record<string, SyncRecord>): void {
   }
 }
 
+function loadSyncPrefs(): Record<string, SyncPref> {
+  if (typeof localStorage === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(SYNC_PREFS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const prefs: Record<string, SyncPref> = {};
+    for (const [pubkey, value] of Object.entries(parsed ?? {})) {
+      const p = value as Partial<SyncPref> | null;
+      if (p && typeof p.enabled === 'boolean') {
+        prefs[pubkey] = { enabled: p.enabled, ...(p.declined === true ? { declined: true } : {}) };
+      }
+    }
+    return prefs;
+  } catch {
+    return {};
+  }
+}
+
+function saveSyncPrefs(prefs: Record<string, SyncPref>): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(SYNC_PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    /* 保存できなければこのタブの間だけ有効 */
+  }
+}
+
 const local = writable<LocalState>(loadLocal());
 const syncRecords = writable<Record<string, SyncRecord>>(loadSyncRecords());
+const syncPrefs = writable<Record<string, SyncPref>>(loadSyncPrefs());
 
 // 別タブで設定を変えたら、開いているタブのメニューにも反映する。
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
     if (e.key === STORAGE_KEY || e.key === null) local.set(loadLocal());
     if (e.key === SYNC_KEY || e.key === null) syncRecords.set(loadSyncRecords());
+    if (e.key === SYNC_PREFS_KEY || e.key === null) syncPrefs.set(loadSyncPrefs());
   });
 }
 
@@ -123,49 +160,36 @@ export function getSyncRecord(pubkey: string): SyncRecord | undefined {
   return get(syncRecords)[pubkey];
 }
 
+/** アカウントごとの「他の端末と同期する」の設定 */
+export const settingsSyncPrefs = { subscribe: syncPrefs.subscribe };
+
+export function getSyncPref(pubkey: string): SyncPref {
+  return get(syncPrefs)[pubkey] ?? { enabled: false };
+}
+
+export function setSyncPref(pubkey: string, pref: SyncPref): void {
+  syncPrefs.update((prefs) => {
+    const next = { ...prefs, [pubkey]: pref };
+    saveSyncPrefs(next);
+    return next;
+  });
+}
+
 /** 前回より必ず大きい時刻（同じミリ秒に 2 回変えても区別できるように） */
 function nextUpdatedAt(prev: number): number {
   return Math.max(Date.now(), prev + 1);
 }
 
-function setData(fn: (data: ClientSettingsData) => ClientSettingsData): void {
-  local.update((s) => {
-    const next = { data: fn(s.data), updatedAt: nextUpdatedAt(s.updatedAt) };
-    saveLocal(next);
-    return next;
-  });
-}
-
-/** 指定の種類の一覧を書き換えて保存する */
-function mutate(kind: ClientLinkKind, fn: (list: ClientLink[]) => ClientLink[]): void {
-  setData((data) => {
-    const current = data[kind] ?? cloneDefaults(kind);
-    return { ...data, [kind]: fn(current.map((c) => ({ ...c }))) };
-  });
-}
-
-export function updateClient(
-  kind: ClientLinkKind,
-  id: string,
-  patch: Partial<Pick<ClientLink, 'name' | 'url' | 'enabled'>>
-): void {
-  mutate(kind, (list) => list.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-}
-
-export function addClient(kind: ClientLinkKind, name: string, url: string): void {
-  mutate(kind, (list) => [
-    ...list,
-    { id: ulid(), name: name.trim(), url: url.trim(), enabled: true }
-  ]);
-}
-
-export function removeClient(kind: ClientLinkKind, id: string): void {
-  mutate(kind, (list) => list.filter((c) => c.id !== id));
-}
-
-/** 指定の種類をデフォルトに戻す（保存していた設定を消す） */
-export function resetClients(kind: ClientLinkKind): void {
-  setData((data) => ({ ...data, [kind]: null }));
+/**
+ * 設定画面の「保存」。内容が変わっていれば保存して true を返す（変わっていなければ何もしない）。
+ */
+export function saveSettingsData(data: ClientSettingsData): boolean {
+  const current = get(local);
+  if (sameSettingsData(current.data, data)) return false;
+  const next = { data, updatedAt: nextUpdatedAt(current.updatedAt) };
+  saveLocal(next);
+  local.set(next);
+  return true;
 }
 
 /** Nostr から読み込んだ設定でこの端末の設定を置き換え、同期済みとして記録する */

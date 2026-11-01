@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { initAuth, currentUser } from '$lib/stores/auth';
-  import { autoPullSettings, clearSettingsSyncStatus } from '$lib/services/settingsSync';
+  import { autoSyncSettings, clearSettingsSyncStatus } from '$lib/services/settingsSync';
+  import SettingsSyncDialog from '$lib/components/SettingsSyncDialog.svelte';
   import '../app.css';
   import Header from '$lib/components/Header.svelte';
   import Footer from '$lib/components/Footer.svelte';
@@ -11,14 +12,15 @@
     initAuth();
   });
 
-  // ログインしたら（アカウントが変わったら）、Nostr に保存した設定を確認して新しければ読み込む
+  // まとめたーを開いたとき・ログインしたとき（アカウントが変わったとき）に、
+  // 他の端末で保存した設定を確認する（同期オンなら読み込み、競合・初期状態ならダイアログ）
   let syncedPubkey: string | null = null;
   $: {
     const pubkey = $currentUser?.pubkey ?? null;
     if (pubkey !== syncedPubkey) {
       syncedPubkey = pubkey;
       clearSettingsSyncStatus();
-      if (pubkey) void autoPullSettings(pubkey);
+      if (pubkey) void autoSyncSettings(pubkey);
     }
   }
 </script>
@@ -31,6 +33,7 @@
   <Footer />
 </div>
 <ScrollToTop />
+<SettingsSyncDialog />
 
 <style>
   .app-wrapper {
