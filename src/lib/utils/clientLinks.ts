@@ -187,3 +187,73 @@ export function sanitizeClientLinks(value: unknown): ClientLink[] | null {
   }
   return result;
 }
+
+/** 種類ごとの一覧。null は「変更していない（既定値を使う）」 */
+export type ClientSettingsData = Record<ClientLinkKind, ClientLink[] | null>;
+
+/** 設定データの形式バージョン（localStorage と Nostr 同期で共通） */
+export const SETTINGS_FORMAT_VERSION = 1;
+
+export function emptySettingsData(): ClientSettingsData {
+  return { share: null, open: null };
+}
+
+/** 設定データを保存用のオブジェクトにする。変更していない種類は書かない */
+export function settingsDataToJson(data: ClientSettingsData): Record<string, unknown> {
+  const json: Record<string, unknown> = { v: SETTINGS_FORMAT_VERSION };
+  if (data.share !== null) json.share = data.share;
+  if (data.open !== null) json.open = data.open;
+  return json;
+}
+
+/** 保存されていたオブジェクトを設定データに戻す。形式が違えば null */
+export function settingsDataFromJson(value: unknown): ClientSettingsData | null {
+  if (!value || typeof value !== 'object') return null;
+  const json = value as Record<string, unknown>;
+  if (json.v !== SETTINGS_FORMAT_VERSION) return null;
+  return {
+    share: sanitizeClientLinks(json.share),
+    open: sanitizeClientLinks(json.open)
+  };
+}
+
+/** この端末の設定と、最後に設定を変えた時刻 */
+export interface LocalSettingsState {
+  data: ClientSettingsData;
+  /** この端末で最後に設定が変わった時刻（ミリ秒）。0 = 一度も変えていない */
+  updatedAt: number;
+}
+
+/** Nostr と最後にそろえた時点の記録（アカウントごと） */
+export interface SyncRecord {
+  /** そろえた kind:30078 の created_at（秒） */
+  remoteCreatedAt: number;
+  /** そのときのこの端末の設定の updatedAt（ミリ秒） */
+  localUpdatedAt: number;
+}
+
+/** Nostr へ保存していない変更があるか */
+export function hasUnsavedChanges(
+  state: LocalSettingsState,
+  record: SyncRecord | undefined
+): boolean {
+  if (record) return state.updatedAt !== record.localUpdatedAt;
+  return state.updatedAt > 0 || state.data.share !== null || state.data.open !== null;
+}
+
+/**
+ * ログイン時の自動読み込みで、Nostr の設定（created_at 秒）をこの端末に読み込むか。
+ * - 前回そろえた後に Nostr 側が更新されていなければ読み込まない（復号もしない）
+ * - この端末に未保存の変更があり、それが Nostr 側より新しければ読み込まない
+ */
+export function decideAutoPull(
+  remoteCreatedAt: number,
+  state: LocalSettingsState,
+  record: SyncRecord | undefined
+): 'apply' | 'up-to-date' | 'local-newer' {
+  if (record && remoteCreatedAt <= record.remoteCreatedAt) return 'up-to-date';
+  if (hasUnsavedChanges(state, record) && state.updatedAt > remoteCreatedAt * 1000) {
+    return 'local-newer';
+  }
+  return 'apply';
+}

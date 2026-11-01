@@ -1,5 +1,6 @@
 <script lang="ts">
   import ClientLinkEditor from '$lib/components/ClientLinkEditor.svelte';
+  import SettingsSyncPanel from '$lib/components/SettingsSyncPanel.svelte';
 </script>
 
 <svelte:head>
@@ -8,7 +9,9 @@
 
 <div class="page">
   <h1 class="page-title">設定</h1>
-  <p class="page-note">変更はすぐに保存されます。設定はこのブラウザにだけ保存されます。</p>
+  <p class="page-note">変更はすぐにこのブラウザに保存されます。</p>
+
+  <SettingsSyncPanel />
 
   <ClientLinkEditor
     kind="share"

@@ -267,3 +267,26 @@ export async function publishAnnouncement(content: string): Promise<void> {
     relays
   );
 }
+
+/**
+ * NIP-78（kind:30078）のアプリ固有データを保存する。content は呼び出し側で用意する
+ * （設定の同期では NIP-44 で自分宛てに暗号化したもの）。既定リレーと write リレーに送る。
+ */
+export async function publishAppData(params: {
+  dTag: string;
+  content: string;
+  createdAt: number;
+}): Promise<void> {
+  if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
+  const pubkey = await window.nostr.getPublicKey();
+  const relays = await userWriteRelays(pubkey);
+  await sendToRelays(
+    {
+      kind: 30078,
+      created_at: params.createdAt,
+      tags: [['d', params.dTag]],
+      content: params.content
+    },
+    relays
+  );
+}

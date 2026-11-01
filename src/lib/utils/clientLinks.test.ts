@@ -9,7 +9,13 @@ import {
   sanitizeClientLinks,
   validateName,
   validateUrl,
-  type ClientLink
+  settingsDataFromJson,
+  settingsDataToJson,
+  hasUnsavedChanges,
+  decideAutoPull,
+  emptySettingsData,
+  type ClientLink,
+  type LocalSettingsState
 } from './clientLinks';
 
 describe('既定値', () => {
@@ -129,5 +135,71 @@ describe('sanitizeClientLinks', () => {
 
   it('空配列は空配列のまま（全部削除した状態を保つ）', () => {
     expect(sanitizeClientLinks([])).toEqual([]);
+  });
+});
+
+describe('settingsDataToJson / settingsDataFromJson', () => {
+  const link: ClientLink = { id: 'a', name: 'A', url: 'https://a/{text}', enabled: true };
+
+  it('変更していない種類（null）は書かず、読み戻すと null に戻る', () => {
+    const json = settingsDataToJson({ share: [link], open: null });
+    expect(json).toEqual({ v: 1, share: [link] });
+    expect(settingsDataFromJson(JSON.parse(JSON.stringify(json)))).toEqual({
+      share: [link],
+      open: null
+    });
+  });
+
+  it('全部削除した状態（空配列）も保てる', () => {
+    expect(settingsDataFromJson(settingsDataToJson({ share: [], open: [] }))).toEqual({
+      share: [],
+      open: []
+    });
+  });
+
+  it('形式バージョンが違う・オブジェクトでなければ null', () => {
+    expect(settingsDataFromJson({ v: 2, share: [] })).toBeNull();
+    expect(settingsDataFromJson('x')).toBeNull();
+    expect(settingsDataFromJson(null)).toBeNull();
+  });
+});
+
+describe('hasUnsavedChanges', () => {
+  const untouched: LocalSettingsState = { data: emptySettingsData(), updatedAt: 0 };
+  const edited: LocalSettingsState = { data: { share: [], open: null }, updatedAt: 5000 };
+
+  it('同期記録があれば、そのときから設定が変わったかで決まる', () => {
+    expect(hasUnsavedChanges(edited, { remoteCreatedAt: 1, localUpdatedAt: 5000 })).toBe(false);
+    expect(hasUnsavedChanges(edited, { remoteCreatedAt: 1, localUpdatedAt: 4000 })).toBe(true);
+  });
+
+  it('同期記録が無ければ、一度でも変えていれば未保存', () => {
+    expect(hasUnsavedChanges(untouched, undefined)).toBe(false);
+    expect(hasUnsavedChanges(edited, undefined)).toBe(true);
+  });
+});
+
+describe('decideAutoPull', () => {
+  const untouched: LocalSettingsState = { data: emptySettingsData(), updatedAt: 0 };
+
+  it('前回そろえた後に Nostr 側が更新されていなければ読み込まない', () => {
+    const record = { remoteCreatedAt: 100, localUpdatedAt: 0 };
+    expect(decideAutoPull(100, untouched, record)).toBe('up-to-date');
+    expect(decideAutoPull(90, untouched, record)).toBe('up-to-date');
+    expect(decideAutoPull(101, untouched, record)).toBe('apply');
+  });
+
+  it('未保存の変更が Nostr 側より新しければ読み込まない（古ければ Nostr 側を使う）', () => {
+    const record = { remoteCreatedAt: 100, localUpdatedAt: 1000 };
+    const editedAt = (sec: number): LocalSettingsState => ({
+      data: { share: [], open: null },
+      updatedAt: sec * 1000
+    });
+    expect(decideAutoPull(200, editedAt(300), record)).toBe('local-newer');
+    expect(decideAutoPull(200, editedAt(150), record)).toBe('apply');
+  });
+
+  it('この端末で同期したことが無く、設定も変えていなければ読み込む', () => {
+    expect(decideAutoPull(100, untouched, undefined)).toBe('apply');
   });
 });

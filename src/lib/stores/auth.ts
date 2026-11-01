@@ -604,7 +604,9 @@ export async function initAuth(): Promise<void> {
 
   await init({
     noBanner: true,
-    perms: 'sign_event:30023,sign_event:5,sign_event:1,sign_event:7',
+    // 30078 + nip44_* は設定の同期（NIP-78 / 自分宛ての NIP-44 暗号化）用
+    perms:
+      'sign_event:30023,sign_event:5,sign_event:1,sign_event:7,sign_event:30078,nip44_encrypt,nip44_decrypt',
     methods: ['connect', 'extension', 'nsec'],
     theme: 'default',
     title: 'まとめたーにログイン',
