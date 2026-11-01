@@ -169,6 +169,30 @@ function fetchUserRelays(pubkey: string, usage: 'read' | 'write'): Observable<st
   );
 }
 
+/**
+ * NIP-78（kind:30078）のアプリ固有データのうち、指定の d タグで最新の 1 件。
+ * 既定リレーに加えて relays（ユーザーの write リレーなど）にも問い合わせる。無ければ何も流さない。
+ */
+export function fetchAppData(
+  pubkey: string,
+  dTag: string,
+  relays: string[] = []
+): Observable<{ id: string; content: string; createdAt: number }> {
+  const client = getClient();
+  const rxReq = createRxOneshotReq({
+    filters: { kinds: [30078], authors: [pubkey], '#d': [dTag], limit: 1 }
+  });
+  return client.use(rxReq, withRelays(relays)).pipe(
+    takeUntil(timer(STAGE_LIMIT_MS)),
+    filter(
+      ({ event }) =>
+        event.pubkey === pubkey && event.tags.some((t) => t[0] === 'd' && t[1] === dTag)
+    ),
+    latestByCreatedAt(),
+    map(({ event }) => ({ id: event.id, content: event.content, createdAt: event.created_at }))
+  );
+}
+
 export function fetchUserReadRelays(pubkey: string): Observable<string[]> {
   return fetchUserRelays(pubkey, 'read');
 }

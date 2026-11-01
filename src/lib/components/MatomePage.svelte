@@ -32,6 +32,7 @@
   import NaddrCard from '$lib/components/NaddrCard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import ShareDialog from '$lib/components/ShareDialog.svelte';
   import LoginModal from '$lib/components/LoginModal.svelte';
   import NostrLoginModal from '$lib/components/NostrLoginModal.svelte';
   import type { StartScreens } from '@konemono/nostr-login/dist/types';
@@ -347,6 +348,8 @@
   }
 
   $: shareText = matome ? `${matome.title} #まとめたー\n${shareUrl}\nnostr:${matome.naddr}` : '';
+  // Nos ボタンのシェア先選択（一覧は設定画面で編集できる）
+  let showShareDialog = false;
 
   // ⋮ menu
   let menuOpen = false;
@@ -704,8 +707,16 @@
         </button>
 
         <div class="stat-share-row">
-          <!-- Nos: nostr-share-component（スロットでテキスト上書き） -->
-          <nostr-share data-text={shareText}><span class="nos-label">Nos</span></nostr-share>
+          <!-- Nos: シェア先クライアントを選ぶダイアログを開く -->
+          <button
+            class="nos-btn"
+            title="Nostrクライアントでシェア"
+            aria-label="Nostrクライアントでシェア"
+            aria-haspopup="dialog"
+            on:click={() => (showShareDialog = true)}
+          >
+            <span class="nos-label">Nos</span>
+          </button>
 
           <!-- X -->
           <button class="share-btn" title="Xでシェア" aria-label="Xでシェア" on:click={shareX}>
@@ -863,6 +874,8 @@
   {/if}
 </div>
 
+<ShareDialog open={showShareDialog} text={shareText} on:close={() => (showShareDialog = false)} />
+
 {#if showFavLoginModal}
   <LoginModal
     launching={favLoginLaunching}
@@ -1004,7 +1017,7 @@
     color: var(--accent);
     background: var(--surface);
     border: 1.5px solid var(--accent-mid);
-    border-radius: 9999px;
+    border-radius: var(--radius-btn);
     padding: 8px 16px;
     cursor: pointer;
     font-family: var(--font-ui);
@@ -1031,7 +1044,7 @@
     align-items: center;
     gap: 5px;
     padding: 8px 14px;
-    border-radius: 9999px;
+    border-radius: var(--radius-btn);
     font-size: 13px;
     font-weight: 700;
     font-family: var(--font-ui);
@@ -1177,7 +1190,7 @@
     height: 15px;
     padding: 0;
     border: 1.5px solid var(--ink3);
-    border-radius: 50%;
+    border-radius: var(--radius-btn);
     background: none;
     color: var(--ink3);
     font-family: var(--font-ui);
@@ -1360,7 +1373,7 @@
     gap: 5px;
     height: 34px;
     padding: 0 12px;
-    border-radius: 10px;
+    border-radius: var(--radius-btn);
     cursor: pointer;
     background: var(--accent-pale);
     border: 1.5px solid var(--accent);
@@ -1495,12 +1508,12 @@
     background: #b91c1c;
   }
 
-  /* nostr-share-component: Mochiy Pop One・横長・オレンジ */
-  :global(nostr-share::part(button)) {
+  /* Nos ボタン: Mochiy Pop One・横長・オレンジ */
+  .nos-btn {
     background: var(--accent);
     color: white;
     border: none;
-    border-radius: 10px;
+    border-radius: var(--radius-btn);
     height: 34px;
     padding: 0 14px;
     cursor: pointer;
@@ -1512,7 +1525,7 @@
     align-items: center;
   }
 
-  :global(nostr-share::part(button):hover) {
+  .nos-btn:hover {
     background: var(--accent-dark);
     transform: translateY(-1px);
     box-shadow: var(--shadow-btn);
@@ -1530,7 +1543,7 @@
     justify-content: center;
     width: 34px;
     height: 34px;
-    border-radius: 10px;
+    border-radius: var(--radius-btn);
     cursor: pointer;
     border: none;
     background: var(--accent);
@@ -1891,7 +1904,7 @@
     align-items: center;
     gap: 5px;
     padding: 5px 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-btn);
     border: 1.5px solid var(--border2);
     background: var(--surface);
     color: var(--ink2);
@@ -1914,7 +1927,7 @@
   .json-close {
     width: 28px;
     height: 28px;
-    border-radius: 50%;
+    border-radius: var(--radius-btn);
     border: none;
     background: var(--bg);
     color: var(--ink2);

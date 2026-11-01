@@ -111,7 +111,7 @@
     flex-shrink: 0;
     width: 22px;
     height: 22px;
-    border-radius: 50%;
+    border-radius: var(--radius-btn);
     border: 1.5px solid var(--border2);
     background: var(--surface);
     color: var(--ink3);
@@ -166,7 +166,7 @@
     white-space: nowrap;
     flex-shrink: 0;
     border: 1.5px solid var(--accent-mid);
-    border-radius: 999px;
+    border-radius: var(--radius-btn);
     background: var(--surface);
     padding: 4px 12px;
     color: var(--accent-dark);

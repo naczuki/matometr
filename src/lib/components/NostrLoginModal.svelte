@@ -169,7 +169,7 @@
     right: 12px;
     width: 32px;
     height: 32px;
-    border-radius: 50%;
+    border-radius: var(--radius-btn);
     background: var(--bg);
     border: none;
     font-size: 18px;
@@ -290,7 +290,7 @@
     flex: 1;
     padding: 9px 12px;
     border: 1.5px solid var(--accent-mid);
-    border-radius: 9999px;
+    border-radius: var(--radius-btn);
     background: var(--surface);
     color: var(--accent);
     font-size: 13px;

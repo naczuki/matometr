@@ -328,7 +328,7 @@
   .close {
     width: 30px;
     height: 30px;
-    border-radius: 50%;
+    border-radius: var(--radius-btn);
     border: none;
     background: transparent;
     color: var(--ink3);
@@ -425,7 +425,7 @@
     padding: 0 16px;
     background: var(--surface);
     border: 1.5px solid var(--accent-mid);
-    border-radius: 10px;
+    border-radius: var(--radius-btn);
     color: var(--accent-dark);
     font-family: var(--font-ui);
     font-weight: 700;
@@ -487,7 +487,7 @@
     right: 6px;
     width: 22px;
     height: 22px;
-    border-radius: 50%;
+    border-radius: var(--radius-btn);
     border: 1px solid var(--border2);
     background: var(--surface);
     color: var(--ink3);

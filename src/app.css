@@ -27,7 +27,8 @@
   --font-nos: 'Mochiy Pop One', sans-serif;
 
   --radius-card: 2px;
-  --radius-btn: 9999px;
+  /* ボタンの角丸。まとめ詳細のふぁぼ・シェアボタンの形にそろえる。 */
+  --radius-btn: 10px;
 
   --note-chevron: #c4b8ac;
 

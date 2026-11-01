@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { nip19 } from 'nostr-tools';
   import { base } from '$app/paths';
   import { pushState, replaceState } from '$app/navigation';
@@ -17,6 +17,8 @@
   import { shortNpubFromPubkey, resolveRepostTarget, isKind1Comment } from '$lib/utils/nostr';
   import { openReactions, type ReactionHandle } from '$lib/services/reactions';
   import { groupReactions } from '$lib/utils/reaction';
+  import { openClients } from '$lib/stores/clientSettings';
+  import { fillOpenUrl, isNostrUri, type EventIds } from '$lib/utils/clientLinks';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import Avatar from '$lib/components/Avatar.svelte';
 
@@ -42,6 +44,7 @@
   let menuOpen = false;
   let menuX = 0;
   let menuY = 0;
+  let menuEl: HTMLDivElement | null = null;
   let copyToast = false;
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let removeDocListener: (() => void) | null = null;
@@ -317,13 +320,22 @@
     }
   })();
 
+  // 「○○で開く」の URL に埋める ID（設定画面のプレースホルダ {nevent} / {note} / {id}）
+  $: menuIds = ((): EventIds | null => {
+    if (!note || !menuNevent) return null;
+    try {
+      return { nevent: menuNevent, note: nip19.noteEncode(note.id), id: note.id };
+    } catch {
+      return null;
+    }
+  })();
+
   function openMenu(e: Event): void {
     e.stopPropagation();
-    const MENU_W = 175;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    let x = rect.right - MENU_W;
-    if (x < 8) x = 8;
-    menuX = x;
+    // 幅はクライアント名の長さで変わるので、描画後に実際の幅を測ってボタンの右端にそろえる
+    const MENU_W = 175;
+    menuX = Math.max(8, rect.right - MENU_W);
     menuY = rect.bottom + 6;
     menuOpen = true;
     const handler = (): void => {
@@ -332,6 +344,9 @@
     };
     document.addEventListener('click', handler, { once: true });
     removeDocListener = () => document.removeEventListener('click', handler);
+    void tick().then(() => {
+      if (menuEl) menuX = Math.max(8, rect.right - menuEl.offsetWidth);
+    });
   }
 
   async function copyNevent(): Promise<void> {
@@ -682,19 +697,33 @@
 {#if menuOpen && menuNevent}
   <div
     class="note-menu"
+    bind:this={menuEl}
     style="left:{menuX}px;top:{menuY}px"
     role="menu"
     tabindex="-1"
     on:click|stopPropagation
     on:keydown|stopPropagation
   >
-    <a
-      class="note-menu-item"
-      href="https://nostter.app/{menuNevent}"
-      target="_blank"
-      rel="noopener noreferrer"
-      on:click={() => (menuOpen = false)}>nostterで開く</a
-    >
+    {#if menuIds}
+      {#each $openClients as client (client.id)}
+        {#if isNostrUri(client.url)}
+          <!-- nostr: は端末のアプリに渡すので、新しいタブを開かない -->
+          <a
+            class="note-menu-item"
+            href={fillOpenUrl(client.url, menuIds)}
+            on:click={() => (menuOpen = false)}>{client.name}で開く</a
+          >
+        {:else}
+          <a
+            class="note-menu-item"
+            href={fillOpenUrl(client.url, menuIds)}
+            target="_blank"
+            rel="noopener noreferrer"
+            on:click={() => (menuOpen = false)}>{client.name}で開く</a
+          >
+        {/if}
+      {/each}
+    {/if}
     <div
       class="note-menu-item"
       role="menuitem"
@@ -824,7 +853,7 @@
     flex-shrink: 0;
     margin-left: auto;
     cursor: pointer;
-    border-radius: 6px;
+    border-radius: var(--radius-btn);
     padding: 3px 4px;
     margin-right: -4px;
     transition: background 0.1s;
@@ -850,6 +879,7 @@
     box-shadow: var(--shadow-popover);
     overflow: hidden;
     min-width: 160px;
+    max-width: min(280px, calc(100vw - 16px));
   }
 
   .note-menu-item {
@@ -862,6 +892,9 @@
     text-decoration: none;
     transition: background 0.1s;
     user-select: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .note-menu-item + .note-menu-item {
@@ -1081,7 +1114,7 @@
   .cw-hide-btn {
     background: var(--bg);
     border: 1.5px solid var(--border2);
-    border-radius: 20px;
+    border-radius: var(--radius-btn);
     padding: 9px 28px;
     font-size: 14px;
     font-family: var(--font-ui);

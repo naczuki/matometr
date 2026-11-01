@@ -1,0 +1,395 @@
+// 外部クライアントへのリンク設定（シェア先・「○○で開く」）の型・既定値・URL 組み立て。
+// 保存（localStorage）は $lib/stores/clientSettings が担い、ここは副作用のない関数だけを置く。
+
+/** 設定の種類。share = Nos ボタンのシェア先、open = 投稿メニューの「○○で開く」 */
+export type ClientLinkKind = 'share' | 'open';
+
+export interface ClientLink {
+  id: string;
+  name: string;
+  /** プレースホルダ入りの URL テンプレート */
+  url: string;
+  /** アイコン URL（既定のシェア先のみ。未指定ならサイトの /favicon.ico を使う） */
+  icon?: string;
+  /** メニューに表示するか */
+  enabled: boolean;
+}
+
+/** シェア先 URL のプレースホルダ。シェアする文章（URL エンコード済み）に置き換わる */
+export const SHARE_PLACEHOLDER = '{text}';
+
+/** 「○○で開く」URL のプレースホルダ。投稿の ID に置き換わる */
+export const OPEN_PLACEHOLDERS = ['{nevent}', '{note}', '{id}'] as const;
+
+export const PLACEHOLDERS: Record<ClientLinkKind, readonly string[]> = {
+  share: [SHARE_PLACEHOLDER],
+  open: OPEN_PLACEHOLDERS
+};
+
+export const NAME_MAX_LENGTH = 40;
+
+// nostr-share-component（@konemono/nostr-share-component, Apache-2.0）の一覧と同じ並び。
+// Lumilumi は同コンポーネント 0.6.0 で {tags} が付いたが、まとめたーはタグを渡さないので外している。
+export const DEFAULT_SHARE_CLIENTS: readonly ClientLink[] = [
+  {
+    id: 'ehagaki',
+    name: 'eHagaki',
+    url: 'https://lokuyow.github.io/ehagaki/?content={text}',
+    icon: 'https://lokuyow.github.io/ehagaki/favicon.ico',
+    enabled: true
+  },
+  {
+    id: 'nokakoi',
+    name: 'nokakoi',
+    url: 'https://nokakoi.com/app/?text={text}',
+    // nokakoi.com/favicon.ico は画像ではなくページを返すので、アプリのアイコンを直接指定する
+    icon: 'https://nokakoi.com/app/icon/nokakoi.png',
+    enabled: true
+  },
+  {
+    id: 'noshaiku',
+    name: 'Nos Haiku',
+    url: 'https://nos-haiku.vercel.app/antenna?content={text}',
+    icon: 'https://nos-haiku.vercel.app/favicon.png',
+    enabled: true
+  },
+  {
+    id: 'nostter',
+    name: 'nostter',
+    url: 'https://nostter.app/post?content={text}',
+    icon: 'https://nostter.app/favicon.ico',
+    enabled: true
+  },
+  {
+    id: 'lumilumi',
+    name: 'Lumilumi',
+    url: 'https://lumilumi.app/post?text={text}',
+    icon: 'https://lumilumi.app/favicon.ico',
+    enabled: true
+  }
+];
+
+export const DEFAULT_OPEN_CLIENTS: readonly ClientLink[] = [
+  {
+    id: 'nostter',
+    name: 'nostter',
+    url: 'https://nostter.app/{nevent}',
+    enabled: true
+  },
+  {
+    // nostr: URI（NIP-21）。端末に入っている Nostr アプリ（nostr: を受け付けるもの）で開く。
+    // 受け付けるアプリが無い端末では何も起きないので、既定では表示しない。
+    id: 'nostr-app',
+    name: 'アプリ',
+    url: 'nostr:{nevent}',
+    enabled: false
+  }
+];
+
+export const DEFAULT_CLIENTS: Record<ClientLinkKind, readonly ClientLink[]> = {
+  share: DEFAULT_SHARE_CLIENTS,
+  open: DEFAULT_OPEN_CLIENTS
+};
+
+export function cloneDefaults(kind: ClientLinkKind): ClientLink[] {
+  return DEFAULT_CLIENTS[kind].map((c) => ({ ...c }));
+}
+
+function isHttpUrl(value: string): boolean {
+  if (!/^https?:\/\//i.test(value)) return false;
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function validateName(name: string): string | null {
+  const trimmed = name.trim();
+  if (!trimmed) return 'クライアント名を入力してください';
+  if (trimmed.length > NAME_MAX_LENGTH)
+    return `クライアント名は${NAME_MAX_LENGTH}文字以内にしてください`;
+  return null;
+}
+
+/** URL テンプレートの問題点を返す。問題なければ null */
+/** nostr: URI（NIP-21）。「○○で開く」でだけ使える */
+export function isNostrUri(value: string): boolean {
+  return /^nostr:/i.test(value.trim());
+}
+
+export function validateUrl(kind: ClientLinkKind, url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed) return 'URL を入力してください';
+  if (kind === 'open') {
+    if (!isHttpUrl(trimmed) && !isNostrUri(trimmed)) {
+      return 'https:// ・ http:// ・ nostr: のどれかで始まる URL を入力してください';
+    }
+  } else if (!isHttpUrl(trimmed)) {
+    return 'https:// または http:// で始まる URL を入力してください';
+  }
+  const placeholders = PLACEHOLDERS[kind];
+  if (!placeholders.some((p) => trimmed.includes(p))) {
+    return placeholders.length === 1
+      ? `URL に ${placeholders[0]} を入れてください`
+      : `URL に ${placeholders.join(' / ')} のどれかを入れてください`;
+  }
+  return null;
+}
+
+/** メニューに出せる状態か（表示オン かつ 名前・URL が正しい） */
+export function isUsable(kind: ClientLinkKind, link: ClientLink): boolean {
+  return link.enabled && validateName(link.name) === null && validateUrl(kind, link.url) === null;
+}
+
+function replaceAllLiteral(source: string, search: string, value: string): string {
+  return source.split(search).join(value);
+}
+
+/** シェア先 URL の {text} をシェアする文章で置き換える */
+export function fillShareUrl(template: string, text: string): string {
+  return replaceAllLiteral(template.trim(), SHARE_PLACEHOLDER, encodeURIComponent(text));
+}
+
+export interface EventIds {
+  nevent: string;
+  note: string;
+  /** 16 進のイベント ID */
+  id: string;
+}
+
+/** 「○○で開く」URL の {nevent} / {note} / {id} を投稿の ID で置き換える */
+export function fillOpenUrl(template: string, ids: EventIds): string {
+  let url = template.trim();
+  url = replaceAllLiteral(url, '{nevent}', encodeURIComponent(ids.nevent));
+  url = replaceAllLiteral(url, '{note}', encodeURIComponent(ids.note));
+  url = replaceAllLiteral(url, '{id}', encodeURIComponent(ids.id));
+  return url;
+}
+
+function originOf(url: string): string | null {
+  try {
+    return new URL(url.trim()).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * アイコンを探すページの URL。URL テンプレートからプレースホルダ・クエリ・フラグメントを除いたもの。
+ * http(s) でなければ null。
+ */
+export function iconPageUrl(template: string): string | null {
+  const stripped = [SHARE_PLACEHOLDER, ...OPEN_PLACEHOLDERS].reduce(
+    (url, placeholder) => replaceAllLiteral(url, placeholder, ''),
+    template.trim()
+  );
+  if (!isHttpUrl(stripped)) return null;
+  try {
+    const u = new URL(stripped);
+    return u.origin + u.pathname;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * /api/favicon の結果はブラウザとサーバーにキャッシュされる。探し方を直したときに古い結果
+ * （見つからなかった結果など）を使い続けないよう、URL に版を付ける。探し方を変えたら上げる。
+ */
+const ICON_API_VERSION = '2';
+
+/**
+ * アイコンの候補を、試す順に返す。
+ * 1. 既定のアイコン（クライアントと同じサイトのときだけ）
+ * 2. まとめたーのサーバーでページから探したアイコン（apiPath = /api/favicon）
+ * 読み込めなければ次を試し、全部だめなら頭文字を出す。
+ */
+export function clientIconCandidates(link: ClientLink, apiPath: string): string[] {
+  const candidates: string[] = [];
+  const origin = originOf(link.url);
+  if (link.icon && origin && isHttpUrl(link.url.trim()) && originOf(link.icon) === origin) {
+    candidates.push(link.icon);
+  }
+  const page = iconPageUrl(link.url);
+  if (page) candidates.push(`${apiPath}?url=${encodeURIComponent(page)}&v=${ICON_API_VERSION}`);
+  return candidates;
+}
+
+/**
+ * localStorage から読んだ値を ClientLink[] に整える。
+ * 形の合わない要素は捨て、配列でなければ null（＝既定値を使う）を返す。
+ */
+export function sanitizeClientLinks(value: unknown): ClientLink[] | null {
+  if (!Array.isArray(value)) return null;
+  const result: ClientLink[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const { id, name, url, icon, enabled } = item as Record<string, unknown>;
+    if (typeof id !== 'string' || !id || seen.has(id)) continue;
+    if (typeof name !== 'string' || typeof url !== 'string') continue;
+    seen.add(id);
+    const link: ClientLink = { id, name, url, enabled: enabled !== false };
+    if (typeof icon === 'string' && isHttpUrl(icon)) link.icon = icon;
+    result.push(link);
+  }
+  return result;
+}
+
+/** 種類ごとの一覧。null は「変更していない（既定値を使う）」 */
+export type ClientSettingsData = Record<ClientLinkKind, ClientLink[] | null>;
+
+/** 設定データの形式バージョン（localStorage と Nostr 同期で共通） */
+export const SETTINGS_FORMAT_VERSION = 1;
+
+export function emptySettingsData(): ClientSettingsData {
+  return { share: null, open: null };
+}
+
+/** 設定データを保存用のオブジェクトにする。変更していない種類は書かない */
+export function settingsDataToJson(data: ClientSettingsData): Record<string, unknown> {
+  const json: Record<string, unknown> = { v: SETTINGS_FORMAT_VERSION };
+  if (data.share !== null) json.share = data.share;
+  if (data.open !== null) json.open = data.open;
+  return json;
+}
+
+/** 保存されていたオブジェクトを設定データに戻す。形式が違えば null */
+export function settingsDataFromJson(value: unknown): ClientSettingsData | null {
+  if (!value || typeof value !== 'object') return null;
+  const json = value as Record<string, unknown>;
+  if (json.v !== SETTINGS_FORMAT_VERSION) return null;
+  return {
+    share: sanitizeClientLinks(json.share),
+    open: sanitizeClientLinks(json.open)
+  };
+}
+
+/** この端末の設定と、最後に設定を変えた時刻 */
+export interface LocalSettingsState {
+  data: ClientSettingsData;
+  /** この端末で最後に設定が変わった時刻（ミリ秒）。0 = 一度も変えていない */
+  updatedAt: number;
+}
+
+/** Nostr と最後にそろえた時点の記録（アカウントごと） */
+export interface SyncRecord {
+  /** そろえた kind:30078 の created_at（秒） */
+  remoteCreatedAt: number;
+  /** そのときのこの端末の設定の updatedAt（ミリ秒） */
+  localUpdatedAt: number;
+}
+
+/** Nostr へ保存していない変更があるか */
+export function hasUnsavedChanges(
+  state: LocalSettingsState,
+  record: SyncRecord | undefined
+): boolean {
+  if (record) return state.updatedAt !== record.localUpdatedAt;
+  return state.updatedAt > 0 || state.data.share !== null || state.data.open !== null;
+}
+
+/** 前回そろえた後に、Nostr 側の設定が（別の端末で）保存されたか */
+export function remoteChangedSinceSync(
+  remoteCreatedAt: number,
+  record: SyncRecord | undefined
+): boolean {
+  return !record || remoteCreatedAt > record.remoteCreatedAt;
+}
+
+/**
+ * 同期オンの端末を開いたとき、他の端末で保存した設定（created_at 秒）をどうするか。
+ * 新しい方を使う。
+ * - up-to-date: 前回そろえた後に他の端末で保存されていない（復号もしない）
+ * - keep-local: この端末の送れていない変更の方が新しい（読み込まない。次の保存で送る）
+ * - apply: 他の端末の設定の方が新しい → 読み込む
+ */
+export function decideOnOpen(
+  remoteCreatedAt: number,
+  state: LocalSettingsState,
+  record: SyncRecord | undefined
+): 'up-to-date' | 'keep-local' | 'apply' {
+  if (!remoteChangedSinceSync(remoteCreatedAt, record)) return 'up-to-date';
+  if (hasUnsavedChanges(state, record) && state.updatedAt > remoteCreatedAt * 1000) {
+    return 'keep-local';
+  }
+  return 'apply';
+}
+
+/**
+ * 同期をオンにしたとき、どうするか。remoteCreatedAt は他の端末で保存した設定（無ければ null）。
+ * - push: 他の端末の設定が無い、またはこの端末の方が進んでいるだけ → この端末の設定を送る
+ * - apply: この端末が初期状態、または前回そろえた後に変えていない → 他の端末の設定を読み込む
+ * - none: すでにそろっている
+ * - ask: この端末にも他の端末にも、相手に無い変更がある → 同期するか聞く
+ */
+export function decideOnEnable(
+  remoteCreatedAt: number | null,
+  state: LocalSettingsState,
+  record: SyncRecord | undefined
+): 'push' | 'apply' | 'none' | 'ask' {
+  if (remoteCreatedAt === null) return 'push';
+  if (isInitialState(state)) return 'apply';
+  const remoteChanged = remoteChangedSinceSync(remoteCreatedAt, record);
+  const localChanged = hasUnsavedChanges(state, record);
+  if (!localChanged) return remoteChanged ? 'apply' : 'none';
+  if (!remoteChanged) return 'push';
+  return 'ask';
+}
+
+// ---- 設定画面の下書き（保存ボタンを押すまで反映しない）を書き換える関数 ----
+
+/** 指定の種類の一覧を書き換えた新しい設定データを返す（既定値のままなら既定値から始める） */
+function withList(
+  data: ClientSettingsData,
+  kind: ClientLinkKind,
+  fn: (list: ClientLink[]) => ClientLink[]
+): ClientSettingsData {
+  const current = data[kind] ?? cloneDefaults(kind);
+  return { ...data, [kind]: fn(current.map((c) => ({ ...c }))) };
+}
+
+export function updateLink(
+  data: ClientSettingsData,
+  kind: ClientLinkKind,
+  id: string,
+  patch: Partial<Pick<ClientLink, 'name' | 'url' | 'enabled'>>
+): ClientSettingsData {
+  return withList(data, kind, (list) => list.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+}
+
+export function addLink(
+  data: ClientSettingsData,
+  kind: ClientLinkKind,
+  link: Pick<ClientLink, 'id' | 'name' | 'url'>
+): ClientSettingsData {
+  return withList(data, kind, (list) => [
+    ...list,
+    { id: link.id, name: link.name.trim(), url: link.url.trim(), enabled: true }
+  ]);
+}
+
+export function removeLink(
+  data: ClientSettingsData,
+  kind: ClientLinkKind,
+  id: string
+): ClientSettingsData {
+  return withList(data, kind, (list) => list.filter((c) => c.id !== id));
+}
+
+/** 指定の種類をデフォルトに戻す（変更していない扱いにする） */
+export function resetKind(data: ClientSettingsData, kind: ClientLinkKind): ClientSettingsData {
+  return { ...data, [kind]: null };
+}
+
+/** 2 つの設定データが同じ内容か */
+export function sameSettingsData(a: ClientSettingsData, b: ClientSettingsData): boolean {
+  return JSON.stringify(settingsDataToJson(a)) === JSON.stringify(settingsDataToJson(b));
+}
+
+/** この端末の設定が初期状態（一度も変えていない）か */
+export function isInitialState(state: LocalSettingsState): boolean {
+  return state.updatedAt === 0 && state.data.share === null && state.data.open === null;
+}

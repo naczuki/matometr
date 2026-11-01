@@ -147,7 +147,7 @@ const NOSTR_LOGIN_CSS = `
     --tw-ring-color: transparent !important;
   }
 
-  /* 戻るボタン：オレンジ丸囲み・影付き */
+  /* 戻るボタン：オレンジ枠・影付き */
   .nl-back-to-app {
     display: flex !important;
     align-items: center !important;
@@ -155,7 +155,7 @@ const NOSTR_LOGIN_CSS = `
     flex-shrink: 0 !important;
     width: 1.75rem !important;
     height: 1.75rem !important;
-    border-radius: 9999px !important;
+    border-radius: var(--radius-btn) !important;
     border: 1.5px solid var(--accent-mid) !important;
     background: var(--accent-pale) !important;
     color: var(--accent) !important;
@@ -604,7 +604,9 @@ export async function initAuth(): Promise<void> {
 
   await init({
     noBanner: true,
-    perms: 'sign_event:30023,sign_event:5,sign_event:1,sign_event:7',
+    // 30078 + nip44_* は設定の同期（NIP-78 / 自分宛ての NIP-44 暗号化）用
+    perms:
+      'sign_event:30023,sign_event:5,sign_event:1,sign_event:7,sign_event:30078,nip44_encrypt,nip44_decrypt',
     methods: ['connect', 'extension', 'nsec'],
     theme: 'default',
     title: 'まとめたーにログイン',

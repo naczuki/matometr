@@ -571,7 +571,7 @@
     color: var(--accent-dark);
     background: var(--accent-pale);
     border: 1.5px solid var(--accent-mid);
-    border-radius: 999px;
+    border-radius: var(--radius-btn);
     padding: 3px 12px;
     cursor: pointer;
     white-space: nowrap;
@@ -972,7 +972,7 @@
   .delete-btn {
     width: 26px;
     height: 26px;
-    border-radius: 50%;
+    border-radius: var(--radius-btn);
     border: 1px solid var(--border2);
     background: var(--bg);
     color: var(--ink3);
@@ -1005,7 +1005,7 @@
     gap: 4px;
     padding: 8px 16px;
     border: 2px dashed var(--accent-mid);
-    border-radius: 999px;
+    border-radius: var(--radius-btn);
     background: transparent;
     color: var(--accent-dark);
     font-size: 13px;
