@@ -2,7 +2,7 @@
   import { createEventDispatcher, tick } from 'svelte';
   import { base } from '$app/paths';
   import { shareClients } from '$lib/stores/clientSettings';
-  import { clientIconUrl, fillShareUrl, type ClientLink } from '$lib/utils/clientLinks';
+  import { clientIconCandidates, fillShareUrl, type ClientLink } from '$lib/utils/clientLinks';
 
   // Nos ボタンのシェア先選択。一覧は設定画面（/settings）で編集できる。
   export let open: boolean;
@@ -11,7 +11,9 @@
   const dispatch = createEventDispatcher<{ close: void }>();
 
   let boxEl: HTMLDivElement | null = null;
-  let failedIcons: Set<string> = new Set();
+  // アイコンは候補を順に試す（既定のアイコン → サーバーでページから探したアイコン）。
+  // クライアントごとに、いま何番目の候補を使っているか。全部だめなら頭文字を出す。
+  let iconIndex: Record<string, number> = {};
 
   $: if (open) {
     tick().then(() => boxEl?.querySelector<HTMLElement>('.close-btn')?.focus());
@@ -27,7 +29,7 @@
   }
 
   function onIconError(id: string): void {
-    failedIcons = new Set([...failedIcons, id]);
+    iconIndex = { ...iconIndex, [id]: (iconIndex[id] ?? 0) + 1 };
   }
 </script>
 
@@ -64,9 +66,11 @@
       {#if $shareClients.length > 0}
         <div class="clients">
           {#each $shareClients as client (client.id)}
-            {@const icon = clientIconUrl(client)}
+            {@const icon = clientIconCandidates(client, `${base}/api/favicon`)[
+              iconIndex[client.id] ?? 0
+            ]}
             <button class="client-btn" on:click={() => share(client)}>
-              {#if icon && !failedIcons.has(client.id)}
+              {#if icon}
                 <img
                   class="client-icon"
                   src={icon}

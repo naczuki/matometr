@@ -42,7 +42,8 @@ export const DEFAULT_SHARE_CLIENTS: readonly ClientLink[] = [
     id: 'nokakoi',
     name: 'nokakoi',
     url: 'https://nokakoi.com/app/?text={text}',
-    icon: 'https://nokakoi.com/favicon.ico',
+    // nokakoi.com/favicon.ico は画像ではなくページを返すので、アプリのアイコンを直接指定する
+    icon: 'https://nokakoi.com/app/icon/nokakoi.png',
     enabled: true
   },
   {
@@ -74,6 +75,14 @@ export const DEFAULT_OPEN_CLIENTS: readonly ClientLink[] = [
     name: 'nostter',
     url: 'https://nostter.app/{nevent}',
     enabled: true
+  },
+  {
+    // nostr: URI（NIP-21）。端末に入っている Nostr アプリ（nostr: を受け付けるもの）で開く。
+    // 受け付けるアプリが無い端末では何も起きないので、既定では表示しない。
+    id: 'nostr-app',
+    name: 'アプリ',
+    url: 'nostr:{nevent}',
+    enabled: false
   }
 ];
 
@@ -105,10 +114,21 @@ export function validateName(name: string): string | null {
 }
 
 /** URL テンプレートの問題点を返す。問題なければ null */
+/** nostr: URI（NIP-21）。「○○で開く」でだけ使える */
+export function isNostrUri(value: string): boolean {
+  return /^nostr:/i.test(value.trim());
+}
+
 export function validateUrl(kind: ClientLinkKind, url: string): string | null {
   const trimmed = url.trim();
   if (!trimmed) return 'URL を入力してください';
-  if (!isHttpUrl(trimmed)) return 'https:// または http:// で始まる URL を入力してください';
+  if (kind === 'open') {
+    if (!isHttpUrl(trimmed) && !isNostrUri(trimmed)) {
+      return 'https:// ・ http:// ・ nostr: のどれかで始まる URL を入力してください';
+    }
+  } else if (!isHttpUrl(trimmed)) {
+    return 'https:// または http:// で始まる URL を入力してください';
+  }
   const placeholders = PLACEHOLDERS[kind];
   if (!placeholders.some((p) => trimmed.includes(p))) {
     return placeholders.length === 1
@@ -157,14 +177,38 @@ function originOf(url: string): string | null {
 }
 
 /**
- * アイコン URL。既定のアイコンはシェア先と同じサイトのときだけ使い、
- * それ以外はシェア先サイトの /favicon.ico を使う。URL が不正なら null。
+ * アイコンを探すページの URL。URL テンプレートからプレースホルダ・クエリ・フラグメントを除いたもの。
+ * http(s) でなければ null。
  */
-export function clientIconUrl(link: ClientLink): string | null {
+export function iconPageUrl(template: string): string | null {
+  const stripped = [SHARE_PLACEHOLDER, ...OPEN_PLACEHOLDERS].reduce(
+    (url, placeholder) => replaceAllLiteral(url, placeholder, ''),
+    template.trim()
+  );
+  if (!isHttpUrl(stripped)) return null;
+  try {
+    const u = new URL(stripped);
+    return u.origin + u.pathname;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * アイコンの候補を、試す順に返す。
+ * 1. 既定のアイコン（クライアントと同じサイトのときだけ）
+ * 2. まとめたーのサーバーでページから探したアイコン（apiPath = /api/favicon）
+ * 読み込めなければ次を試し、全部だめなら頭文字を出す。
+ */
+export function clientIconCandidates(link: ClientLink, apiPath: string): string[] {
+  const candidates: string[] = [];
   const origin = originOf(link.url);
-  if (!origin || !isHttpUrl(link.url.trim())) return null;
-  if (link.icon && originOf(link.icon) === origin) return link.icon;
-  return `${origin}/favicon.ico`;
+  if (link.icon && origin && isHttpUrl(link.url.trim()) && originOf(link.icon) === origin) {
+    candidates.push(link.icon);
+  }
+  const page = iconPageUrl(link.url);
+  if (page) candidates.push(`${apiPath}?url=${encodeURIComponent(page)}`);
+  return candidates;
 }
 
 /**

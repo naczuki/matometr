@@ -179,7 +179,8 @@
   >
     まとめ内の投稿の日時をタップしたときのメニューに出すクライアントです。URL の
     <code>{'{nevent}'}</code>（nevent1…）・<code>{'{note}'}</code>（note1…）・<code>{'{id}'}</code
-    >（16 進のイベント ID）が、その投稿の ID に置き換わります。
+    >（16 進のイベント ID）が、その投稿の ID に置き換わります。<code>nostr:</code> で始まる
+    URL（例：<code>{'nostr:{nevent}'}</code>）は、端末の Nostr アプリで開きます。
   </ClientLinkEditor>
 
   <div class="save-bar">

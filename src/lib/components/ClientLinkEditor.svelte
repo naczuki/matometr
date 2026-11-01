@@ -142,7 +142,7 @@
     </ul>
   {/if}
 
-  <form class="add-form" on:submit|preventDefault={handleAdd}>
+  <form class="add-form" novalidate on:submit|preventDefault={handleAdd}>
     <p class="add-title">追加する</p>
     <div class="add-fields">
       <input

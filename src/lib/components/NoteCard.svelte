@@ -18,7 +18,7 @@
   import { openReactions, type ReactionHandle } from '$lib/services/reactions';
   import { groupReactions } from '$lib/utils/reaction';
   import { openClients } from '$lib/stores/clientSettings';
-  import { fillOpenUrl, type EventIds } from '$lib/utils/clientLinks';
+  import { fillOpenUrl, isNostrUri, type EventIds } from '$lib/utils/clientLinks';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
   import Avatar from '$lib/components/Avatar.svelte';
 
@@ -706,13 +706,22 @@
   >
     {#if menuIds}
       {#each $openClients as client (client.id)}
-        <a
-          class="note-menu-item"
-          href={fillOpenUrl(client.url, menuIds)}
-          target="_blank"
-          rel="noopener noreferrer"
-          on:click={() => (menuOpen = false)}>{client.name}で開く</a
-        >
+        {#if isNostrUri(client.url)}
+          <!-- nostr: は端末のアプリに渡すので、新しいタブを開かない -->
+          <a
+            class="note-menu-item"
+            href={fillOpenUrl(client.url, menuIds)}
+            on:click={() => (menuOpen = false)}>{client.name}で開く</a
+          >
+        {:else}
+          <a
+            class="note-menu-item"
+            href={fillOpenUrl(client.url, menuIds)}
+            target="_blank"
+            rel="noopener noreferrer"
+            on:click={() => (menuOpen = false)}>{client.name}で開く</a
+          >
+        {/if}
       {/each}
     {/if}
     <div

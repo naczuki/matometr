@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_OPEN_CLIENTS,
   DEFAULT_SHARE_CLIENTS,
-  clientIconUrl,
+  clientIconCandidates,
+  iconPageUrl,
+  isNostrUri,
   fillOpenUrl,
   fillShareUrl,
   isUsable,
@@ -27,13 +29,19 @@ import {
 } from './clientLinks';
 
 describe('既定値', () => {
-  it('既定のシェア先・「○○で開く」はすべてメニューに出せる', () => {
+  it('既定のシェア先・「○○で開く」はすべて正しい名前と URL を持つ', () => {
     for (const c of DEFAULT_SHARE_CLIENTS) expect(isUsable('share', c)).toBe(true);
-    for (const c of DEFAULT_OPEN_CLIENTS) expect(isUsable('open', c)).toBe(true);
+    for (const c of DEFAULT_OPEN_CLIENTS) {
+      expect(validateName(c.name)).toBeNull();
+      expect(validateUrl('open', c.url)).toBeNull();
+    }
   });
 
-  it('「○○で開く」の既定は従来どおり nostter', () => {
-    expect(DEFAULT_OPEN_CLIENTS.map((c) => c.url)).toEqual(['https://nostter.app/{nevent}']);
+  it('「○○で開く」の既定は nostter（表示）と nostr: のアプリ（非表示）', () => {
+    expect(DEFAULT_OPEN_CLIENTS.map((c) => [c.url, c.enabled])).toEqual([
+      ['https://nostter.app/{nevent}', true],
+      ['nostr:{nevent}', false]
+    ]);
   });
 });
 
@@ -51,10 +59,20 @@ describe('validateUrl', () => {
     expect(validateUrl('open', 'https://example.com/')).not.toBeNull();
   });
 
-  it('http(s) 以外のスキームは受け付けない', () => {
+  it('http(s) 以外のスキームは受け付けない（「○○で開く」だけ nostr: も可）', () => {
     expect(validateUrl('open', 'javascript:alert(1)//{nevent}')).not.toBeNull();
     expect(validateUrl('share', 'data:text/html,{text}')).not.toBeNull();
     expect(validateUrl('share', '  ')).not.toBeNull();
+    expect(validateUrl('open', 'nostr:{nevent}')).toBeNull();
+    expect(validateUrl('open', 'NOSTR:{note}')).toBeNull();
+    expect(validateUrl('open', 'nostr:')).not.toBeNull();
+    expect(validateUrl('share', 'nostr:{text}')).not.toBeNull();
+  });
+
+  it('isNostrUri', () => {
+    expect(isNostrUri('nostr:{nevent}')).toBe(true);
+    expect(isNostrUri(' nostr:x')).toBe(true);
+    expect(isNostrUri('https://nostr.example/')).toBe(false);
   });
 });
 
@@ -106,16 +124,43 @@ describe('fillOpenUrl', () => {
   });
 });
 
-describe('clientIconUrl', () => {
-  it('既定アイコンは同じサイトのときだけ使い、それ以外は /favicon.ico', () => {
-    const nostter = DEFAULT_SHARE_CLIENTS.find((c) => c.id === 'nostter')!;
-    expect(clientIconUrl(nostter)).toBe('https://nostter.app/favicon.ico');
+describe('iconPageUrl', () => {
+  it('プレースホルダ・クエリ・フラグメントを除いたページの URL', () => {
+    expect(iconPageUrl('https://nokakoi.com/app/?text={text}')).toBe('https://nokakoi.com/app/');
+    expect(iconPageUrl('https://nostter.app/post?content={text}')).toBe('https://nostter.app/post');
+    expect(iconPageUrl('https://nostter.app/{nevent}')).toBe('https://nostter.app/');
+    expect(iconPageUrl('https://example.com/e/{id}#x')).toBe('https://example.com/e/');
+  });
+
+  it('http(s) でなければ null', () => {
+    expect(iconPageUrl('nostr:{nevent}')).toBeNull();
+    expect(iconPageUrl('not a url')).toBeNull();
+  });
+});
+
+describe('clientIconCandidates', () => {
+  const api = '/api/favicon';
+
+  it('既定アイコン（同じサイトのときだけ）→ サーバーで探したアイコン の順', () => {
     const haiku = DEFAULT_SHARE_CLIENTS.find((c) => c.id === 'noshaiku')!;
-    expect(clientIconUrl(haiku)).toBe('https://nos-haiku.vercel.app/favicon.png');
-    expect(clientIconUrl({ ...haiku, url: 'https://other.example/?t={text}' })).toBe(
-      'https://other.example/favicon.ico'
+    expect(clientIconCandidates(haiku, api)).toEqual([
+      'https://nos-haiku.vercel.app/favicon.png',
+      '/api/favicon?url=' + encodeURIComponent('https://nos-haiku.vercel.app/antenna')
+    ]);
+    expect(clientIconCandidates({ ...haiku, url: 'https://other.example/?t={text}' }, api)).toEqual(
+      ['/api/favicon?url=' + encodeURIComponent('https://other.example/')]
     );
-    expect(clientIconUrl({ ...haiku, url: 'not a url' })).toBeNull();
+  });
+
+  it('nokakoi の既定アイコンはアプリのアイコン', () => {
+    const nokakoi = DEFAULT_SHARE_CLIENTS.find((c) => c.id === 'nokakoi')!;
+    expect(clientIconCandidates(nokakoi, api)[0]).toBe('https://nokakoi.com/app/icon/nokakoi.png');
+  });
+
+  it('URL が不正・nostr: なら候補なし', () => {
+    const link: ClientLink = { id: 'x', name: 'x', url: 'not a url', enabled: true };
+    expect(clientIconCandidates(link, api)).toEqual([]);
+    expect(clientIconCandidates({ ...link, url: 'nostr:{nevent}' }, api)).toEqual([]);
   });
 });
 
@@ -257,7 +302,10 @@ describe('remoteChangedSinceSync', () => {
 describe('下書きの編集（updateLink / addLink / removeLink / resetKind）', () => {
   it('既定値のままの種類を編集すると、既定値から始めて書き換える', () => {
     const edited = updateLink(emptySettingsData(), 'open', 'nostter', { enabled: false });
-    expect(edited.open).toEqual([{ ...DEFAULT_OPEN_CLIENTS[0], enabled: false }]);
+    expect(edited.open).toEqual([
+      { ...DEFAULT_OPEN_CLIENTS[0], enabled: false },
+      { ...DEFAULT_OPEN_CLIENTS[1] }
+    ]);
     expect(edited.share).toBeNull();
   });
 
@@ -269,10 +317,11 @@ describe('下書きの編集（updateLink / addLink / removeLink / resetKind）'
     });
     expect(data.open?.map((c) => [c.id, c.name, c.url, c.enabled])).toEqual([
       ['nostter', 'nostter', 'https://nostter.app/{nevent}', true],
+      ['nostr-app', 'アプリ', 'nostr:{nevent}', false],
       ['x', 'njump', 'https://njump.me/{nevent}', true]
     ]);
     data = removeLink(data, 'open', 'nostter');
-    expect(data.open?.map((c) => c.id)).toEqual(['x']);
+    expect(data.open?.map((c) => c.id)).toEqual(['nostr-app', 'x']);
     expect(resetKind(data, 'open').open).toBeNull();
   });
 
