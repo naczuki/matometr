@@ -5,17 +5,21 @@
   import {
     loadSettingsFromNostr,
     saveSettingsToNostr,
-    settingsSyncStatus
+    settingsSyncStatus,
+    useLocalSettings,
+    useRemoteSettings
   } from '$lib/services/settingsSync';
   import { hasUnsavedChanges } from '$lib/utils/clientLinks';
   import { formatAbsoluteTime } from '$lib/utils/time';
 
   // 設定画面上部の「Nostr で同期」。保存はボタンで、読み込みはログイン時に自動＋ボタンで行う。
+  // 別の端末の保存とこの端末の未保存の変更が競合したら、どちらを使うか選んでもらう。
 
   $: pubkey = $currentUser?.pubkey ?? null;
   $: record = pubkey ? $settingsSyncRecords[pubkey] : undefined;
   $: unsaved = hasUnsavedChanges($localSettings, record);
   $: busy = $settingsSyncStatus.busy;
+  $: conflict = $settingsSyncStatus.conflict;
   // 結果の表示は、その後に設定を変えたら消す（「保存しました」が未保存の変更と並ばないように）
   $: current = $settingsSyncStatus.at === $localSettings.updatedAt;
 
@@ -37,6 +41,14 @@
     showLoadConfirm = false;
     if (pubkey) void loadSettingsFromNostr(pubkey);
   }
+
+  function handleUseLocal(): void {
+    if (pubkey) void useLocalSettings(pubkey);
+  }
+
+  function handleUseRemote(): void {
+    if (pubkey) void useRemoteSettings(pubkey);
+  }
 </script>
 
 <section class="sync">
@@ -48,15 +60,17 @@
     </p>
   {:else}
     <p class="sync-desc">
-      設定を暗号化（NIP-44）して Nostr に保存します（kind:30078）。ログインしたときに、Nostr
-      側の方が新しければ自動で読み込みます。保存・読み込みのときに、署名や暗号化の確認が出ることがあります。
+      設定を暗号化（NIP-44）して Nostr
+      に保存します（kind:30078）。別の端末で保存した設定は、ログインしたときに読み込みます。保存・読み込みのときに、署名や暗号化の確認が出ることがあります。
     </p>
 
-    <p class="sync-state" class:pending={unsaved && !busy}>
+    <p class="sync-state" class:pending={(unsaved || conflict) && !busy}>
       {#if busy === 'load'}
         Nostr の設定を確認しています…
       {:else if busy === 'save'}
         Nostr に保存しています…
+      {:else if conflict}
+        あとから別の端末で保存した設定があります。どちらを使いますか？
       {:else if unsaved}
         この端末に、Nostr へ保存していない変更があります。
       {:else if record}
@@ -67,12 +81,21 @@
     </p>
 
     <div class="sync-actions">
-      <button class="btn-save" disabled={!unsaved || busy !== null} on:click={handleSave}>
-        Nostr に保存
-      </button>
-      <button class="btn-load" disabled={busy !== null} on:click={handleLoadClick}>
-        Nostr から読み込む
-      </button>
+      {#if conflict}
+        <button class="btn-save" disabled={busy !== null} on:click={handleUseLocal}>
+          この端末の設定を使う
+        </button>
+        <button class="btn-load" disabled={busy !== null} on:click={handleUseRemote}>
+          別の端末の設定を使う
+        </button>
+      {:else}
+        <button class="btn-save" disabled={!unsaved || busy !== null} on:click={handleSave}>
+          Nostr に保存
+        </button>
+        <button class="btn-load" disabled={busy !== null} on:click={handleLoadClick}>
+          Nostr から読み込む
+        </button>
+      {/if}
     </div>
 
     {#if current && $settingsSyncStatus.error}

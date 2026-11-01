@@ -13,6 +13,7 @@ import {
   settingsDataToJson,
   hasUnsavedChanges,
   decideAutoPull,
+  remoteChangedSinceSync,
   emptySettingsData,
   type ClientLink,
   type LocalSettingsState
@@ -189,17 +190,36 @@ describe('decideAutoPull', () => {
     expect(decideAutoPull(101, untouched, record)).toBe('apply');
   });
 
-  it('未保存の変更が Nostr 側より新しければ読み込まない（古ければ Nostr 側を使う）', () => {
+  it('両方が更新されていれば、時刻の新旧にかかわらず競合', () => {
     const record = { remoteCreatedAt: 100, localUpdatedAt: 1000 };
     const editedAt = (sec: number): LocalSettingsState => ({
       data: { share: [], open: null },
       updatedAt: sec * 1000
     });
-    expect(decideAutoPull(200, editedAt(300), record)).toBe('local-newer');
-    expect(decideAutoPull(200, editedAt(150), record)).toBe('apply');
+    expect(decideAutoPull(200, editedAt(300), record)).toBe('conflict');
+    expect(decideAutoPull(200, editedAt(150), record)).toBe('conflict');
+    // Nostr 側が更新されていなければ、未保存の変更があっても競合ではない
+    expect(decideAutoPull(100, editedAt(300), record)).toBe('up-to-date');
+  });
+
+  it('この端末で同期したことが無く、設定を変えていれば競合', () => {
+    const edited: LocalSettingsState = { data: { share: [], open: null }, updatedAt: 5000 };
+    expect(decideAutoPull(100, edited, undefined)).toBe('conflict');
   });
 
   it('この端末で同期したことが無く、設定も変えていなければ読み込む', () => {
     expect(decideAutoPull(100, untouched, undefined)).toBe('apply');
+  });
+});
+
+describe('remoteChangedSinceSync', () => {
+  it('同期記録が無ければ、Nostr に設定があるだけで「更新あり」', () => {
+    expect(remoteChangedSinceSync(100, undefined)).toBe(true);
+  });
+
+  it('前回そろえた created_at より新しいときだけ「更新あり」', () => {
+    const record = { remoteCreatedAt: 100, localUpdatedAt: 0 };
+    expect(remoteChangedSinceSync(100, record)).toBe(false);
+    expect(remoteChangedSinceSync(101, record)).toBe(true);
   });
 });

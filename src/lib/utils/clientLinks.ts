@@ -241,19 +241,25 @@ export function hasUnsavedChanges(
   return state.updatedAt > 0 || state.data.share !== null || state.data.open !== null;
 }
 
+/** 前回そろえた後に、Nostr 側の設定が（別の端末で）保存されたか */
+export function remoteChangedSinceSync(
+  remoteCreatedAt: number,
+  record: SyncRecord | undefined
+): boolean {
+  return !record || remoteCreatedAt > record.remoteCreatedAt;
+}
+
 /**
- * ログイン時の自動読み込みで、Nostr の設定（created_at 秒）をこの端末に読み込むか。
- * - 前回そろえた後に Nostr 側が更新されていなければ読み込まない（復号もしない）
- * - この端末に未保存の変更があり、それが Nostr 側より新しければ読み込まない
+ * Nostr の設定（created_at 秒）とこの端末の設定をどうするか。
+ * - up-to-date: 前回そろえた後に Nostr 側が更新されていない（復号もしない）
+ * - apply: Nostr 側だけが更新されている → 読み込む
+ * - conflict: 両方が更新されている → どちらを使うか利用者に選んでもらう
  */
 export function decideAutoPull(
   remoteCreatedAt: number,
   state: LocalSettingsState,
   record: SyncRecord | undefined
-): 'apply' | 'up-to-date' | 'local-newer' {
-  if (record && remoteCreatedAt <= record.remoteCreatedAt) return 'up-to-date';
-  if (hasUnsavedChanges(state, record) && state.updatedAt > remoteCreatedAt * 1000) {
-    return 'local-newer';
-  }
-  return 'apply';
+): 'apply' | 'up-to-date' | 'conflict' {
+  if (!remoteChangedSinceSync(remoteCreatedAt, record)) return 'up-to-date';
+  return hasUnsavedChanges(state, record) ? 'conflict' : 'apply';
 }
