@@ -844,7 +844,7 @@
     flex-shrink: 0;
     margin-left: auto;
     cursor: pointer;
-    border-radius: 6px;
+    border-radius: var(--radius-btn);
     padding: 3px 4px;
     margin-right: -4px;
     transition: background 0.1s;
@@ -1105,7 +1105,7 @@
   .cw-hide-btn {
     background: var(--bg);
     border: 1.5px solid var(--border2);
-    border-radius: 20px;
+    border-radius: var(--radius-btn);
     padding: 9px 28px;
     font-size: 14px;
     font-family: var(--font-ui);

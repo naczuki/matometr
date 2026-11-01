@@ -125,7 +125,7 @@
     right: 12px;
     width: 32px;
     height: 32px;
-    border-radius: 50%;
+    border-radius: var(--radius-btn);
     border: none;
     background: var(--bg);
     color: var(--ink2);
@@ -163,7 +163,7 @@
     max-width: 100%;
     padding: 9px 16px 9px 12px;
     border: 1.5px solid var(--border2);
-    border-radius: 12px;
+    border-radius: var(--radius-btn);
     background: var(--surface);
     color: var(--ink);
     font-family: var(--font-ui);

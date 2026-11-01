@@ -102,7 +102,7 @@
     right: 12px;
     width: 32px;
     height: 32px;
-    border-radius: 50%;
+    border-radius: var(--radius-btn);
     background: var(--bg);
     border: none;
     font-size: 18px;
@@ -152,7 +152,7 @@
     justify-content: center;
     gap: 11px;
     padding: 13px 16px;
-    border-radius: 9999px;
+    border-radius: var(--radius-btn);
     border: none;
     background: var(--accent);
     cursor: pointer;

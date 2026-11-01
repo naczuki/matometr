@@ -192,7 +192,7 @@
     color: var(--accent-dark);
     background: var(--accent-mid);
     padding: 3px 10px;
-    border-radius: var(--radius-btn);
+    border-radius: 9999px;
     font-family: var(--font-ui);
     font-weight: 500;
   }

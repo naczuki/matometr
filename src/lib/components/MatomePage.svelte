@@ -1017,7 +1017,7 @@
     color: var(--accent);
     background: var(--surface);
     border: 1.5px solid var(--accent-mid);
-    border-radius: 9999px;
+    border-radius: var(--radius-btn);
     padding: 8px 16px;
     cursor: pointer;
     font-family: var(--font-ui);
@@ -1044,7 +1044,7 @@
     align-items: center;
     gap: 5px;
     padding: 8px 14px;
-    border-radius: 9999px;
+    border-radius: var(--radius-btn);
     font-size: 13px;
     font-weight: 700;
     font-family: var(--font-ui);
@@ -1190,7 +1190,7 @@
     height: 15px;
     padding: 0;
     border: 1.5px solid var(--ink3);
-    border-radius: 50%;
+    border-radius: var(--radius-btn);
     background: none;
     color: var(--ink3);
     font-family: var(--font-ui);
@@ -1373,7 +1373,7 @@
     gap: 5px;
     height: 34px;
     padding: 0 12px;
-    border-radius: 10px;
+    border-radius: var(--radius-btn);
     cursor: pointer;
     background: var(--accent-pale);
     border: 1.5px solid var(--accent);
@@ -1513,7 +1513,7 @@
     background: var(--accent);
     color: white;
     border: none;
-    border-radius: 10px;
+    border-radius: var(--radius-btn);
     height: 34px;
     padding: 0 14px;
     cursor: pointer;
@@ -1543,7 +1543,7 @@
     justify-content: center;
     width: 34px;
     height: 34px;
-    border-radius: 10px;
+    border-radius: var(--radius-btn);
     cursor: pointer;
     border: none;
     background: var(--accent);
@@ -1904,7 +1904,7 @@
     align-items: center;
     gap: 5px;
     padding: 5px 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-btn);
     border: 1.5px solid var(--border2);
     background: var(--surface);
     color: var(--ink2);
@@ -1927,7 +1927,7 @@
   .json-close {
     width: 28px;
     height: 28px;
-    border-radius: 50%;
+    border-radius: var(--radius-btn);
     border: none;
     background: var(--bg);
     color: var(--ink2);

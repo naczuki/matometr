@@ -43,7 +43,7 @@
     z-index: 200;
     width: 44px;
     height: 44px;
-    border-radius: 50%;
+    border-radius: var(--radius-btn);
     border: none;
     background: var(--accent);
     color: #fff;

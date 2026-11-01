@@ -315,7 +315,7 @@
     padding: 0 16px;
     background: var(--surface);
     border: 1.5px solid var(--accent-mid);
-    border-radius: 10px;
+    border-radius: var(--radius-btn);
     color: var(--accent-dark);
     font-family: var(--font-ui);
     font-weight: 700;

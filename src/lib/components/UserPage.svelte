@@ -589,7 +589,7 @@
     align-items: center;
     gap: 3px;
     cursor: pointer;
-    border-radius: 6px;
+    border-radius: var(--radius-btn);
     padding: 1px 4px;
     margin-left: -4px;
     transition: background 0.1s;
