@@ -1,9 +1,10 @@
 import type { RequestHandler } from './$types';
-import { isHttpUrl, resolveFavicon } from '$lib/server/favicon';
+import { isAllowedTarget, resolveFavicon } from '$lib/server/favicon';
 
 // GET /api/favicon?url=<クライアントのページ URL>
 // アイコンが見つかればその URL へリダイレクトする（<img src> にそのまま使える）。
 // 見つからなければ 404。結果はブラウザとサーバー（Cloudflare の Cache API）でキャッシュする。
+// 読みに行ける先は公開サイトのホスト名だけ（IP アドレス・localhost・内部向けドメインは 400）。
 
 export const prerender = false;
 
@@ -22,7 +23,7 @@ function edgeCache(): EdgeCache | null {
 
 export const GET: RequestHandler = async ({ url, request }) => {
   const target = url.searchParams.get('url') ?? '';
-  if (!isHttpUrl(target) || target.length > 2048) {
+  if (target.length > 2048 || !isAllowedTarget(target)) {
     return new Response('bad request', { status: 400 });
   }
 
