@@ -22,6 +22,11 @@ const HEADING_LINE = /^## .+/;
 const BLOCKQUOTE_LINE = /^> /;
 const TAG_REF_LINE = /^#\[(\d+)\]$/;
 
+// naddr（NIP-19）の TLV は値の長さを 1 バイトで持つため、d タグは 255 バイトまでしか
+// 正しく表せない。これより長い d タグのイベントは naddr でリンクできないので扱わない。
+const MAX_D_TAG_BYTES = 255;
+const utf8 = new TextEncoder();
+
 export class Matome {
   readonly id: string;
   readonly pubkey: string;
@@ -97,6 +102,7 @@ export class Matome {
     const tTags = event.tags.filter(([k]) => k === 't').map(([, v]) => v);
 
     if (!dTag || !title) return null;
+    if (utf8.encode(dTag).length > MAX_D_TAG_BYTES) return null;
 
     const pointer: AddressPointer = {
       identifier: dTag,
@@ -104,10 +110,18 @@ export class Matome {
       kind: 30023
     };
 
+    // 一覧の取得は 1 件の例外でストリームごと止まるため、ここでは投げずに null を返す
+    let naddr: string;
+    try {
+      naddr = nip19.naddrEncode(pointer);
+    } catch {
+      return null;
+    }
+
     return new Matome({
       id: event.id,
       pubkey: event.pubkey,
-      naddr: nip19.naddrEncode(pointer),
+      naddr,
       dTag,
       title,
       summary,

@@ -142,3 +142,42 @@ describe('他クライアントで上書きされたまとめの救済', () => {
     expect(texts).toEqual(['見出し', neventStr, '一行目', '二行目', '段落A', '段落B']);
   });
 });
+
+// d タグが長すぎるイベントは naddr にできない。一覧の取得は 1 件の例外で止まるため、
+// 例外を投げずに「まとめではない」として扱う。
+describe('d タグが長すぎるイベント', () => {
+  function eventWithDTag(dTag: string): NostrEvent {
+    return {
+      id: EVENT_ID,
+      pubkey: PUBKEY,
+      kind: 30023,
+      created_at: 1700000000,
+      content: neventStr,
+      tags: [
+        ['d', dTag],
+        ['title', 'テストまとめ'],
+        ['t', 'matometr']
+      ],
+      sig: ''
+    };
+  }
+
+  it('255 バイトまでは naddr を作れて、元の d タグに戻せる', () => {
+    const dTag = 'x'.repeat(255);
+    const matome = Matome.fromEvent(eventWithDTag(dTag));
+    expect(matome).not.toBeNull();
+    const decoded = nip19.decode(matome!.naddr);
+    expect(decoded.type === 'naddr' && decoded.data.identifier).toBe(dTag);
+  });
+
+  it('256 バイト以上は null（壊れた naddr を作らない）', () => {
+    expect(Matome.fromEvent(eventWithDTag('x'.repeat(256)))).toBeNull();
+    // 文字数は 255 以下でも、バイト数で超えていれば同じ
+    expect(Matome.fromEvent(eventWithDTag('あ'.repeat(100)))).toBeNull();
+  });
+
+  it('極端に長くても例外を投げない', () => {
+    expect(() => Matome.fromEvent(eventWithDTag('x'.repeat(5000)))).not.toThrow();
+    expect(Matome.fromEvent(eventWithDTag('x'.repeat(5000)))).toBeNull();
+  });
+});
