@@ -143,6 +143,31 @@ describe('他クライアントで上書きされたまとめの救済', () => {
   });
 });
 
+// エディタには「まとめの引用」「メンション」のブロックが無い。v1 タグしか無い旧イベントでは
+// nostr:naddr1… / nostr:npub1… だけのコメントがこれらとして解析されるので、
+// 編集画面ではコメントに戻し、保存で本文から消えないようにする。
+describe('編集画面への変換で naddr・メンションの段落が失われない', () => {
+  const naddrStr = `nostr:${nip19.naddrEncode({ kind: 30023, pubkey: PUBKEY, identifier: 'x' })}`;
+  const npubStr = `nostr:${nip19.npubEncode(PUBKEY)}`;
+
+  it('v1 タグしか無い旧イベントの naddr・npub だけのコメントは、コメントとして取り込む', () => {
+    const event = makeEvent([nb(neventStr), cb(naddrStr), nb(neventStr), cb(npubStr)]);
+    event.tags = event.tags.filter((t) => !(t[0] === 'matome_layout' && t[1] === '2'));
+    const matome = Matome.fromEvent(event);
+    expect(matome!.blocks.map((b) => b.type)).toEqual(['nevent', 'naddr', 'nevent', 'mention']);
+
+    const editor = matomeBlocksToEditorBlocks(matome!.blocks);
+    expect(editor.map((b) => (b.type === 'nevent' ? b.nevent : `${b.type}:${b.text}`))).toEqual([
+      neventStr,
+      `comment:${naddrStr}`,
+      neventStr,
+      `comment:${npubStr}`
+    ]);
+    // そのまま保存し直しても本文は変わらない
+    expect(blocksToContent(editor)).toBe(event.content);
+  });
+});
+
 // d タグが長すぎるイベントは naddr にできない。一覧の取得は 1 件の例外で止まるため、
 // 例外を投げずに「まとめではない」として扱う。
 describe('d タグが長すぎるイベント', () => {

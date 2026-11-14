@@ -3,6 +3,8 @@ import type { EditorBlock, MatomeBlock } from '$lib/types';
 // 公開済みまとめのブロック列をエディタ用に変換する（編集・インポート共通）。
 // matome_layout タグが失われたイベントでは本文が段落として解析されるため、
 // 段落はコメントとして取り込み、編集で本文が消えないようにする。
+// nostr:naddr1… / nostr:npub1… だけの段落（まとめの引用・メンションとして解析される）も、
+// エディタに対応するブロックが無いのでコメントとして取り込む（落とすと保存で本文から消える）。
 export function matomeBlocksToEditorBlocks(matomeBlocks: MatomeBlock[]): EditorBlock[] {
   const result: EditorBlock[] = [];
   for (const b of matomeBlocks) {
@@ -12,7 +14,10 @@ export function matomeBlocksToEditorBlocks(matomeBlocks: MatomeBlock[]): EditorB
       result.push({ id: crypto.randomUUID(), type: 'comment', text: b.content });
     } else if (b.type === 'heading') {
       result.push({ id: crypto.randomUUID(), type: 'heading', text: b.content });
-    } else if (b.type === 'paragraph' && b.content.trim()) {
+    } else if (
+      (b.type === 'paragraph' || b.type === 'naddr' || b.type === 'mention') &&
+      b.content.trim()
+    ) {
       result.push({ id: crypto.randomUUID(), type: 'comment', text: b.content });
     }
   }
