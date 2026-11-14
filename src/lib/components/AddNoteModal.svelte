@@ -9,6 +9,7 @@
     neventFor,
     relaysFromNevent
   } from '$lib/utils/nostr';
+  import { isImeComposing } from '$lib/utils/keyboard';
   import type { Note } from '$lib/types';
   import { fetchNoteWithRelayListFallback } from '$lib/services/NostrClient';
   import { currentUser } from '$lib/stores/auth';
@@ -226,6 +227,8 @@
                 on:keydown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
+                    // 変換確定の Enter では追加しない
+                    if (isImeComposing(e)) return;
                     addPaste();
                   }
                 }}
