@@ -7,6 +7,7 @@
   import type { AddressPointer } from 'nostr-tools/nip19';
   import { fetchMatomeByAddress, updateMatome } from '$lib/services/NostrClient';
   import { currentUser } from '$lib/stores/auth';
+  import { markMatomeListStale } from '$lib/stores/matomeListFreshness';
   import BlockEditor from '$lib/components/BlockEditor.svelte';
   import AnnounceModal from '$lib/components/AnnounceModal.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
@@ -24,6 +25,7 @@
   let blocks: EditorBlock[] = [];
   let origDTag = '';
   let origPublishedAt = 0;
+  let origCreatedAt = 0;
 
   let initialSnapshot = '';
 
@@ -65,6 +67,7 @@
           summary = m.summary;
           origDTag = m.dTag;
           origPublishedAt = m.publishedAt;
+          origCreatedAt = m.createdAt;
           blocks = matomeBlocksToEditorBlocks(m.blocks);
           initialSnapshot = computeSnapshot();
         },
@@ -156,10 +159,12 @@
       const result = await updateMatome({
         dTag: origDTag,
         publishedAt: origPublishedAt,
+        prevCreatedAt: origCreatedAt,
         title: title.trim(),
         summary: summary.trim(),
         blocks
       });
+      markMatomeListStale();
       pendingNaddr = result;
       showAnnounceModal = true;
     } catch (e) {

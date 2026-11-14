@@ -6,7 +6,8 @@
   import { nip19 } from 'nostr-tools';
   import type { AddressPointer } from 'nostr-tools/nip19';
   import { currentUser } from '$lib/stores/auth';
-  import { publishMatome, fetchMatomeByAddress } from '$lib/services/NostrClient';
+  import { publishMatome, newMatomeDTag, fetchMatomeByAddress } from '$lib/services/NostrClient';
+  import { markMatomeListStale } from '$lib/stores/matomeListFreshness';
   import BlockEditor from '$lib/components/BlockEditor.svelte';
   import AnnounceModal from '$lib/components/AnnounceModal.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
@@ -58,6 +59,9 @@
       importing = true;
       const sub = fetchMatomeByAddress(pointer).subscribe({
         next: (m) => {
+          // より新しい版があとから届くことがある。読み込んだ内容をすでに書き換えていたら、
+          // 入力中の内容を置き換えない。
+          if (checkDirty()) return;
           title = m.title;
           summary = m.summary ?? '';
           blocks = matomeBlocksToEditorBlocks(m.blocks);
@@ -120,12 +124,28 @@
     }
   }
 
+  // 公開がタイムアウトなどで失敗したあとにやり直しても別のまとめにならないよう、
+  // d タグと公開時刻は最初に公開を押したときに決めて、やり直しでも同じものを使う。
+  let draftDTag = '';
+  let draftPublishedAt = 0;
+
   async function handlePublish(): Promise<void> {
     if (!canPublish || publishing) return;
     publishing = true;
     publishError = '';
+    if (!draftDTag) {
+      draftDTag = newMatomeDTag();
+      draftPublishedAt = Math.floor(Date.now() / 1000);
+    }
     try {
-      const naddr = await publishMatome({ title: title.trim(), summary: summary.trim(), blocks });
+      const naddr = await publishMatome({
+        title: title.trim(),
+        summary: summary.trim(),
+        blocks,
+        dTag: draftDTag,
+        publishedAt: draftPublishedAt
+      });
+      markMatomeListStale();
       pendingNaddr = naddr;
       showAnnounceModal = true;
     } catch (e) {
