@@ -9,6 +9,8 @@
     relaysFromNevent,
     authorFromNevent,
     resolveReplyParentId,
+    resolveRepostTarget,
+    isEmbeddableNote,
     shortNpubFromPubkey,
     neventFor
   } from '$lib/utils/nostr';
@@ -60,9 +62,21 @@
     return [...relays];
   }
 
+  // 問い合わせた id と時刻。fetchMeta は blocks が変わるたび（コメントの 1 文字ごと）に
+  // 呼ばれるので、取得中・見つからなかった投稿を毎回問い合わせ直さないようにする。
+  // 一定時間たてば、次に blocks が変わったときにもう一度だけ試す。
+  const META_RETRY_MS = 30_000;
+  const metaRequestedAt = new Map<string, number>();
+
   function fetchMeta(ids: string[]): void {
-    const uncached = ids.filter((id) => !notesCache.has(id));
+    const now = Date.now();
+    const uncached = ids.filter((id) => {
+      if (notesCache.has(id)) return false;
+      const requestedAt = metaRequestedAt.get(id);
+      return requestedAt === undefined || now - requestedAt >= META_RETRY_MS;
+    });
     if (uncached.length === 0) return;
+    for (const id of uncached) metaRequestedAt.set(id, now);
     fetchNotesByIds(uncached, { relays: hintRelaysOfBlocks() }).subscribe({
       next: (n) => notesCache.set(n.id, n),
       complete: () => {
@@ -104,24 +118,31 @@
     return m;
   })();
 
-  function blockReplyToId(b: EditorBlock | undefined): string | null {
-    if (!b || b.type !== 'nevent' || !b.nevent) return null;
-    const id = eventIdFromNevent(b.nevent);
-    if (!id) return null;
-    const note = notesCache.get(id);
-    if (!note) return null;
-    const parentId = resolveReplyParentId(note);
-    return parentId && inMatomeIds.has(parentId) ? parentId : null;
-  }
-
   // 詳細ページと同条件：直上が親本人または同じ親への兄弟リプのとき 1 段インデント。
-  function shouldIndentBlock(i: number): boolean {
-    const replyToId = blockReplyToId(blocks[i]);
-    if (!replyToId) return false;
-    const prev = blocks[i - 1];
-    if (!prev || prev.type !== 'nevent' || !prev.nevent) return false;
-    return eventIdFromNevent(prev.nevent) === replyToId || blockReplyToId(prev) === replyToId;
+  // 投稿の取得後（notesCache の更新）にも再計算されるよう、参照するものを引数で受け取る。
+  function buildIndentFlags(
+    list: EditorBlock[],
+    cache: Map<string, Note>,
+    idsInMatome: Set<string>
+  ): boolean[] {
+    const replyToId = (b: EditorBlock | undefined): string | null => {
+      if (!b || b.type !== 'nevent' || !b.nevent) return null;
+      const id = eventIdFromNevent(b.nevent);
+      if (!id) return null;
+      const note = cache.get(id);
+      if (!note) return null;
+      const parentId = resolveReplyParentId(note);
+      return parentId && idsInMatome.has(parentId) ? parentId : null;
+    };
+    return list.map((b, i) => {
+      const parentId = replyToId(b);
+      if (!parentId) return false;
+      const prev = list[i - 1];
+      if (!prev || prev.type !== 'nevent' || !prev.nevent) return false;
+      return eventIdFromNevent(prev.nevent) === parentId || replyToId(prev) === parentId;
+    });
   }
+  $: indentFlags = buildIndentFlags(blocks, notesCache, inMatomeIds);
 
   function setOpenGapId(id: string | null): void {
     openGapId = id;
@@ -305,7 +326,18 @@
     return result;
   }
 
+  // 貼り付け欄（「別の投稿に変更」）のブロックごとのエラー表示。
+  let pasteErrors = new Map<string, string>();
+
+  function setPasteError(id: string, message: string): void {
+    if ((pasteErrors.get(id) ?? '') === message) return;
+    pasteErrors = new Map(pasteErrors);
+    if (message) pasteErrors.set(id, message);
+    else pasteErrors.delete(id);
+  }
+
   function handleNoteInput(id: string, raw: string): void {
+    setPasteError(id, '');
     const parsed = parseNostrInput(raw);
     if (parsed) {
       blocks = blocks.map((b) => (b.id === id ? { ...b, nevent: parsed } : b));
@@ -316,6 +348,8 @@
   // 貼り付けた nevent のリレーヒントを、実際に投稿を受け取ったリレーに置き換える。
   // 既定リレー＋ヒントに無ければ、投稿の作者の write リレー → まとめ作成者の read リレーも探す。
   // 取得できなければ貼り付けたままにする。
+  // 取得できた投稿がまとめに収録できない種類なら、追加モーダルと同じく受け付けずに貼り付け欄へ戻す
+  // （リポストは表示時に元の投稿へ解決されるので、そのまま残す）。
   function replaceHintWithFetchedRelay(id: string, nevent: string): void {
     const eventId = eventIdFromNevent(nevent);
     if (!eventId) return;
@@ -324,11 +358,15 @@
       author: authorFromNevent(nevent),
       reader: $currentUser?.pubkey
     }).subscribe(({ note, relay }) => {
-      blocks = blocks.map((b) =>
-        b.id === id && b.type === 'nevent' && b.nevent === nevent
-          ? { ...b, nevent: neventFor(note, [relay]) }
-          : b
-      );
+      const stillPasted = (b: EditorBlock): boolean =>
+        b.id === id && b.type === 'nevent' && b.nevent === nevent;
+      if (!blocks.some(stillPasted)) return;
+      if (!isEmbeddableNote(note) && !resolveRepostTarget(note)) {
+        blocks = blocks.map((b) => (stillPasted(b) ? { ...b, nevent: '' } : b));
+        setPasteError(id, 'この種類のイベントはまとめに追加できません');
+        return;
+      }
+      blocks = blocks.map((b) => (stillPasted(b) ? { ...b, nevent: neventFor(note, [relay]) } : b));
     });
   }
 
@@ -422,7 +460,7 @@
             class="block-card"
             class:is-heading={block.type === 'heading'}
             class:is-comment={block.type === 'comment'}
-            class:indented={shouldIndentBlock(i)}
+            class:indented={indentFlags[i] ?? false}
           >
             <div class="drag-handle" aria-hidden="true">⋮⋮</div>
 
@@ -460,6 +498,9 @@
                     placeholder="投稿の URL / nevent1 / note1 を貼り付け"
                     on:input={(e) => handleNoteInput(block.id, e.currentTarget.value)}
                   />
+                  {#if pasteErrors.get(block.id)}
+                    <p class="parse-error">{pasteErrors.get(block.id)}</p>
+                  {/if}
                 {/if}
               {:else if block.type === 'comment'}
                 <span class="block-type-label">コメント</span>
