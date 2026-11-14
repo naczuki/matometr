@@ -9,6 +9,10 @@
 }
 
 :root {
+  /* スクロールバー・入力欄・チェックボックスなど、ブラウザが描く部品も
+     端末のライト/ダーク設定に合わせる。色の切り替え自体は下の @media で行う。 */
+  color-scheme: light dark;
+
   --accent: #f97316;
   --accent-dark: #ea580c;
   --accent-pale: #fff8f4;
