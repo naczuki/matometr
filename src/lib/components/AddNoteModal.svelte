@@ -9,7 +9,7 @@
     neventFor,
     relaysFromNevent
   } from '$lib/utils/nostr';
-  import { isImeComposing } from '$lib/utils/keyboard';
+  import { isImeComposing, runOnEnter } from '$lib/utils/keyboard';
   import type { Note } from '$lib/types';
   import { fetchNoteWithRelayListFallback } from '$lib/services/NostrClient';
   import { currentUser } from '$lib/stores/auth';
@@ -49,7 +49,8 @@
   }
 
   function handleKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape') close();
+    // 変換を取り消す Esc では閉じない（閉じると選択中の投稿も消える）
+    if (e.key === 'Escape' && !isImeComposing(e)) close();
   }
 
   function toggleSelection(eventId: string, nevent: string): void {
@@ -102,6 +103,8 @@
   }
 
   async function addPaste(): Promise<void> {
+    // 確認中にもう一度 Enter を押しても二重に追加しない（ボタンは disabled になっている）
+    if (pasteLoading) return;
     pasteError = '';
     const parsed = parsePasteInput(pasteInput);
     if (!parsed) {
@@ -224,14 +227,7 @@
                 class="paste-input"
                 type="text"
                 bind:value={pasteInput}
-                on:keydown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    // 変換確定の Enter では追加しない
-                    if (isImeComposing(e)) return;
-                    addPaste();
-                  }
-                }}
+                on:keydown={(e) => runOnEnter(e, addPaste)}
                 placeholder="nostr:nevent1… または note1…"
               />
               <button

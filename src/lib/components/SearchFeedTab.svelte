@@ -8,7 +8,7 @@
   import NotePreview from '$lib/components/NotePreview.svelte';
   import FeedList from '$lib/components/FeedList.svelte';
   import { neventFor, isEmbeddableNote } from '$lib/utils/nostr';
-  import { isImeComposing } from '$lib/utils/keyboard';
+  import { runOnEnter } from '$lib/utils/keyboard';
 
   export let selectedIds: Set<string>;
   export let onToggle: (eventId: string, nevent: string) => void;
@@ -241,14 +241,7 @@
       class="search-input"
       type="text"
       bind:value={keyword}
-      on:keydown={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          // 変換確定の Enter では検索しない
-          if (isImeComposing(e)) return;
-          handleSearch();
-        }
-      }}
+      on:keydown={(e) => runOnEnter(e, handleSearch)}
       placeholder="#タグ または キーワード"
     />
     <button class="search-btn" type="button" on:click={handleSearch} disabled={searchLoading}>
