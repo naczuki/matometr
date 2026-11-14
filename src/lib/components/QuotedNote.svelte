@@ -108,6 +108,16 @@
     if (seg.type === 'mention') requestProfile(seg.pubkey);
   }
 
+  // 閲覧注意（NIP-36 の content-warning タグ）。NoteCard と同じく、タップするまで本文をぼかす。
+  $: cwReason = (() => {
+    if (!note) return null;
+    const tag = note.tags.find((t) => t[0] === 'content-warning');
+    if (!tag) return null;
+    return tag[1] ?? '';
+  })();
+  $: hasCw = cwReason !== null;
+  let cwRevealed = false;
+
   function truncateName(name: string, max = 30): string {
     return name.length > max ? name.slice(0, max) + '…' : name;
   }
@@ -138,74 +148,108 @@
         <span class="quoted-date">{timeAgo(note.createdAt)}</span>
       {/if}
     </div>
-    <div class="quoted-content">
-      {#each segments as segment}
-        {#if segment.type === 'text'}
-          <span class="text-seg">{segment.content}</span>
-        {:else if segment.type === 'mention'}
-          {@const mp = $profiles.get(segment.pubkey)}
-          <a class="mention-link" href="{base}/{nip19.npubEncode(segment.pubkey)}">
-            @{truncateName(mp?.displayName ?? mp?.name ?? shortNpubFromPubkey(segment.pubkey))}
-          </a>
-        {:else if segment.type === 'quote'}
-          {@const ne = safeNeventEncode(segment.eventId)}
-          {#if ne}
-            <a
-              class="quote-ref-link"
-              href={externalNoteUrl(ne)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              nostr:{shortRef(ne)}
-            </a>
-          {/if}
-        {:else if segment.type === 'naddr'}
-          <a class="naddr-link" href="{base}/{segment.naddr}" rel="noopener noreferrer">
-            nostr:{shortRef(segment.naddr)}
-          </a>
-        {:else if segment.type === 'emoji'}
-          {#if failedEmojis.has(segment.shortcode)}
-            :{segment.shortcode}:
-          {:else}
-            <img
-              src={segment.url}
-              alt=":{segment.shortcode}:"
-              class="emoji-img"
-              loading="lazy"
-              on:error={() => onEmojiError(segment.shortcode)}
-            />
-          {/if}
-        {:else if segment.type === 'url'}
-          <a class="naddr-link" href={segment.url} target="_blank" rel="noopener noreferrer"
-            >{segment.url}</a
-          >
+    <div class="cw-wrap">
+      <div class="quoted-body" class:cw-blurred={hasCw && !cwRevealed}>
+        <div class="quoted-content">
+          {#each segments as segment}
+            {#if segment.type === 'text'}
+              <span class="text-seg">{segment.content}</span>
+            {:else if segment.type === 'mention'}
+              {@const mp = $profiles.get(segment.pubkey)}
+              <a class="mention-link" href="{base}/{nip19.npubEncode(segment.pubkey)}">
+                @{truncateName(mp?.displayName ?? mp?.name ?? shortNpubFromPubkey(segment.pubkey))}
+              </a>
+            {:else if segment.type === 'quote'}
+              {@const ne = safeNeventEncode(segment.eventId)}
+              {#if ne}
+                <a
+                  class="quote-ref-link"
+                  href={externalNoteUrl(ne)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  nostr:{shortRef(ne)}
+                </a>
+              {/if}
+            {:else if segment.type === 'naddr'}
+              <a class="naddr-link" href="{base}/{segment.naddr}" rel="noopener noreferrer">
+                nostr:{shortRef(segment.naddr)}
+              </a>
+            {:else if segment.type === 'emoji'}
+              {#if failedEmojis.has(segment.shortcode)}
+                :{segment.shortcode}:
+              {:else}
+                <img
+                  src={segment.url}
+                  alt=":{segment.shortcode}:"
+                  class="emoji-img"
+                  loading="lazy"
+                  on:error={() => onEmojiError(segment.shortcode)}
+                />
+              {/if}
+            {:else if segment.type === 'url'}
+              <a class="naddr-link" href={segment.url} target="_blank" rel="noopener noreferrer"
+                >{segment.url}</a
+              >
+            {/if}
+          {/each}
+        </div>
+        {#if imageUrls.length > 0}
+          <div class="media-grid" class:multi={imageUrls.length > 1}>
+            {#each imageUrls.slice(0, 4) as url, i}
+              <div class="media-item">
+                <img src={url} alt="" loading="lazy" on:error={hideMediaOnError} />
+                {#if i === 3 && imageUrls.length > 4}
+                  <span class="more-badge">+{imageUrls.length - 3}</span>
+                {/if}
+              </div>
+            {/each}
+          </div>
         {/if}
-      {/each}
-    </div>
-    {#if imageUrls.length > 0}
-      <div class="media-grid" class:multi={imageUrls.length > 1}>
-        {#each imageUrls.slice(0, 4) as url, i}
-          <div class="media-item">
-            <img src={url} alt="" loading="lazy" on:error={hideMediaOnError} />
-            {#if i === 3 && imageUrls.length > 4}
-              <span class="more-badge">+{imageUrls.length - 3}</span>
-            {/if}
+        {#if videoUrls.length > 0}
+          <div class="media-grid" class:multi={videoUrls.length > 1}>
+            {#each videoUrls.slice(0, 4) as url, i}
+              <div class="media-item">
+                <video src={url} controls playsinline on:error={hideMediaOnError}>
+                  <track kind="captions" />
+                </video>
+                {#if i === 3 && videoUrls.length > 4}
+                  <span class="more-badge">+{videoUrls.length - 3}</span>
+                {/if}
+              </div>
+            {/each}
           </div>
-        {/each}
+        {/if}
       </div>
-    {/if}
-    {#if videoUrls.length > 0}
-      <div class="media-grid" class:multi={videoUrls.length > 1}>
-        {#each videoUrls.slice(0, 4) as url, i}
-          <div class="media-item">
-            <video src={url} controls playsinline on:error={hideMediaOnError}>
-              <track kind="captions" />
-            </video>
-            {#if i === 3 && videoUrls.length > 4}
-              <span class="more-badge">+{videoUrls.length - 3}</span>
-            {/if}
+
+      {#if hasCw && !cwRevealed}
+        <div
+          class="cw-overlay"
+          role="button"
+          tabindex="0"
+          on:click|stopPropagation={() => (cwRevealed = true)}
+          on:keydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              cwRevealed = true;
+            }
+          }}
+        >
+          <div class="cw-pill">
+            <span class="cw-pill-text">⚠️{cwReason ? ' ' + cwReason : ''}</span>
+            <span class="cw-hint">タップして表示</span>
           </div>
-        {/each}
+        </div>
+      {/if}
+    </div>
+
+    {#if hasCw && cwRevealed}
+      <div class="cw-hide-wrap">
+        <button
+          type="button"
+          class="cw-hide-btn"
+          on:click|stopPropagation={() => (cwRevealed = false)}>隠す</button
+        >
       </div>
     {/if}
   {/if}
@@ -337,6 +381,102 @@
     font-family: var(--font-ui);
     line-height: 1.4;
     pointer-events: none;
+  }
+
+  /* 閲覧注意。見た目は NoteCard の閲覧注意に合わせ、引用の大きさに合わせて小さくしている。
+     「タップして表示」は、文字だけの投稿（明るい背景）でも読めるよう、注意書きの中に入れる。 */
+  .cw-wrap {
+    position: relative;
+  }
+
+  .quoted-body .quoted-content,
+  .quoted-body .media-grid {
+    transition: filter 0.2s;
+  }
+
+  .quoted-body.cw-blurred {
+    pointer-events: none;
+    user-select: none;
+    /* 1 行だけの投稿でも、上に重ねる注意書きが収まる高さにする */
+    min-height: 64px;
+    overflow: hidden;
+  }
+
+  .quoted-body.cw-blurred .quoted-content {
+    filter: blur(4px);
+  }
+
+  .quoted-body.cw-blurred .media-grid {
+    filter: blur(30px);
+  }
+
+  .cw-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1;
+  }
+
+  .cw-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 5px 16px;
+    border-radius: 14px;
+    max-width: 90%;
+    overflow: hidden;
+  }
+
+  .cw-pill-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-height: calc(1.5em * 2);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.5;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    text-align: center;
+    word-break: break-word;
+  }
+
+  .cw-hint {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.85);
+    font-family: var(--font-ui);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .cw-hide-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: 8px;
+  }
+
+  .cw-hide-btn {
+    background: var(--bg);
+    border: 1.5px solid var(--border2);
+    border-radius: var(--radius-btn);
+    padding: 5px 18px;
+    font-size: 12px;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    color: var(--ink2);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+
+  .cw-hide-btn:hover {
+    background: var(--accent-pale);
   }
 
   .quoted-error {
