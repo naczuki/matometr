@@ -1,5 +1,6 @@
 import type { RequestHandler } from './$types';
 import { isAllowedTarget, resolveFavicon } from '$lib/server/favicon';
+import { edgeCache } from '$lib/server/edgeCache';
 
 // GET /api/favicon?url=<クライアントのページ URL>
 // アイコンが見つかればその URL へリダイレクトする（<img src> にそのまま使える）。
@@ -14,16 +15,6 @@ export const prerender = false;
 const FOUND_MAX_AGE = 7 * 24 * 60 * 60;
 // 見つからなかった結果は、一時的な失敗（相手の応答が遅いなど）もあるので短めにする
 const NOT_FOUND_MAX_AGE = 60 * 60;
-
-type EdgeCache = {
-  match(request: Request): Promise<Response | undefined>;
-  put(request: Request, response: Response): Promise<void>;
-};
-
-function edgeCache(): EdgeCache | null {
-  const c = (globalThis as { caches?: { default?: EdgeCache } }).caches;
-  return c?.default ?? null;
-}
 
 /**
  * 画像の読み込みとして呼ばれたか（Sec-Fetch-Dest: image）。

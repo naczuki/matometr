@@ -8,6 +8,7 @@
  */
 import { decode } from 'nostr-tools/nip19';
 import { fetchFirstEvent, tagValue, type NostrEvent } from './relay';
+import type { EdgeCache } from './edgeCache';
 
 export interface OgData {
   title: string;
@@ -36,15 +37,70 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** URL から OGP 対象を判定し、リレー取得して OgData を返す（対象外・取得失敗は null）。 */
-export async function ogForUrl(url: URL): Promise<OgData | null> {
+/** URL が OGP の対象（/<naddr>・/<npub>）なら、その ID を返す。対象外は null。 */
+function ogTarget(url: URL): { kind: 'matome' | 'user'; id: string } | null {
   const matome = url.pathname.match(/^\/(naddr1[0-9a-z]+)\/?$/);
-  if (matome) return buildMatomeOg(matome[1], url);
+  if (matome) return { kind: 'matome', id: matome[1] };
 
   const user = url.pathname.match(/^\/(npub1[0-9a-z]+)\/?$/);
-  if (user) return buildUserOg(user[1], url);
+  if (user) return { kind: 'user', id: user[1] };
 
   return null;
+}
+
+/** URL から OGP 対象を判定し、リレー取得して OgData を返す（対象外・取得失敗は null）。 */
+export async function ogForUrl(url: URL): Promise<OgData | null> {
+  const target = ogTarget(url);
+  if (!target) return null;
+  return target.kind === 'matome' ? buildMatomeOg(target.id, url) : buildUserOg(target.id, url);
+}
+
+// リレーへの問い合わせは最大 3 秒かかり、その間ページの HTML を返せない。同じページの結果は
+// しばらくエッジに覚えておく。編集後のタイトルが OGP に出るまで、最大でこの時間だけ遅れる。
+const OG_FOUND_MAX_AGE = 5 * 60;
+// 取得できなかった結果は、一時的な失敗（リレーの応答が遅いなど）もあるので短めにする
+const OG_NOT_FOUND_MAX_AGE = 60;
+
+/**
+ * ogForUrl の結果をエッジのキャッシュ（Cloudflare の Cache API）に覚えておく版。
+ * cache が無い環境（開発サーバーなど）では毎回取得する。
+ */
+export async function cachedOgForUrl(
+  url: URL,
+  cache: EdgeCache | null,
+  fetchOg: (url: URL) => Promise<OgData | null> = ogForUrl
+): Promise<OgData | null> {
+  const target = ogTarget(url);
+  if (!target) return null;
+  if (!cache) return fetchOg(url);
+
+  const cacheKey = new Request(`${url.origin}/__og/${target.id}`, { method: 'GET' });
+  try {
+    const hit = await cache.match(cacheKey);
+    if (hit) {
+      const cached = (await hit.json()) as OgData | null;
+      // url はクエリ付きのこともあるので、今回のリクエストのものにする
+      return cached ? { ...cached, url: url.toString() } : null;
+    }
+  } catch {
+    /* キャッシュが使えなくても続ける */
+  }
+
+  const og = await fetchOg(url);
+  try {
+    await cache.put(
+      cacheKey,
+      new Response(JSON.stringify(og), {
+        headers: {
+          'content-type': 'application/json',
+          'cache-control': `public, max-age=${og ? OG_FOUND_MAX_AGE : OG_NOT_FOUND_MAX_AGE}`
+        }
+      })
+    );
+  } catch {
+    /* キャッシュに入れられなくても結果は返す */
+  }
+  return og;
 }
 
 async function buildMatomeOg(naddr: string, url: URL): Promise<OgData | null> {
