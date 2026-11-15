@@ -230,6 +230,8 @@ export class Matome {
     return { type: 'nevent', content: chunk };
   }
 
+  // v1 レイアウト（テキスト区間ごとのチャンク数の入れ子配列）。今は書き出しておらず、
+  // 過去のイベントを読むためだけに残している。
   private static parseContentWithLayout(
     content: string,
     eventTags: string[][],

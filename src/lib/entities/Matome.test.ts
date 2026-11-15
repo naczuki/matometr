@@ -43,6 +43,15 @@ function makeEvent(blocks: EditorBlock[], extraTags: string[][] = []): NostrEven
   };
 }
 
+// 以前の版が書き出していた v1 タグだけを持つ旧イベントにする（今は v1 を書き出さない）
+function withV1Only(event: NostrEvent, runs: number[][]): NostrEvent {
+  event.tags = [
+    ...event.tags.filter((t) => t[0] !== 'matome_layout'),
+    ['matome_layout', '1', JSON.stringify(runs)]
+  ];
+  return event;
+}
+
 function roundTrip(blocks: EditorBlock[]): { type: string; content: string }[] {
   const matome = Matome.fromEvent(makeEvent(blocks));
   expect(matome).not.toBeNull();
@@ -84,8 +93,7 @@ describe('Matome レイアウトのラウンドトリップ', () => {
 
   it('v1 タグしか無い旧イベントは従来どおり推測でパースされる', () => {
     const blocks = [nb(neventStr), hb('見出し'), cb('コメント')];
-    const event = makeEvent(blocks);
-    event.tags = event.tags.filter((t) => !(t[0] === 'matome_layout' && t[1] === '2'));
+    const event = withV1Only(makeEvent(blocks), [[1, 1]]);
     const matome = Matome.fromEvent(event);
     expect(matome).not.toBeNull();
     expect(matome!.blocks.map((b) => ({ type: b.type, content: b.content }))).toEqual([
@@ -151,8 +159,10 @@ describe('編集画面への変換で naddr・メンションの段落が失わ�
   const npubStr = `nostr:${nip19.npubEncode(PUBKEY)}`;
 
   it('v1 タグしか無い旧イベントの naddr・npub だけのコメントは、コメントとして取り込む', () => {
-    const event = makeEvent([nb(neventStr), cb(naddrStr), nb(neventStr), cb(npubStr)]);
-    event.tags = event.tags.filter((t) => !(t[0] === 'matome_layout' && t[1] === '2'));
+    const event = withV1Only(makeEvent([nb(neventStr), cb(naddrStr), nb(neventStr), cb(npubStr)]), [
+      [1],
+      [1]
+    ]);
     const matome = Matome.fromEvent(event);
     expect(matome!.blocks.map((b) => b.type)).toEqual(['nevent', 'naddr', 'nevent', 'mention']);
 
