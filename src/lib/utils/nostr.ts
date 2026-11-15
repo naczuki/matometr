@@ -62,6 +62,16 @@ export function resolveReplyParentId(note: Note): string | null {
   return eTags[eTags.length - 1][1];
 }
 
+/**
+ * 閲覧注意（NIP-36 の content-warning タグ）の理由。
+ * タグが無ければ null、タグはあるが理由が書かれていなければ空文字。
+ */
+export function contentWarningReason(tags: string[][]): string | null {
+  const tag = tags.find((t) => t[0] === 'content-warning');
+  if (!tag) return null;
+  return tag[1] ?? '';
+}
+
 export function parseNostrInput(raw: string): string | null {
   const m = raw.trim().match(/(nevent1[a-z0-9]+|note1[a-z0-9]+)/);
   if (!m) return null;

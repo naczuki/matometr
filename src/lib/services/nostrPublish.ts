@@ -28,46 +28,29 @@ export function blocksToContent(blocks: EditorBlock[]): string {
 }
 
 // テスト（ラウンドトリップ検証）から参照するため export している
+// matome_layout は v2 だけを書き出す。v1（テキスト区間ごとのチャンク数の入れ子配列）は
+// 種別を内容から推測するため取り違えがあり、過去のイベントを読むためだけに残している
+// （読み取りは Matome.parseContentWithLayout）。
 export function buildLayoutTag(blocks: EditorBlock[]): string[][] {
   const effectiveBlocks = blocks.filter((b) => {
     if (b.type === 'nevent') return !!b.nevent;
     return b.text.trim().length > 0;
   });
 
-  // v1: nevent で区切られたテキスト連続区間ごとのチャンク数の入れ子配列。
-  // 種別を内容から推測するため「## で始まるコメント」「nostr: 参照のみのコメント」を
-  // 取り違える。旧クライアント互換のために残し、新クライアントは v2 を優先して読む。
-  const runs: number[][] = [];
-  let currentRun: number[] = [];
-  // v2: ブロック列をそのまま記録する。'e'=引用ポスト, 'h'=見出し, 数値=コメント（チャンク数）。
+  // ブロック列をそのまま記録する。'e'=引用ポスト, 'h'=見出し, 数値=コメント（チャンク数）。
   const seq: ('e' | 'h' | number)[] = [];
-
   for (const block of effectiveBlocks) {
     if (block.type === 'nevent') {
-      if (currentRun.length > 0) {
-        runs.push(currentRun);
-        currentRun = [];
-      }
       seq.push('e');
     } else if (block.type === 'heading') {
-      currentRun.push(1);
       seq.push('h');
     } else {
-      let chunkCount = splitTextToChunks(block.text).length;
-      if (chunkCount === 0) chunkCount = 1;
-      currentRun.push(chunkCount);
-      seq.push(chunkCount);
+      seq.push(Math.max(1, splitTextToChunks(block.text).length));
     }
-  }
-  if (currentRun.length > 0) {
-    runs.push(currentRun);
   }
 
   if (seq.length === 0) return [];
-  const tags: string[][] = [];
-  if (runs.length > 0) tags.push(['matome_layout', '1', JSON.stringify(runs)]);
-  tags.push(['matome_layout', '2', JSON.stringify(seq)]);
-  return tags;
+  return [['matome_layout', '2', JSON.stringify(seq)]];
 }
 
 function buildMentionTags(blocks: EditorBlock[]): string[][] {
@@ -121,22 +104,55 @@ const CLIENT_TAG = [
   'wss://yabu.me'
 ];
 
+// write リレーの一覧は送信のたびに取り直さず、しばらく覚えておく（ふぁぼ・保存のたびに
+// 一覧の取得を待つと、応答の遅いリレーがあるだけで送信開始が数秒遅れる）。
+const WRITE_RELAYS_TTL_MS = 10 * 60_000;
+// 見つからなかった結果は、取得に失敗しただけのこともあるので短めにする
+const WRITE_RELAYS_EMPTY_TTL_MS = 60_000;
+const writeRelaysCache = new Map<string, { relays: string[]; expiresAt: number }>();
+
 // まとめの保存・編集・削除、ふぁぼ、告知投稿は、既定リレーに加えてユーザーの write リレー
 // （NIP-65）にも送る。kind:10002 が無い・取得できない場合は既定リレーだけになる。
-function userWriteRelays(pubkey: string): Promise<string[]> {
-  return collectObservable(fetchUserWriteRelays(pubkey), []);
+async function userWriteRelays(pubkey: string): Promise<string[]> {
+  const cached = writeRelaysCache.get(pubkey);
+  if (cached && Date.now() < cached.expiresAt) return cached.relays;
+  const relays = await collectObservable(fetchUserWriteRelays(pubkey), []);
+  const ttl = relays.length > 0 ? WRITE_RELAYS_TTL_MS : WRITE_RELAYS_EMPTY_TTL_MS;
+  writeRelaysCache.set(pubkey, { relays, expiresAt: Date.now() + ttl });
+  return relays;
+}
+
+/**
+ * 新しいまとめの d タグ。公開がタイムアウトなどで失敗したあとにやり直しても別のまとめに
+ * ならないよう、呼び出し側（作成画面）で 1 回だけ作って publishMatome に渡す。
+ */
+export function newMatomeDTag(): string {
+  return `matometr-${ulid()}`;
+}
+
+/**
+ * 置き換え可能イベントを上書きするときの created_at。
+ * リレーは created_at が新しい方を残すので、前の版と同じ秒・それ以前にならないようにする
+ * （同じ秒に続けて保存したとき・前の版を保存した端末の時計が進んでいたとき）。
+ */
+export function replacingCreatedAt(now: number, prevCreatedAt = 0): number {
+  return Math.max(now, prevCreatedAt + 1);
 }
 
 export async function publishMatome(params: {
   title: string;
   summary: string;
   blocks: EditorBlock[];
+  /** 公開をやり直すときは、最初に使った d タグと公開時刻を渡す（newMatomeDTag を参照） */
+  dTag?: string;
+  publishedAt?: number;
 }): Promise<string> {
   if (!window.nostr) throw new Error('Nostr 拡張機能が利用できません');
 
   const pubkey = await window.nostr.getPublicKey();
-  const dTag = `matometr-${ulid()}`;
+  const dTag = params.dTag ?? newMatomeDTag();
   const now = Math.floor(Date.now() / 1000);
+  const publishedAt = params.publishedAt ?? now;
   const relays = await userWriteRelays(pubkey);
 
   await sendToRelays(
@@ -147,7 +163,7 @@ export async function publishMatome(params: {
         ['d', dTag],
         ['title', params.title],
         ['summary', params.summary],
-        ['published_at', String(now)],
+        ['published_at', String(publishedAt)],
         ['t', 'matometr'],
         CLIENT_TAG,
         ...buildMentionTags(params.blocks),
@@ -164,6 +180,8 @@ export async function publishMatome(params: {
 export async function updateMatome(params: {
   dTag: string;
   publishedAt: number;
+  /** 編集前の版の created_at。これより新しい時刻で保存する */
+  prevCreatedAt?: number;
   title: string;
   summary: string;
   blocks: EditorBlock[];
@@ -177,7 +195,7 @@ export async function updateMatome(params: {
   await sendToRelays(
     {
       kind: 30023 as const,
-      created_at: now,
+      created_at: replacingCreatedAt(now, params.prevCreatedAt),
       tags: [
         ['d', params.dTag],
         ['title', params.title],

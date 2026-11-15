@@ -43,6 +43,15 @@ function makeEvent(blocks: EditorBlock[], extraTags: string[][] = []): NostrEven
   };
 }
 
+// 以前の版が書き出していた v1 タグだけを持つ旧イベントにする（今は v1 を書き出さない）
+function withV1Only(event: NostrEvent, runs: number[][]): NostrEvent {
+  event.tags = [
+    ...event.tags.filter((t) => t[0] !== 'matome_layout'),
+    ['matome_layout', '1', JSON.stringify(runs)]
+  ];
+  return event;
+}
+
 function roundTrip(blocks: EditorBlock[]): { type: string; content: string }[] {
   const matome = Matome.fromEvent(makeEvent(blocks));
   expect(matome).not.toBeNull();
@@ -84,8 +93,7 @@ describe('Matome レイアウトのラウンドトリップ', () => {
 
   it('v1 タグしか無い旧イベントは従来どおり推測でパースされる', () => {
     const blocks = [nb(neventStr), hb('見出し'), cb('コメント')];
-    const event = makeEvent(blocks);
-    event.tags = event.tags.filter((t) => !(t[0] === 'matome_layout' && t[1] === '2'));
+    const event = withV1Only(makeEvent(blocks), [[1, 1]]);
     const matome = Matome.fromEvent(event);
     expect(matome).not.toBeNull();
     expect(matome!.blocks.map((b) => ({ type: b.type, content: b.content }))).toEqual([
@@ -140,5 +148,71 @@ describe('他クライアントで上書きされたまとめの救済', () => {
     const editor = matomeBlocksToEditorBlocks(matome!.blocks);
     const texts = editor.map((b) => (b.type === 'nevent' ? b.nevent : b.text));
     expect(texts).toEqual(['見出し', neventStr, '一行目', '二行目', '段落A', '段落B']);
+  });
+});
+
+// エディタには「まとめの引用」「メンション」のブロックが無い。v1 タグしか無い旧イベントでは
+// nostr:naddr1… / nostr:npub1… だけのコメントがこれらとして解析されるので、
+// 編集画面ではコメントに戻し、保存で本文から消えないようにする。
+describe('編集画面への変換で naddr・メンションの段落が失われない', () => {
+  const naddrStr = `nostr:${nip19.naddrEncode({ kind: 30023, pubkey: PUBKEY, identifier: 'x' })}`;
+  const npubStr = `nostr:${nip19.npubEncode(PUBKEY)}`;
+
+  it('v1 タグしか無い旧イベントの naddr・npub だけのコメントは、コメントとして取り込む', () => {
+    const event = withV1Only(makeEvent([nb(neventStr), cb(naddrStr), nb(neventStr), cb(npubStr)]), [
+      [1],
+      [1]
+    ]);
+    const matome = Matome.fromEvent(event);
+    expect(matome!.blocks.map((b) => b.type)).toEqual(['nevent', 'naddr', 'nevent', 'mention']);
+
+    const editor = matomeBlocksToEditorBlocks(matome!.blocks);
+    expect(editor.map((b) => (b.type === 'nevent' ? b.nevent : `${b.type}:${b.text}`))).toEqual([
+      neventStr,
+      `comment:${naddrStr}`,
+      neventStr,
+      `comment:${npubStr}`
+    ]);
+    // そのまま保存し直しても本文は変わらない
+    expect(blocksToContent(editor)).toBe(event.content);
+  });
+});
+
+// d タグが長すぎるイベントは naddr にできない。一覧の取得は 1 件の例外で止まるため、
+// 例外を投げずに「まとめではない」として扱う。
+describe('d タグが長すぎるイベント', () => {
+  function eventWithDTag(dTag: string): NostrEvent {
+    return {
+      id: EVENT_ID,
+      pubkey: PUBKEY,
+      kind: 30023,
+      created_at: 1700000000,
+      content: neventStr,
+      tags: [
+        ['d', dTag],
+        ['title', 'テストまとめ'],
+        ['t', 'matometr']
+      ],
+      sig: ''
+    };
+  }
+
+  it('255 バイトまでは naddr を作れて、元の d タグに戻せる', () => {
+    const dTag = 'x'.repeat(255);
+    const matome = Matome.fromEvent(eventWithDTag(dTag));
+    expect(matome).not.toBeNull();
+    const decoded = nip19.decode(matome!.naddr);
+    expect(decoded.type === 'naddr' && decoded.data.identifier).toBe(dTag);
+  });
+
+  it('256 バイト以上は null（壊れた naddr を作らない）', () => {
+    expect(Matome.fromEvent(eventWithDTag('x'.repeat(256)))).toBeNull();
+    // 文字数は 255 以下でも、バイト数で超えていれば同じ
+    expect(Matome.fromEvent(eventWithDTag('あ'.repeat(100)))).toBeNull();
+  });
+
+  it('極端に長くても例外を投げない', () => {
+    expect(() => Matome.fromEvent(eventWithDTag('x'.repeat(5000)))).not.toThrow();
+    expect(Matome.fromEvent(eventWithDTag('x'.repeat(5000)))).toBeNull();
   });
 });

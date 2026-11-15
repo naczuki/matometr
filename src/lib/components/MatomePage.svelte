@@ -87,6 +87,7 @@
     showDeleteConfirm = false;
     showJson = false;
     faved = false;
+    favedHere = false;
     favCount = 0;
     favSending = false;
     _favFetchedPk = null;
@@ -266,6 +267,8 @@
 
   // fav (kind:7 リアクション)
   let faved = false;
+  // この画面でふぁぼを送ったか（リレーからの取得結果にまだ含まれていないことがある）
+  let favedHere = false;
   let favCount = 0;
   let favSending = false;
   let favSub: Subscription | null = null;
@@ -283,11 +286,15 @@
   function fetchFavState(m: Matome, myPk: string | null): void {
     if (_favFetchedPk === myPk && favSub) return;
     _favFetchedPk = myPk;
+    favedHere = false;
     favSub?.unsubscribe();
     favSub = fetchReactionsForMatome(m.pubkey, m.dTag, myPk).subscribe({
       next(result) {
-        favCount = result.count;
-        faved = result.myFaved;
+        // 取得が終わる前にこの画面でふぁぼした場合、まだ反映されていない結果で
+        // 「ふぁぼしていない」に戻さない（戻すともう一度ふぁぼできてしまう）。
+        const pending = favedHere && !result.myFaved;
+        favCount = result.count + (pending ? 1 : 0);
+        faved = result.myFaved || favedHere;
       }
     });
   }
@@ -321,6 +328,7 @@
         dTag: matome.dTag
       });
       faved = true;
+      favedHere = true;
       favCount += 1;
       markFaved(matome.pubkey, matome.dTag);
     } catch (e) {

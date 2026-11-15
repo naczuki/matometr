@@ -7,11 +7,14 @@
  * 取得不可・対象外はそのまま（汎用 OGP）。クローラーは注入後の <head> を読む。
  */
 import type { Handle } from '@sveltejs/kit';
-import { ogForUrl, injectOgIntoHtml } from '$lib/server/og';
+import { cachedOgForUrl, injectOgIntoHtml } from '$lib/server/og';
+import { edgeCache } from '$lib/server/edgeCache';
 
 export const handle: Handle = async ({ event, resolve }) => {
-  const og = await ogForUrl(event.url);
+  // リレーへの問い合わせ（キャッシュに無ければ最大 3 秒）は、ページの組み立てと並行して進める
+  const ogPromise = cachedOgForUrl(event.url, edgeCache()).catch(() => null);
   const response = await resolve(event);
+  const og = await ogPromise;
 
   if (!og) return response;
   if (!(response.headers.get('content-type') ?? '').includes('text/html')) return response;

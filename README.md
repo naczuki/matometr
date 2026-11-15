@@ -9,10 +9,10 @@ Nostrのまとめ作成(kind:30023)and閲覧webクライアント
 ## 技術スタック
 
 - [SvelteKit](https://kit.svelte.dev/) 2 + Svelte 4 + TypeScript
-- [`@sveltejs/adapter-static`](https://kit.svelte.dev/docs/adapter-static)（静的書き出し、GitHub Pages へデプロイ）
+- [`@sveltejs/adapter-cloudflare`](https://svelte.dev/docs/kit/adapter-cloudflare)（Cloudflare Workers へデプロイ。画面はブラウザ側で描画し、OGP の差し込みと `/api/favicon` だけサーバーで動く）
 - [Tailwind CSS](https://tailwindcss.com/)
 - Nostr 関連：[`nostr-tools`](https://github.com/nbd-wtf/nostr-tools) / [`rx-nostr`](https://github.com/penpenpng/rx-nostr) / [`@konemono/nostr-login`](https://www.npmjs.com/package/@konemono/nostr-login)
-- その他：`marked`（Markdown）/ `dompurify`（サニタイズ）/ `ulid`（d-tag 生成）/ `sortablejs`・`svelte-dnd-action`（並べ替え）
+- その他：`marked`（Markdown）/ `dompurify`（サニタイズ）/ `ulid`（d-tag 生成）/ `sortablejs`（並べ替え）
 
 ## まとめイベント（kind:30023）のタグ
 

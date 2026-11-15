@@ -28,6 +28,7 @@
   import { DEFAULT_RELAYS } from '$lib/stores/relays';
   import { deletedMatomeIds } from '$lib/stores/deletedMatomes';
   import { clearFavDeltas } from '$lib/stores/favs';
+  import { consumeMatomeListStale } from '$lib/stores/matomeListFreshness';
 
   // rx-nostr の EventPacket.from はスラッシュなしで返るため正規化
   const RELAYS: string[] = DEFAULT_RELAYS.map((r) => r.replace(/\/$/, ''));
@@ -228,6 +229,8 @@
   }
 
   onMount(() => {
+    // まとめを作成・更新したあとは、覚えている一覧を使わずに取り直す
+    if (consumeMatomeListStale()) listCache = null;
     if (listCache) {
       const savedScrollY = listCache.scrollY;
       restoreFromCache(listCache);
