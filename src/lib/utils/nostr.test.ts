@@ -6,7 +6,8 @@ import {
   isKind1Comment,
   isEmbeddableNote,
   relaysFromNevent,
-  authorFromNevent
+  authorFromNevent,
+  contentWarningReason
 } from './nostr';
 import type { Note } from '$lib/types';
 
@@ -205,5 +206,21 @@ describe('resolveRepostTarget', () => {
 
   it('returns null for non-repost kinds', () => {
     expect(resolveRepostTarget(note({ kind: 1, tags: [['e', ID_A]] }))).toBeNull();
+  });
+});
+
+describe('contentWarningReason：閲覧注意（content-warning タグ）', () => {
+  it('タグが無ければ null', () => {
+    expect(contentWarningReason([])).toBeNull();
+    expect(contentWarningReason([['t', 'content-warning']])).toBeNull();
+  });
+
+  it('理由が書かれていればその文字列', () => {
+    expect(contentWarningReason([['content-warning', 'ネタバレ']])).toBe('ネタバレ');
+  });
+
+  it('タグはあるが理由が無ければ空文字（閲覧注意ではある）', () => {
+    expect(contentWarningReason([['content-warning']])).toBe('');
+    expect(contentWarningReason([['content-warning', '']])).toBe('');
   });
 });

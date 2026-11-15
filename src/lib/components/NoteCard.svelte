@@ -14,7 +14,12 @@
     resolveTagRefs,
     buildEmojiMap
   } from '$lib/utils/nostrContent';
-  import { shortNpubFromPubkey, resolveRepostTarget, isKind1Comment } from '$lib/utils/nostr';
+  import {
+    shortNpubFromPubkey,
+    resolveRepostTarget,
+    isKind1Comment,
+    contentWarningReason
+  } from '$lib/utils/nostr';
   import { openReactions, type ReactionHandle } from '$lib/services/reactions';
   import { groupReactions } from '$lib/utils/reaction';
   import { openClients } from '$lib/stores/clientSettings';
@@ -282,12 +287,7 @@
     if (seg.type === 'mention') requestProfile(seg.pubkey);
   }
 
-  $: cwReason = (() => {
-    if (!note) return null;
-    const tag = note.tags.find((t) => t[0] === 'content-warning');
-    if (!tag) return null;
-    return tag[1] ?? '';
-  })();
+  $: cwReason = note ? contentWarningReason(note.tags) : null;
   $: hasCw = cwReason !== null;
   let cwRevealed = false;
 

@@ -17,6 +17,7 @@
   import FavoritesFeedTab from '$lib/components/FavoritesFeedTab.svelte';
   import SearchFeedTab from '$lib/components/SearchFeedTab.svelte';
   import QuotedNote from '$lib/components/QuotedNote.svelte';
+  import { resetCwRevealed } from '$lib/components/NotePreview.svelte';
 
   export let open = false;
   // まとめ内ポストの id -> pubkey（候補の返信先バッジ用）。
@@ -41,6 +42,7 @@
     pasteInput = '';
     pasteError = '';
     activeTab = 'paste';
+    resetCwRevealed();
     dispatch('close');
   }
 
@@ -169,6 +171,7 @@
     pasteInput = '';
     pasteError = '';
     activeTab = 'paste';
+    resetCwRevealed();
   }
 </script>
 

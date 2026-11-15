@@ -15,7 +15,8 @@
     shortNpubFromPubkey,
     resolveRepostTarget,
     externalNoteUrl,
-    isKind1Comment
+    isKind1Comment,
+    contentWarningReason
   } from '$lib/utils/nostr';
   import { timeAgo } from '$lib/utils/time';
   import Avatar from '$lib/components/Avatar.svelte';
@@ -109,12 +110,7 @@
   }
 
   // 閲覧注意（NIP-36 の content-warning タグ）。NoteCard と同じく、タップするまで本文をぼかす。
-  $: cwReason = (() => {
-    if (!note) return null;
-    const tag = note.tags.find((t) => t[0] === 'content-warning');
-    if (!tag) return null;
-    return tag[1] ?? '';
-  })();
+  $: cwReason = note ? contentWarningReason(note.tags) : null;
   $: hasCw = cwReason !== null;
   let cwRevealed = false;
 
